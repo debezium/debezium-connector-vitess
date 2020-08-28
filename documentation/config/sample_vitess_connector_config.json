@@ -1,0 +1,19 @@
+{
+  "name": "sample_connector",
+  "config": {
+    "connector.class": "io.debezium.connector.vitess.VitessConnector",
+    "tasks.max": 1,
+    "vitess.keyspace": "commerce",
+    "vitess.shard": "0",
+    "vitess.vtgate.host": "host.docker.internal",
+    "vitess.vtgate.port": "15991",
+    "vitess.vtctld.host": "host.docker.internal",
+    "vitess.vtctld.port": "15999",
+    "vitess.tablet.type": "MASTER",
+    "database.server.name": "connect_vitess_commerce_unsharded",
+    "decimal.handling.mode": "string",
+    "max.queue.size": "24576",
+    "max.batch.size": "6144",
+    "message.key.columns": "commerce.customer:customer_id"
+  }
+}

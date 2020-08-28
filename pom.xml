@@ -1,0 +1,367 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <parent>
+        <groupId>io.debezium</groupId>
+        <artifactId>debezium-parent</artifactId>
+        <version>1.3.0.Alpha1</version>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <version>1.3.0-SNAPSHOT</version>
+    <artifactId>debezium-connector-vitess</artifactId>
+    <name>Debezium Connector for Vitess</name>
+    <packaging>jar</packaging>
+
+    <properties>
+        <!-- Debezium parent -->
+        <version.debezium>${project.version}</version.debezium>
+
+        <!-- gRPC -->
+        <version.grpc>1.29.0</version.grpc>
+        <version.protoc>3.11.0</version.protoc>
+        <version.annotation>1.3.2</version.annotation>
+
+        <!--
+          Specify the properties that will be used for setting up the integration tests' Docker container.
+          Note that the `dockerhost.ip` property is computed from the IP address of DOCKER_HOST, which will
+          work on all platforms. We'll set some of these as system properties during integration testing.
+        -->
+        <vitess.image>vitess/test-database</vitess.image>
+        <!--suppress UnresolvedMavenProperty -->
+        <vitess.vtgate.host>${docker.host.address}</vitess.vtgate.host>
+        <vitess.vtgate.grpc.port>15991</vitess.vtgate.grpc.port>
+        <vitess.vtgate.mysql.port>15306</vitess.vtgate.mysql.port>
+        <!--suppress UnresolvedMavenProperty -->
+        <vitess.vtctld.host>${docker.host.address}</vitess.vtctld.host>
+        <vitess.vtctld.grpc.port>15999</vitess.vtctld.grpc.port>
+
+        <!-- Maven Plugins -->
+        <version.os.plugin>1.6.2</version.os.plugin>
+        <version.protobuf.plugin>0.6.1</version.protobuf.plugin>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-bom</artifactId>
+                <version>${version.grpc}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Kafka-->
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>connect-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!-- gRPC -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+        </dependency>
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Debezium -->
+        <dependency>
+            <groupId>io.debezium</groupId>
+            <artifactId>debezium-core</artifactId>
+        </dependency>
+        <!-- Testing -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.easytesting</groupId>
+            <artifactId>fest-assert</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-testing</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.debezium</groupId>
+            <artifactId>debezium-embedded</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.debezium</groupId>
+            <artifactId>debezium-core</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.debezium</groupId>
+            <artifactId>debezium-embedded</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-connect-avro-converter</artifactId>
+            <version>${version.confluent.platform}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <version>${version.annotation}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <!-- Needed to generate gRPC client code -->
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>${version.os.plugin}</version>
+            </extension>
+        </extensions>
+        <plugins>
+            <!-- Generate gRPC client code -->
+            <plugin>
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>${version.protobuf.plugin}</version>
+                <configuration>
+                    <protocArtifact>com.google.protobuf:protoc:${version.protoc}:exe:${os.detected.classifier}
+                    </protocArtifact>
+                    <pluginId>grpc-java</pluginId>
+                    <pluginArtifact>io.grpc:protoc-gen-grpc-java:${version.grpc}:exe:${os.detected.classifier}
+                    </pluginArtifact>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>
+                            <goal>compile-custom</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Integration test -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>integration-test</id>
+                        <goals>
+                            <goal>integration-test</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>verify</id>
+                        <goals>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <configuration>
+                    <watchInterval>500</watchInterval>
+                    <logDate>default</logDate>
+                    <verbose>true</verbose>
+                    <images>
+                        <image>
+                            <!-- A Docker image built locally with all Vitess components -->
+                            <name>${vitess.image}</name>
+                            <run>
+                                <namingStrategy>none</namingStrategy>
+                                <ports>
+                                    <port>${vitess.vtgate.grpc.port}:15991</port>
+                                    <port>${vitess.vtgate.mysql.port}:15306</port>
+                                    <port>${vitess.vtctld.grpc.port}:15999</port>
+                                </ports>
+                                <log>
+                                    <prefix>vitess</prefix>
+                                    <enabled>true</enabled>
+                                    <color>yellow</color>
+                                </log>
+                                <wait>
+                                    <time>60000</time> <!-- 60 seconds max -->
+                                    <log>vtgate is up</log>
+                                </wait>
+                            </run>
+                            <build>
+                                <contextDir>${project.basedir}/src/test/docker</contextDir>
+                            </build>
+                        </image>
+                    </images>
+                </configuration>
+                <!--
+                Connect this plugin to the maven lifecycle around the integration-test phase:
+                start the container in pre-integration-test and stop it in post-integration-test.
+                -->
+                <executions>
+                    <execution>
+                        <id>start</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>build</goal>
+                            <goal>start</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>stop</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>stop</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Override maven-checkstyle-plugin configuration to ignore target/generated-sources -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <configuration>
+                    <configLocation>checkstyle.xml</configLocation>
+                    <suppressionsLocation>checkstyle-suppressions.xml</suppressionsLocation>
+                    <suppressionsFileExpression>checkstyle.suppressions.file</suppressionsFileExpression>
+                    <consoleOutput>true</consoleOutput>
+                    <failsOnError>true</failsOnError>
+                    <linkXRef>false</linkXRef>
+                    <violationSeverity>error</violationSeverity>
+                    <sourceDirectories>
+                        <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
+                    </sourceDirectories>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                </configuration>
+            </plugin>
+        </plugins>
+
+        <resources>
+            <!-- Apply the properties set in the POM to the resource files -->
+            <resource>
+                <filtering>true</filtering>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>*</include>
+                    <include>**/*</include>
+                </includes>
+            </resource>
+        </resources>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>*</include>
+                    <include>**/*</include>
+                </includes>
+            </testResource>
+        </testResources>
+    </build>
+
+    <!--
+    Define several useful profiles
+    -->
+    <profiles>
+        <profile>
+            <id>assembly</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <dependencies>
+                            <dependency>
+                                <groupId>io.debezium</groupId>
+                                <artifactId>debezium-assembly-descriptors</artifactId>
+                                <version>${project.version}</version>
+                            </dependency>
+                        </dependencies>
+                        <executions>
+                            <execution>
+                                <id>default</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <finalName>${project.artifactId}-${project.version}</finalName>
+                                    <attach>true</attach>  <!-- we want attach & deploy these to Maven -->
+                                    <descriptorRefs>
+                                        <descriptorRef>connector-distribution</descriptorRef>
+                                    </descriptorRefs>
+                                    <tarLongFileMode>posix</tarLongFileMode>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <!--  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+              Do not perform any Docker-related functionality
+              To use, specify "-DskipITs" on the Maven command line.
+              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
+        <profile>
+            <id>skip-integration-tests</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+                <property>
+                    <name>skipITs</name>
+                </property>
+            </activation>
+            <properties>
+                <docker.skip>true</docker.skip>
+            </properties>
+        </profile>
+    </profiles>
+</project>

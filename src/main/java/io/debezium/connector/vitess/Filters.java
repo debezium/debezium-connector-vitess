@@ -36,10 +36,10 @@ public class Filters {
 
         String columnWhitelist = config.columnWhitelist();
         if (columnWhitelist != null) {
-            this.columnFilter = Tables.ColumnNameFilterFactory.createWhitelistFilter(config.columnWhitelist());
+            this.columnFilter = Tables.ColumnNameFilterFactory.createIncludeListFilter(config.columnWhitelist());
         }
         else {
-            this.columnFilter = Tables.ColumnNameFilterFactory.createBlacklistFilter(config.columnBlacklist());
+            this.columnFilter = Tables.ColumnNameFilterFactory.createExcludeListFilter(config.columnBlacklist());
         }
     }
 

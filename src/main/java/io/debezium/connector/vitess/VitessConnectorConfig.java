@@ -108,10 +108,12 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .name("Vitess")
             .type(KEYSPACE, SHARD, VTGATE_HOST, VTGATE_PORT, VTCTLD_HOST, VTCTLD_PORT, TABLET_TYPE)
             .events(INCLUDE_UNKNOWN_DATATYPES)
-            .excluding(SCHEMA_BLACKLIST, SCHEMA_WHITELIST)
+            .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST)
             .create();
 
-    /** The set of {@link Field}s defined as part of this configuration. */
+    /**
+     * The set of {@link Field}s defined as part of this configuration.
+     */
     public static Field.Set ALL_FIELDS = Field.setOf(CONFIG_DEFINITION.all());
 
     public static ConfigDef configDef() {
@@ -182,21 +184,5 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public boolean includeUnknownDatatypes() {
         return getConfig().getBoolean(INCLUDE_UNKNOWN_DATATYPES);
-    }
-
-    public String tableBlacklist() {
-        return getConfig().getString(TABLE_BLACKLIST);
-    }
-
-    public String tableWhitelist() {
-        return getConfig().getString(TABLE_WHITELIST);
-    }
-
-    protected String columnBlacklist() {
-        return getConfig().getString(COLUMN_BLACKLIST);
-    }
-
-    protected String columnWhitelist() {
-        return getConfig().getString(COLUMN_WHITELIST);
     }
 }

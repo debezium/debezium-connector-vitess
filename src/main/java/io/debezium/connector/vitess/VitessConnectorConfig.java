@@ -17,6 +17,7 @@ import io.debezium.config.Field;
 import io.debezium.connector.SourceInfoStructMaker;
 import io.debezium.connector.vitess.connection.VgtidReader;
 import io.debezium.function.Predicates;
+import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.relational.ColumnId;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
@@ -28,7 +29,26 @@ import io.debezium.relational.Tables.ColumnNameFilter;
  */
 public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
-    public static final String VITESS_CONFIG_GROUP_PREFIX = "vitess.";
+    private static final String VITESS_CONFIG_GROUP_PREFIX = "vitess.";
+    private static final int DEFAULT_VTGATE_PORT = 15_991;
+    private static final int DEFAULT_VTCTLD_PORT = 15_999;
+
+    public static final Field VTGATE_HOST = Field.create(DATABASE_CONFIG_PREFIX + JdbcConfiguration.HOSTNAME)
+            .withDisplayName("Vitess database hostname")
+            .withType(Type.STRING)
+            .withWidth(Width.MEDIUM)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withValidation(Field::isRequired)
+            .withDescription("Resolvable hostname or IP address of the Vitess VTGate gRPC server.");
+
+    public static final Field VTGATE_PORT = Field.create(DATABASE_CONFIG_PREFIX + JdbcConfiguration.PORT)
+            .withDisplayName("Vitess database port")
+            .withType(Type.INT)
+            .withWidth(Width.SHORT)
+            .withDefault(DEFAULT_VTGATE_PORT)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withValidation(Field::isInteger)
+            .withDescription("Port of the Vitess VTGate gRPC server.");
 
     public static final Field KEYSPACE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "keyspace")
             .withDisplayName("Keyspace")
@@ -50,22 +70,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                             + "E.p. \"0\" for an unsharded keyspace. "
                             + "Or \"-80\" for the -80 shard of the sharded keyspace.");
 
-    public static final Field VTGATE_HOST = Field.create(VITESS_CONFIG_GROUP_PREFIX + "vtgate.host")
-            .withDisplayName("VTGate server hostname")
-            .withType(Type.STRING)
-            .withWidth(Width.MEDIUM)
-            .withImportance(ConfigDef.Importance.HIGH)
-            .withValidation(Field::isRequired)
-            .withDescription("VTGate gRPC server host name. E.p. \"localhost\".");
-
-    public static final Field VTGATE_PORT = Field.create(VITESS_CONFIG_GROUP_PREFIX + "vtgate.port")
-            .withDisplayName("VTGate server port")
-            .withType(Type.INT)
-            .withWidth(Width.SHORT)
-            .withImportance(ConfigDef.Importance.HIGH)
-            .withValidation(Field::isRequired)
-            .withDescription("VTGate gRPC server port. E.p. \"15991\".");
-
     public static final Field VTCTLD_HOST = Field.create(VITESS_CONFIG_GROUP_PREFIX + "vtctld.host")
             .withDisplayName("VTGate server hostname")
             .withType(Type.STRING)
@@ -78,8 +82,9 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDisplayName("VTGate server port")
             .withType(Type.INT)
             .withWidth(Width.SHORT)
+            .withDefault(DEFAULT_VTCTLD_PORT)
             .withImportance(ConfigDef.Importance.HIGH)
-            .withValidation(Field::isRequired)
+            .withValidation(Field::isInteger)
             .withDescription("VTCtld gRPC server port. E.p. \"15999\".");
 
     public static final Field TABLET_TYPE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "tablet.type")

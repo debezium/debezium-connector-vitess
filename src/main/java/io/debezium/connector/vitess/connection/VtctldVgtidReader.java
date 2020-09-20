@@ -24,7 +24,7 @@ import vtctlservice.VtctlGrpc;
 
 /** Use VTCtld to look up VGTID of a specific shard */
 public class VtctldVgtidReader implements VgtidReader {
-    private static final Logger log = LoggerFactory.getLogger(VtctldVgtidReader.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(VtctldVgtidReader.class);
 
     // Used to retrieve the shard gtid from Vtctld response
     private static final int SHARD_GTID_INDEX = 8;
@@ -47,13 +47,13 @@ public class VtctldVgtidReader implements VgtidReader {
         List<String> args = Arrays.asList(COMMAND, keyspace + ":" + shard);
 
         List<String> results = execVtctl(args, vtctldHost, vtctldPort);
-        log.info(
+        LOGGER.info(
                 "Get the latest replication positions of a specific keyspace {} shard {}: {}",
                 keyspace,
                 shard,
                 results);
         String shardGtid = chooseShardGtid(results, tabletType);
-        log.info("Choose ShardGtid: {}" + shardGtid);
+        LOGGER.info("Choose ShardGtid: {}" + shardGtid);
         return Vgtid.of(
                 Binlogdata.VGtid.newBuilder()
                         .addShardGtids(

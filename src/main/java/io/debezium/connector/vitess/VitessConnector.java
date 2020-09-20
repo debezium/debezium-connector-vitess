@@ -18,13 +18,13 @@ import org.slf4j.LoggerFactory;
 /** Vitess Connector entry point */
 public class VitessConnector extends SourceConnector {
 
-    private static final Logger log = LoggerFactory.getLogger(VitessConnector.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(VitessConnector.class);
 
     private Map<String, String> properties;
 
     @Override
     public void start(Map<String, String> props) {
-        log.info("Starting Vitess Connector");
+        LOGGER.info("Starting Vitess Connector");
         this.properties = Collections.unmodifiableMap(props);
     }
 

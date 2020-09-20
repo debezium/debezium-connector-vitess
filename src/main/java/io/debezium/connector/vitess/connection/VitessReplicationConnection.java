@@ -139,7 +139,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
     public void close() throws Exception {
         LOGGER.info("Closing replication connection");
         managedChannel.get().shutdownNow();
-        LOGGER.info("VStream GRPC channel shutdownNow is invoked.");
+        LOGGER.trace("VStream GRPC channel shutdownNow is invoked.");
         if (managedChannel.get().awaitTermination(5, TimeUnit.SECONDS)) {
             LOGGER.info("VStream GRPC channel is shutdown in time.");
         }

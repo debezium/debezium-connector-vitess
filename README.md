@@ -31,9 +31,9 @@ E.g. the format of emitted messages may change, specific features may not be imp
 - Use async grpc stub for vstream service so that `ChangeEventSourceCoordinator` can be stopped gracefully
 - Some configurations supported out-of-the-box from Debezium Development Framework.
     - database.server.name ✅
-    - table.whitelist ✅
-    - table.blacklist ✅
-    - column.blacklist ✅
+    - table.include.list ✅
+    - table.exclude.list ✅
+    - column.include.list ✅
     - message.key.columns ✅
     - tombstones.on.delete ✅ (was limited by missing primary key in VStream API, so need to be used with `message.key.columns`, but now they've added support for this, so it's in the TODOs)
     - max.queue.size ✅
@@ -42,7 +42,7 @@ E.g. the format of emitted messages may change, specific features may not be imp
     - event.processing.failure.handling.mode ✅
     - converters ✅
 - Support vitess `MoveTables` workflow, no data loss, no data duplication.
-- Vitess Sequence tables also generate events, users can optionally filter them out by `table.blacklist`.
+- Vitess Sequence tables also generate events, users can optionally filter them out by `table.exclude.list`.
 
 ## Future Improvements
 
@@ -97,7 +97,7 @@ The MBean is `debezium.vitess:type=connector-metrics,context=binlog,server=<data
 | QueueTotalCapacity            | int     | The length the queue used to pass events between the streamer and the main Kafka Connect loop.                                                                      |
 | QueueRemainingCapacity        | int     | The free capacity of the queue used to pass events between the streamer and the main Kafka Connect loop.                                                            |
 | TotalNumberOfEventsSeen       | long    | The total number of events that this connector has seen since last started or reset, including filtered, error, normal row-change events. Not including DDL events. |
-| NumberOfEventsFiltered        | long    | The number of events that have been filtered by whitelist or blacklist filtering rules configured on the connector.                                                 |
+| NumberOfEventsFiltered        | long    | The number of events that have been filtered by include/exclude list filtering rules configured on the connector.                                                 |
 | MilliSecondsBehindSource      | long    | The number of milliseconds between the last change event’s timestamp (a.k.a. commit time) and the connector processing it.                                          |
 | MilliSecondsSinceLastEvent    | long    | The number of milliseconds since the connector has read and processed the most recent event.                                                                        |
 

@@ -18,7 +18,7 @@ import io.debezium.relational.Tables;
 public class Filters {
 
     protected static final List<String> SYSTEM_SCHEMAS = Arrays.asList("mysql", "performance_schema", "sys", "information_schema");
-    protected static final String SYSTEM_SCHEMA_BLACKLIST = String.join(",", SYSTEM_SCHEMAS);
+    protected static final String SYSTEM_SCHEMA_EXCLUDE_LIST = String.join(",", SYSTEM_SCHEMAS);
 
     private final Tables.TableFilter tableFilter;
     private final Tables.ColumnNameFilter columnFilter;
@@ -26,20 +26,20 @@ public class Filters {
     /** @param config the configuration; may not be null */
     public Filters(VitessConnectorConfig config) {
 
-        // Define the filter using the whitelists and blacklists for table names ...
+        // Define the filter using the include/exclude list for table names ...
         this.tableFilter = Tables.TableFilter.fromPredicate(
                 Selectors.tableSelector()
-                        .includeTables(config.tableWhitelist())
-                        .excludeTables(config.tableBlacklist())
-                        .excludeSchemas(SYSTEM_SCHEMA_BLACKLIST)
+                        .includeTables(config.tableIncludeList())
+                        .excludeTables(config.tableExcludeList())
+                        .excludeSchemas(SYSTEM_SCHEMA_EXCLUDE_LIST)
                         .build());
 
-        String columnWhitelist = config.columnWhitelist();
-        if (columnWhitelist != null) {
-            this.columnFilter = Tables.ColumnNameFilterFactory.createIncludeListFilter(config.columnWhitelist());
+        String columnIncludeList = config.columnIncludeList();
+        if (columnIncludeList != null) {
+            this.columnFilter = Tables.ColumnNameFilterFactory.createIncludeListFilter(columnIncludeList);
         }
         else {
-            this.columnFilter = Tables.ColumnNameFilterFactory.createExcludeListFilter(config.columnBlacklist());
+            this.columnFilter = Tables.ColumnNameFilterFactory.createExcludeListFilter(config.columnExcludeList());
         }
     }
 

@@ -179,7 +179,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.execute("ALTER TABLE numeric_table ADD foo INT default 10;");
 
         // insert 1 row
-        int numOfGtidsFromDdl = 2;
+        int numOfGtidsFromDdl = 1;
         consumer.expects(expectedRecordsCount);
         List<SchemaAndValueField> expectedSchemaAndValuesByColumn = schemasAndValuesForNumericTypes();
         expectedSchemaAndValuesByColumn.add(

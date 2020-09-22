@@ -177,9 +177,11 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         // apply DDL
         TestHelper.execute("ALTER TABLE numeric_table ADD foo INT default 10;");
+        // applying DDL for Vitess version v7.0.1 emits 3 gRPC responses: (VGTID, DDL), (BEGIN, VERSION), (VGTID, COMMIT)
+        // the VGTID is increased by 2.
+        int numOfGtidsFromDdl = 2;
 
         // insert 1 row
-        int numOfGtidsFromDdl = 1;
         consumer.expects(expectedRecordsCount);
         List<SchemaAndValueField> expectedSchemaAndValuesByColumn = schemasAndValuesForNumericTypes();
         expectedSchemaAndValuesByColumn.add(

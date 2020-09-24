@@ -93,7 +93,7 @@ public class VStreamOutputMessageDecoderTest {
         Binlogdata.VEvent event = Binlogdata.VEvent.newBuilder()
                 .setType(Binlogdata.VEventType.DDL)
                 .setTimestamp(AnonymousValue.getLong())
-                .setDdl("ALTER TABLE foo ADD bar INT default 10")
+                .setStatement("ALTER TABLE foo ADD bar INT default 10")
                 .build();
 
         // exercise SUT

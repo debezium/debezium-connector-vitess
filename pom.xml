@@ -18,10 +18,8 @@
         <!-- Debezium parent -->
         <version.debezium>${project.version}</version.debezium>
 
-        <!-- gRPC -->
-        <version.grpc>1.29.0</version.grpc>
-        <version.protoc>3.11.0</version.protoc>
-        <version.annotation>1.3.2</version.annotation>
+        <!-- Dependencies -->
+        <version.vitess.grpc>7.0.0</version.vitess.grpc>
 
         <!--
           Specify the properties that will be used for setting up the integration tests' Docker container.
@@ -36,23 +34,7 @@
         <!--suppress UnresolvedMavenProperty -->
         <vitess.vtctld.host>${docker.host.address}</vitess.vtctld.host>
         <vitess.vtctld.grpc.port>15999</vitess.vtctld.grpc.port>
-
-        <!-- Maven Plugins -->
-        <version.os.plugin>1.6.2</version.os.plugin>
-        <version.protobuf.plugin>0.6.1</version.protobuf.plugin>
     </properties>
-
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-bom</artifactId>
-                <version>${version.grpc}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <dependencies>
         <!-- Kafka-->
@@ -60,20 +42,6 @@
             <groupId>org.apache.kafka</groupId>
             <artifactId>connect-api</artifactId>
             <scope>provided</scope>
-        </dependency>
-        <!-- gRPC -->
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-netty-shaded</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-protobuf</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-stub</artifactId>
         </dependency>
         <!-- Logging -->
         <dependency>
@@ -85,6 +53,12 @@
         <dependency>
             <groupId>io.debezium</groupId>
             <artifactId>debezium-core</artifactId>
+        </dependency>
+        <!-- Vitess gRPC -->
+        <dependency>
+            <groupId>io.vitess</groupId>
+            <artifactId>vitess-grpc-client</artifactId>
+            <version>${version.vitess.grpc}</version>
         </dependency>
         <!-- Testing -->
         <dependency>
@@ -105,11 +79,6 @@
         <dependency>
             <groupId>org.easytesting</groupId>
             <artifactId>fest-assert</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-testing</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -144,45 +113,10 @@
             <artifactId>awaitility</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>javax.annotation</groupId>
-            <artifactId>javax.annotation-api</artifactId>
-            <version>${version.annotation}</version>
-        </dependency>
     </dependencies>
 
     <build>
-        <!-- Needed to generate gRPC client code -->
-        <extensions>
-            <extension>
-                <groupId>kr.motd.maven</groupId>
-                <artifactId>os-maven-plugin</artifactId>
-                <version>${version.os.plugin}</version>
-            </extension>
-        </extensions>
         <plugins>
-            <!-- Generate gRPC client code -->
-            <plugin>
-                <groupId>org.xolstice.maven.plugins</groupId>
-                <artifactId>protobuf-maven-plugin</artifactId>
-                <version>${version.protobuf.plugin}</version>
-                <configuration>
-                    <protocArtifact>com.google.protobuf:protoc:${version.protoc}:exe:${os.detected.classifier}
-                    </protocArtifact>
-                    <pluginId>grpc-java</pluginId>
-                    <pluginArtifact>io.grpc:protoc-gen-grpc-java:${version.grpc}:exe:${os.detected.classifier}
-                    </pluginArtifact>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>compile</goal>
-                            <goal>compile-custom</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
             <!-- Integration test -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

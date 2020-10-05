@@ -34,11 +34,6 @@
         <!--suppress UnresolvedMavenProperty -->
         <vitess.vtctld.host>${docker.host.address}</vitess.vtctld.host>
         <vitess.vtctld.grpc.port>15999</vitess.vtctld.grpc.port>
-
-        <!-- Assembly dependency exclusion -->
-        <assembly.exclude.1>com.google.code.findbugs:jsr305:*</assembly.exclude.1>
-        <assembly.exclude.2>org.codehaus.mojo:animal-sniffer-annotations:*</assembly.exclude.2>
-        <assembly.exclude.3>com.google.errorprone:error_prone_annotations:*</assembly.exclude.3>
     </properties>
 
     <dependencies>
@@ -64,6 +59,24 @@
             <groupId>io.vitess</groupId>
             <artifactId>vitess-grpc-client</artifactId>
             <version>${version.vitess.grpc}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.code.findbugs</groupId>
+                    <artifactId>jsr305</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>animal-sniffer-annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.errorprone</groupId>
+                    <artifactId>error_prone_annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.j2objc</groupId>
+                    <artifactId>j2objc-annotations</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- Testing -->
         <dependency>
@@ -274,7 +287,7 @@
                                     <finalName>${project.artifactId}-${project.version}</finalName>
                                     <attach>true</attach>  <!-- we want attach & deploy these to Maven -->
                                     <descriptorRefs>
-                                        <descriptorRef>connector-distribution-no-drivers</descriptorRef>
+                                        <descriptorRef>connector-distribution</descriptorRef>
                                     </descriptorRefs>
                                     <tarLongFileMode>posix</tarLongFileMode>
                                 </configuration>

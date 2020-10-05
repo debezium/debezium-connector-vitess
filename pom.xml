@@ -11,6 +11,7 @@
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>debezium-connector-vitess</artifactId>
+    <version>1.4.0-SNAPSHOT</version>
     <name>Debezium Connector for Vitess</name>
     <packaging>jar</packaging>
 
@@ -35,6 +36,38 @@
         <vitess.vtctld.host>${docker.host.address}</vitess.vtctld.host>
         <vitess.vtctld.grpc.port>15999</vitess.vtctld.grpc.port>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Debezium artifacts -->
+            <dependency>
+                <groupId>io.debezium</groupId>
+                <artifactId>debezium-core</artifactId>
+                <version>${version.debezium}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.debezium</groupId>
+                <artifactId>debezium-embedded</artifactId>
+                <version>${version.debezium}</version>
+            </dependency>
+
+            <!-- Testing -->
+            <dependency>
+                <groupId>io.debezium</groupId>
+                <artifactId>debezium-core</artifactId>
+                <version>${version.debezium}</version>
+                <type>test-jar</type>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.debezium</groupId>
+                <artifactId>debezium-embedded</artifactId>
+                <version>${version.debezium}</version>
+                <type>test-jar</type>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- Kafka-->

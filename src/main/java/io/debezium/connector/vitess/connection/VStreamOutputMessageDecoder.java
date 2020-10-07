@@ -75,9 +75,9 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     private void handleDdl(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)
             throws InterruptedException {
         this.commitTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
-        // Use GTID as transaction id, if further granularity is needed, add keyspace + shard
+        // Use the entire VGTID as transaction id
         if (newVgtid != null) {
-            this.transactionId = newVgtid.getGtid();
+            this.transactionId = newVgtid.toString();
         }
         processor.process(
                 new DdlMessage(transactionId, commitTimestamp), newVgtid);
@@ -86,9 +86,9 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     private void handleOther(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)
             throws InterruptedException {
         this.commitTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
-        // Use GTID as transaction id, if further granularity is needed, add keyspace + shard
+        // Use the entire VGTID as transaction id
         if (newVgtid != null) {
-            this.transactionId = newVgtid.getGtid();
+            this.transactionId = newVgtid.toString();
         }
         processor.process(
                 new OtherMessage(transactionId, commitTimestamp), newVgtid);
@@ -97,9 +97,9 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     private void handleBeginMessage(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)
             throws InterruptedException {
         this.commitTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
-        // Use GTID as transaction id, if further granularity is needed, add keyspace + shard
+        // Use the entire VGTID as transaction id
         if (newVgtid != null) {
-            this.transactionId = newVgtid.getGtid();
+            this.transactionId = newVgtid.toString();
         }
         LOGGER.trace("Commit timestamp of begin transaction: {}", commitTimestamp);
         processor.process(

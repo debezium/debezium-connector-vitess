@@ -19,15 +19,15 @@ E.g. the format of emitted messages may change, specific features may not be imp
 
 ## Supported Features
 
-- Get the latest VGTID of a specific shard from VTCtld (via gRPC).
-- Constantly get data-changes of a specific shard from VTGate (via gRPC, a.k.a VStream).
+- Get the current VGTID of a specific shard from VTCtld (via gRPC).
+- Constantly get data-changes of a specific shard or from all shards of the keyspace from VTGate (via gRPC, a.k.a VStream).
 - Each transaction has multiple events. All events in the transaction have the same VGTID.
 - Support basic MySQL type -> Kafka Connect type mapping.
 - Support AVRO/JSON connect converters.
 - Support extracting only the `after` struct of the message, by using `ExtractNewRecordState` single message transformation (SMT).
 - If for any reason, a message in a transaction fails the task, we can restart from the offset where it has left off.
-- If no previous offset exists, start from the latest vgtid of the specified shard.
-- Mapping vitess table to kafka topics (e.g. Mapping vitess table `product` in `commerce` keyspace to kafka topic `connect_vitess_commerce_shard_0.commerce.product`, `connect_vitess_commerce_shard_0` is the `database.server.name` connector config)
+- If no previous offset exists, start from the current vgtid of the specified shard, or of all shards of the keyspace.
+- Mapping vitess table to kafka topics (e.g. Mapping vitess table `product` in `commerce` keyspace to kafka topic `connect_vitess_customer_sharded.customer.customer`, `connect_vitess_customer_sharded` is the `database.server.name` connector config, the first `customer` is the keyspace, the second `customer` is the table's name)
 - Use async grpc stub for vstream service so that `ChangeEventSourceCoordinator` can be stopped gracefully
 - Some configurations supported out-of-the-box from Debezium Development Framework.
     - database.server.name ✅
@@ -76,7 +76,7 @@ would have 5 seconds to consume all expected `SourceRecord` before fail the test
 ## How Vitess Connector Works
 
 Each connector instance captures data-changes from a specific keyspace/shard.
-To get the initial (a.k.a. the latest) vgtid position of the keyspace/shard, connectors communicate with the VTCtld.
+To get the initial (a.k.a. the current) vgtid position of the keyspace/shard, connectors communicate with the VTCtld.
 ![ConnectorShardMapping](./documentation/assets/ConnectorShardMapping.png)
 
 Internally, each connector constantly polls data-changes from VStream gRPC and send them to an in-memory queue.
@@ -144,36 +144,34 @@ The MBean is `debezium.vitess:type=connector-metrics,context=binlog,server=<data
 Inserting a row in the following table
 
 ```bash
-mysql> desc type_table;
-+----------------+--------------------------------+------+-----+---------------------+----------------+
-| Field          | Type                           | Null | Key | Default             | Extra          |
-+----------------+--------------------------------+------+-----+---------------------+----------------+
-| type_id        | bigint(20)                     | NO   | PRI | NULL                | auto_increment |
-| tinyint1_col   | tinyint(1)                     | YES  |     | 1                   |                |
-| smallint_col   | smallint(5)                    | YES  |     | 1                   |                |
-| mediumint_col  | mediumint(8)                   | YES  |     | 1                   |                |
-| int_col        | int(10)                        | YES  |     | 1                   |                |
-| float_col      | float                          | YES  |     | 1.2                 |                |
-| double_col     | double                         | YES  |     | 1.2                 |                |
-| decimal_col    | decimal(10,4)                  | NO   |     | 1.0000              |                |
-| time_col       | time                           | NO   |     | 00:00:00            |                |
-| date_col       | date                           | NO   |     | 2020-02-12          |                |
-| datetime_col   | datetime                       | NO   |     | 2020-02-12 00:00:00 |                |
-| created        | timestamp                      | NO   |     | CURRENT_TIMESTAMP   |                |
-| char_col       | char(2)                        | NO   |     | ee                  |                |
-| varchar_col    | varchar(255)                   | NO   |     | foo                 |                |
-| text_col       | text                           | YES  |     | NULL                |                |
-| mediumtext_col | mediumtext                     | YES  |     | NULL                |                |
-| longtext_col   | longtext                       | NO   |     | NULL                |                |
-| json_col       | json                           | YES  |     | NULL                |                |
-| binary_col     | binary(255)                    | YES  |     | NULL                |                |
-| varbinary_col  | varbinary(12)                  | YES  |     | NULL                |                |
-| enum_col       | enum('small','medium','large') | NO   |     | medium              |                |
-| set_col        | set('a','b','c','d')           | NO   |     | b                   |                |
-+----------------+--------------------------------+------+-----+---------------------+----------------+
+CREATE TABLE `type_table` (
+  `type_id` bigint(20) NOT NULL,
+  `tinyint1_col` tinyint(1) DEFAULT '1',
+  `smallint_col` smallint(5) DEFAULT '1',
+  `mediumint_col` mediumint(8) DEFAULT '1',
+  `int_col` int(10) DEFAULT '1',
+  `float_col` float DEFAULT '1.2',
+  `double_col` double DEFAULT '1.2',
+  `decimal_col` decimal(10,4) NOT NULL DEFAULT '1.0000',
+  `time_col` time NOT NULL DEFAULT '00:00:00',
+  `date_col` date NOT NULL DEFAULT '2020-02-12',
+  `datetime_col` datetime NOT NULL DEFAULT '2020-02-12 00:00:00',
+  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `char_col` char(9) NOT NULL DEFAULT 'my_char',
+  `varchar_col` varchar(16) NOT NULL DEFAULT 'my_varchar',
+  `text_col` text,
+  `mediumtext_col` mediumtext,
+  `longtext_col` longtext NOT NULL,
+  `binary_col` binary(255) DEFAULT NULL,
+  `varbinary_col` varbinary(12) DEFAULT NULL,
+  `enum_col` enum('small','medium','large') NOT NULL DEFAULT 'medium',
+  `set_col` set('a','b','c','d') NOT NULL DEFAULT 'b',
+  PRIMARY KEY (`type_id`)
+)
 ```
 
-would send the following record to the `connect_vitess_commerce_unsharded.commerce.type_table` topic, where `connect_vitess_commerce_unsharded` is the `database.server.name`:
+would send the following record to the `connect_vitess_customer_sharded.customer.type_table` topic,
+where `connect_vitess_customer_sharded` is the `database.server.name`, `customer` is the keyspace, `type_table` is the table's name:
 
 ```json
 {
@@ -184,39 +182,36 @@ would send the following record to the `connect_vitess_commerce_unsharded.commer
     "smallint_col" : 1,
     "mediumint_col" : 1,
     "int_col" : 1,
-    "float_col" : 12345.9873046875,
-    "double_col" : 12345.987654321,
+    "float_col" : 1.2000000476837158,
+    "double_col" : 1.2,
     "decimal_col" : "1.0000",
     "time_col" : "00:00:00",
     "date_col" : "2020-02-12",
     "datetime_col" : "2020-02-12 00:00:00",
-    "created" : "2020-07-16 13:55:55",
-    "char_col" : "ee",
-    "varchar_col" : "foo",
-    "text_col" : "foo_text",
-    "mediumtext_col" : "foo_mediumtext",
-    "longtext_col" : "foo_longtext",
-    "json_col" : "JSON_OBJECT('foo_json',1)",
-    "binary_col" : "foo_binary\u0000\u0000",
-    "varbinary_col" : "foo_varbinary",
+    "created" : "2020-10-08 09:41:05",
+    "char_col" : "my_char",
+    "varchar_col" : "my_varchar",
+    "text_col" : null,
+    "mediumtext_col" : null,
+    "longtext_col" : "my_longtext",
+    "binary_col" : null,
+    "varbinary_col" : null,
     "enum_col" : "2",
     "set_col" : "2"
   },
   "source" : {
-    "version" : "0.0.1-SNAPSHOT",
+    "version" : "1.4.0-SNAPSHOT",
     "connector" : "vitess",
-    "name" : "connect_vitess_commerce_unsharded",
-    "ts_ms" : 1594907755000,
+    "name" : "connect_vitess_customer_sharded",
+    "ts_ms" : 1602150065000,
     "snapshot" : "false",
-    "db" : "connect_vitess_commerce_unsharded",
-    "schema" : "commerce",
+    "db" : "connect_vitess_customer_sharded",
+    "schema" : "customer",
     "table" : "type_table",
-    "vgtid_keyspace" : "commerce",
-    "vgtid_shard" : "-",
-    "vgtid_gtid" : "MySQL56/28c2a56b-c76a-11ea-822f-0242ac11000a:1-31"
+    "vgtid" : "[{\"keyspace\":\"customer\",\"shard\":\"80-\",\"gtid\":\"MariaDB/0-54610504-47\"},{\"keyspace\":\"customer\",\"shard\":\"-80\",\"gtid\":\"MariaDB/0-1592148-45\"}]"
   },
   "op" : "c",
-  "ts_ms" : 1594907755121,
+  "ts_ms" : 1602150065082,
   "transaction" : null
 }
 ```
@@ -250,9 +245,9 @@ The partition key is of format
 E.g.
 ```json
 [
-    "sample_connector",
+    "sample_multi_shard_connector",
     {
-        "server": "connect_vitess_commerce_unsharded"
+        "server": "connect_vitess_customer_sharded"
     }
 ]
 ```
@@ -260,10 +255,8 @@ E.g.
 The value is of format
 ```json
 {
-    "vgtid_gtid": "<gtid>",
     "transaction_id": null,
-    "vgtid_keyspace": "<keyspace>",
-    "vgtid_shard": "<shard>",
+    "vgtid": "<vgtid_in_json>",
     "event":"<number_of_row_events_to_skip>"
 }
 ```
@@ -271,15 +264,16 @@ The value is of format
 E.g.
 ```json
 {
-    "vgtid_gtid": "MySQL56/cebc0300-c5b4-11ea-90ec-0242ac110009:1-33",
     "transaction_id": null,
-    "vgtid_keyspace": "commerce",
-    "vgtid_shard": "-",
+    "vgtid": "[{\"keyspace\":\"customer\",\"shard\":\"80-\",\"gtid\":\"MariaDB/0-54610504-45\"},{\"keyspace\":\"customer\",\"shard\":\"-80\",\"gtid\":\"MariaDB/0-1592148-41\"}]",
     "event": 1
 }
 ```
 
-allows the connector to start reading from `MySQL56/cebc0300-c5b4-11ea-90ec-0242ac110009:34` (because `1-33` are already read) from the `commerce` keyspace's `-` shard. The connector will skip 1 row-event as description by the `event`, it is because this row-event has already been already processed and sent to the data topic.
+allows the connector to start reading from `MariaDB/0-54610504-46` (inclusive) from the `80-` shard and `MariaDB/0-1592148-42`
+(inclusive) from the `-80` shard, from the `commerce` keyspace.
+The connector will skip 1 row-event as description by the `event`, it is because this row-event has already been processed
+and sent to the data topic.
 
 The following diagram shows how each record's offset is managed:
 ![Offsets](./documentation/assets/Offsets.png)

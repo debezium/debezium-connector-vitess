@@ -101,10 +101,11 @@ public class VitessReplicationConnectionIT {
     }
 
     private void assertValidVgtid(Vgtid vgtid, String expectedKeyspace, String expectedShard) {
-        assertThat(vgtid.getKeyspace()).isEqualTo(expectedKeyspace);
-        assertThat(vgtid.getShard()).isEqualTo(expectedShard);
-        assertThat(vgtid.getGtid().startsWith("MariaDB") || vgtid.getGtid().startsWith("MySQL"))
-                .isEqualTo(true);
+        assertThat(vgtid.getShardGtids()).hasSize(1);
+        assertThat(vgtid.getShardGtids().iterator().next().getKeyspace()).isEqualTo(expectedKeyspace);
+        assertThat(vgtid.getShardGtids().iterator().next().getShard()).isEqualTo(expectedShard);
+        String gtid = vgtid.getShardGtids().iterator().next().getGtid();
+        assertThat(gtid.startsWith("MySQL") || gtid.startsWith("MariaDB")).isTrue();
     }
 
     private static class MessageAndVgtid {

@@ -12,11 +12,25 @@ import org.apache.kafka.connect.data.Struct;
 import org.junit.Test;
 
 import io.debezium.relational.TableId;
+import io.debezium.util.Collect;
 
 public class VitessSourceInfoStructMakerTest {
     private static final String TEST_KEYSPACE = "test_keyspace";
-    private static final String TEST_SHARD = "0";
-    private static final String TEST_GTID = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-1514";
+    private static final String TEST_SHARD = "-80";
+    private static final String TEST_GTID = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-1513";
+    private static final String TEST_SHARD2 = "80-";
+    private static final String TEST_GTID2 = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000b:1-1513";
+    private static final String VGTID_JSON = String.format(
+            "[" +
+                    "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}," +
+                    "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}" +
+                    "]",
+            TEST_KEYSPACE,
+            TEST_SHARD,
+            TEST_GTID,
+            TEST_KEYSPACE,
+            TEST_SHARD2,
+            TEST_GTID2);
 
     @Test
     public void shouldGetCorrectSourceInfoSchema() {
@@ -29,11 +43,7 @@ public class VitessSourceInfoStructMakerTest {
                 .isEqualTo(Schema.STRING_SCHEMA);
         assertThat(structMaker.schema().field(SourceInfo.TABLE_NAME_KEY).schema())
                 .isEqualTo(Schema.STRING_SCHEMA);
-        assertThat(structMaker.schema().field(SourceInfo.VGTID_KEYSPACE).schema())
-                .isEqualTo(Schema.STRING_SCHEMA);
-        assertThat(structMaker.schema().field(SourceInfo.VGTID_SHARD).schema())
-                .isEqualTo(Schema.STRING_SCHEMA);
-        assertThat(structMaker.schema().field(SourceInfo.VGTID_GTID).schema())
+        assertThat(structMaker.schema().field(SourceInfo.VGTID).schema())
                 .isEqualTo(Schema.STRING_SCHEMA);
         assertThat(structMaker.schema()).isNotNull();
     }
@@ -45,9 +55,17 @@ public class VitessSourceInfoStructMakerTest {
         String tableName = "test_table";
         SourceInfo sourceInfo = new SourceInfo(new VitessConnectorConfig(TestHelper.defaultConfig().build()));
         sourceInfo.initialVgtid(
-                Vgtid.of(TEST_KEYSPACE, TEST_SHARD, TEST_GTID), AnonymousValue.getInstant());
+                Vgtid.of(
+                        Collect.arrayListOf(
+                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
+                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2))),
+                AnonymousValue.getInstant());
         sourceInfo.rotateVgtid(
-                Vgtid.of(TEST_KEYSPACE, TEST_SHARD, TEST_GTID), AnonymousValue.getInstant());
+                Vgtid.of(
+                        Collect.arrayListOf(
+                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
+                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2))),
+                AnonymousValue.getInstant());
         sourceInfo.startRowEvent(AnonymousValue.getInstant(), new TableId(null, schemaName, tableName));
 
         // exercise SUT
@@ -60,8 +78,6 @@ public class VitessSourceInfoStructMakerTest {
         // verify outcome
         assertThat(struct.getString(SourceInfo.SCHEMA_NAME_KEY)).isEqualTo(schemaName);
         assertThat(struct.getString(SourceInfo.TABLE_NAME_KEY)).isEqualTo(tableName);
-        assertThat(struct.getString(SourceInfo.VGTID_KEYSPACE)).isEqualTo(TEST_KEYSPACE);
-        assertThat(struct.getString(SourceInfo.VGTID_SHARD)).isEqualTo(TEST_SHARD);
-        assertThat(struct.getString(SourceInfo.VGTID_GTID)).isEqualTo(TEST_GTID);
+        assertThat(struct.getString(SourceInfo.VGTID)).isEqualTo(VGTID_JSON);
     }
 }

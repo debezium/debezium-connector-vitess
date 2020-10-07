@@ -13,6 +13,10 @@ import java.util.Map;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
 
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.pipeline.spi.OffsetContext;
@@ -27,6 +31,7 @@ import io.debezium.util.Clock;
  * ReplicationMessage.
  */
 public class VitessOffsetContext implements OffsetContext {
+    private static final Logger LOGGER = LoggerFactory.getLogger(VitessOffsetContext.class);
     private static final String SERVER_PARTITION_KEY = "server";
 
     private final Schema sourceInfoSchema;
@@ -56,6 +61,7 @@ public class VitessOffsetContext implements OffsetContext {
     /** Initialize VitessOffsetContext if no previous offset exists */
     public static VitessOffsetContext initialContext(
                                                      VitessConnectorConfig connectorConfig, Clock clock) {
+        LOGGER.info("No previous offset exists. Use default VGTID.");
         final Vgtid defaultVgtid = VitessReplicationConnection.defaultVgtid(connectorConfig);
         return new VitessOffsetContext(
                 connectorConfig, defaultVgtid, 0L, clock.currentTimeAsInstant(), new TransactionContext());
@@ -106,15 +112,7 @@ public class VitessOffsetContext implements OffsetContext {
     public Map<String, ?> getOffset() {
         Map<String, Object> result = new HashMap<>();
         if (sourceInfo.getRestartVgtid() != null) {
-            if (sourceInfo.getRestartVgtid().getKeyspace() != null) {
-                result.put(SourceInfo.VGTID_KEYSPACE, sourceInfo.getRestartVgtid().getKeyspace());
-            }
-            if (sourceInfo.getRestartVgtid().getShard() != null) {
-                result.put(SourceInfo.VGTID_SHARD, sourceInfo.getRestartVgtid().getShard());
-            }
-            if (sourceInfo.getRestartVgtid().getGtid() != null) {
-                result.put(SourceInfo.VGTID_GTID, sourceInfo.getRestartVgtid().getGtid());
-            }
+            result.put(SourceInfo.VGTID, sourceInfo.getRestartVgtid().toString());
         }
         result.put(SourceInfo.EVENTS_TO_SKIP, sourceInfo.getRestartEventsToSkip());
         // put OFFSET_TRANSACTION_ID
@@ -180,9 +178,11 @@ public class VitessOffsetContext implements OffsetContext {
     public static class Loader implements OffsetContext.Loader {
 
         private final VitessConnectorConfig connectorConfig;
+        private final Gson gson;
 
         public Loader(VitessConnectorConfig connectorConfig) {
             this.connectorConfig = connectorConfig;
+            this.gson = new Gson();
         }
 
         @Override
@@ -192,13 +192,14 @@ public class VitessOffsetContext implements OffsetContext {
 
         @Override
         public OffsetContext load(Map<String, ?> offset) {
-            final String keyspace = (String) offset.get(SourceInfo.VGTID_KEYSPACE);
-            final String shard = (String) offset.get(SourceInfo.VGTID_SHARD);
-            final String gtid = (String) offset.get(SourceInfo.VGTID_GTID);
+            // final String keyspace = (String) offset.get(SourceInfo.VGTID_KEYSPACE);
+            // final String shard = (String) offset.get(SourceInfo.VGTID_SHARD);
+            // final String gtid = (String) offset.get(SourceInfo.VGTID_GTID);
+            final String vgtid = (String) offset.get(SourceInfo.VGTID);
             final Long restartEventsToSkip = (Long) offset.get(SourceInfo.EVENTS_TO_SKIP);
             return new VitessOffsetContext(
                     connectorConfig,
-                    Vgtid.of(keyspace, shard, gtid),
+                    Vgtid.of(vgtid),
                     restartEventsToSkip,
                     null,
                     TransactionContext.load(offset));

@@ -18,9 +18,7 @@ import io.debezium.relational.TableId;
  */
 @NotThreadSafe
 public class SourceInfo extends BaseSourceInfo {
-    public static final String VGTID_KEYSPACE = "vgtid_keyspace";
-    public static final String VGTID_SHARD = "vgtid_shard";
-    public static final String VGTID_GTID = "vgtid_gtid";
+    public static final String VGTID = "vgtid";
     public static final String EVENTS_TO_SKIP = "event";
 
     private final String dbServerName;
@@ -65,16 +63,8 @@ public class SourceInfo extends BaseSourceInfo {
         return currentVgtid;
     }
 
-    public void setCurrentVgtid(Vgtid currentVgtid) {
-        this.currentVgtid = currentVgtid;
-    }
-
     public Vgtid getRestartVgtid() {
         return restartVgtid;
-    }
-
-    public void setRestartVgtid(Vgtid restartVgtid) {
-        this.restartVgtid = restartVgtid;
     }
 
     public long getRestartEventsToSkip() {

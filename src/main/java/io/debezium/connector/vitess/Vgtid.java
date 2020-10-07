@@ -5,109 +5,75 @@
  */
 package io.debezium.connector.vitess;
 
-import java.util.Map;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
-import io.debezium.util.Collect;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import binlogdata.Binlogdata;
 
 /** Vitess source position coordiates. */
 public class Vgtid {
-    public static final String OFFSET_KEYSPACE = "keyspace";
-    public static final String OFFSET_SHARD = "shard";
-    public static final String OFFSET_GTID = "gtid";
+    public static final String CURRENT_GTID = "current";
+    private static final Gson gson = new Gson();
 
     private final Binlogdata.VGtid rawVgtid;
-    private final String keyspace;
-    private final String shard;
-    private final String gtid;
+    private final Set<ShardGtid> shardGtids = new HashSet<>();
 
     private Vgtid(Binlogdata.VGtid rawVgtid) {
-        int numOfShardGtids = rawVgtid.getShardGtidsCount();
-        if (numOfShardGtids != 1) {
-            throw new IllegalArgumentException("Only 1 shard gtid per vgtid is allowed");
-        }
         this.rawVgtid = rawVgtid;
-        this.keyspace = rawVgtid.getShardGtids(0).getKeyspace();
-        this.shard = rawVgtid.getShardGtids(0).getShard();
-        this.gtid = rawVgtid.getShardGtids(0).getGtid();
+        for (Binlogdata.ShardGtid shardGtid : rawVgtid.getShardGtidsList()) {
+            shardGtids.add(new ShardGtid(shardGtid.getKeyspace(), shardGtid.getShard(), shardGtid.getGtid()));
+        }
     }
 
-    private Vgtid(String keyspace, String shard, String gtid) {
-        this.keyspace = keyspace;
-        this.shard = shard;
-        this.gtid = gtid;
-        this.rawVgtid = Binlogdata.VGtid.newBuilder()
-                .addShardGtids(
-                        Binlogdata.ShardGtid.newBuilder()
-                                .setKeyspace(keyspace)
-                                .setShard(shard)
-                                .setGtid(gtid)
-                                .build())
-                .build();
+    private Vgtid(List<ShardGtid> shardGtids) {
+        this.shardGtids.addAll(shardGtids);
+
+        Binlogdata.VGtid.Builder builder = Binlogdata.VGtid.newBuilder();
+        for (ShardGtid shardGtid : shardGtids) {
+            builder.addShardGtids(
+                    Binlogdata.ShardGtid.newBuilder()
+                            .setKeyspace(shardGtid.getKeyspace())
+                            .setShard(shardGtid.getShard())
+                            .setGtid(shardGtid.getGtid())
+                            .build());
+        }
+        this.rawVgtid = builder.build();
+    }
+
+    public static Vgtid of(String shardGtidsInJson) {
+        List<Vgtid.ShardGtid> shardGtids = gson.fromJson(shardGtidsInJson, new TypeToken<List<ShardGtid>>() {
+        }.getType());
+        return of(shardGtids);
     }
 
     public static Vgtid of(Binlogdata.VGtid rawVgtid) {
         return new Vgtid(rawVgtid);
     }
 
-    public static Vgtid of(String keyspace, String shard, String gtid) {
-        return new Vgtid(keyspace, shard, gtid);
-    }
-
-    public static Vgtid of(Map<String, Object> offset) {
-        if (offset == null || offset.size() != 3) {
-            throw new IllegalArgumentException("Offset must have keyspace, shard and gtid");
-        }
-        return new Vgtid(
-                offset.get(OFFSET_KEYSPACE).toString(),
-                offset.get(OFFSET_SHARD).toString(),
-                offset.get(OFFSET_GTID).toString());
+    public static Vgtid of(List<ShardGtid> shardGtids) {
+        return new Vgtid(shardGtids);
     }
 
     public Binlogdata.VGtid getRawVgtid() {
         return rawVgtid;
     }
 
-    public String getKeyspace() {
-        return keyspace;
+    public Set<ShardGtid> getShardGtids() {
+        return shardGtids;
     }
 
-    public String getShard() {
-        return shard;
-    }
-
-    public String getGtid() {
-        return gtid;
-    }
-
-    public Map<String, Object> offset() {
-        return Collect.hashMapOf(
-                OFFSET_KEYSPACE, keyspace,
-                OFFSET_SHARD, shard,
-                OFFSET_GTID, gtid);
-    }
-
-    public Map<String, Object> partition() {
-        return Collect.hashMapOf(
-                OFFSET_KEYSPACE, keyspace,
-                OFFSET_SHARD, shard);
+    public boolean isSingleShard() {
+        return rawVgtid.getShardGtidsCount() == 1;
     }
 
     @Override
     public String toString() {
-        return "Vgtid{"
-                + "keyspace='"
-                + keyspace
-                + '\''
-                + ", shard='"
-                + shard
-                + '\''
-                + ", gtid='"
-                + gtid
-                + '\''
-                + '}';
+        return gson.toJson(shardGtids);
     }
 
     @Override
@@ -119,11 +85,55 @@ public class Vgtid {
             return false;
         }
         Vgtid vgtid = (Vgtid) o;
-        return keyspace.equals(vgtid.keyspace) && shard.equals(vgtid.shard) && gtid.equals(vgtid.gtid);
+        return Objects.equals(rawVgtid, vgtid.rawVgtid) &&
+                Objects.equals(shardGtids, vgtid.shardGtids);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(keyspace, shard, gtid);
+        return Objects.hash(rawVgtid, shardGtids);
+    }
+
+    public static class ShardGtid {
+        private final String keyspace;
+        private final String shard;
+        private final String gtid;
+
+        public ShardGtid(String keyspace, String shard, String gtid) {
+            this.keyspace = keyspace;
+            this.shard = shard;
+            this.gtid = gtid;
+        }
+
+        public String getKeyspace() {
+            return keyspace;
+        }
+
+        public String getShard() {
+            return shard;
+        }
+
+        public String getGtid() {
+            return gtid;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ShardGtid shardGtid = (ShardGtid) o;
+            return Objects.equals(keyspace, shardGtid.keyspace) &&
+                    Objects.equals(shard, shardGtid.shard) &&
+                    Objects.equals(gtid, shardGtid.gtid);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(keyspace, shard, gtid);
+        }
     }
 }

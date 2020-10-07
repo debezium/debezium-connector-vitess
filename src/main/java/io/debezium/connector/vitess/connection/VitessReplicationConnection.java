@@ -65,6 +65,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
 
             @Override
             public void onNext(Vtgate.VStreamResponse response) {
+
                 LOGGER.debug("Received {} vEvents in the VStreamResponse:",
                         response.getEventsCount());
                 for (VEvent vEvent : response.getEventsList()) {
@@ -118,8 +119,8 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 }
                 if (vgtids.size() > 1) {
                     LOGGER.error(
-                            "Should only have 1 vgtid per VStreamResponse, but found {}. Use the last vgtid.",
-                            vgtids.size());
+                            "Should only have 1 vgtid per VStreamResponse, but found {}. Use the last vgtid {}.",
+                            vgtids.size(), vgtids.getLast());
                 }
                 return vgtids.getLast();
             }
@@ -150,11 +151,26 @@ public class VitessReplicationConnection implements ReplicationConnection {
 
     /** Get latest replication position */
     public static Vgtid defaultVgtid(VitessConnectorConfig config) {
-        return VtctldVgtidReader.of(config.getVtctldHost(), config.getVtctldPort())
-                .latestVgtid(
-                        config.getKeyspace(),
-                        config.getShard(),
-                        VgtidReader.TabletType.valueOf(config.getTabletType()));
+        if (config.getShard() == null || config.getShard().isEmpty()) {
+            // Replicate all shards of the given keyspace
+            LOGGER.info("Default VGTID is set to the current gtid of all shards from keyspace: {}", config.getKeyspace());
+            return Vgtid.of(
+                    Binlogdata.VGtid.newBuilder()
+                            .addShardGtids(
+                                    Binlogdata.ShardGtid.newBuilder()
+                                            .setKeyspace(config.getKeyspace())
+                                            .setGtid(Vgtid.CURRENT_GTID)
+                                            .build())
+                            .build());
+        }
+        else {
+            return VtctldVgtidReader.of(config.getVtctldHost(), config.getVtctldPort())
+                    .latestVgtid(
+                            config.getKeyspace(),
+                            config.getShard(),
+                            VgtidReader.TabletType.valueOf(config.getTabletType()));
+        }
+
     }
 
     private static Topodata.TabletType toTopodataTabletType(VgtidReader.TabletType tabletType) {

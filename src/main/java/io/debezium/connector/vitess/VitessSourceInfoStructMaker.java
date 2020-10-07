@@ -23,9 +23,7 @@ public class VitessSourceInfoStructMaker extends AbstractSourceInfoStructMaker<S
                 .name("io.debezium.connector.vitess.Source")
                 .field(SourceInfo.SCHEMA_NAME_KEY, Schema.STRING_SCHEMA)
                 .field(SourceInfo.TABLE_NAME_KEY, Schema.STRING_SCHEMA)
-                .field(SourceInfo.VGTID_KEYSPACE, Schema.STRING_SCHEMA)
-                .field(SourceInfo.VGTID_SHARD, Schema.STRING_SCHEMA)
-                .field(SourceInfo.VGTID_GTID, Schema.STRING_SCHEMA)
+                .field(SourceInfo.VGTID, Schema.STRING_SCHEMA)
                 .build();
     }
 
@@ -39,9 +37,7 @@ public class VitessSourceInfoStructMaker extends AbstractSourceInfoStructMaker<S
         final Struct res = super.commonStruct(sourceInfo)
                 .put(SourceInfo.SCHEMA_NAME_KEY, sourceInfo.getTableId().schema())
                 .put(SourceInfo.TABLE_NAME_KEY, sourceInfo.getTableId().table())
-                .put(SourceInfo.VGTID_KEYSPACE, sourceInfo.getCurrentVgtid().getKeyspace())
-                .put(SourceInfo.VGTID_SHARD, sourceInfo.getCurrentVgtid().getShard())
-                .put(SourceInfo.VGTID_GTID, sourceInfo.getCurrentVgtid().getGtid());
+                .put(SourceInfo.VGTID, sourceInfo.getCurrentVgtid().toString());
 
         return res;
     }

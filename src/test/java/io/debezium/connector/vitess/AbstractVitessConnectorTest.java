@@ -287,17 +287,13 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
 
     protected void assertRecordOffset(SourceRecord record, RecordOffset expectedRecordOffset) {
         Map<String, ?> offset = record.sourceOffset();
-        assertNotNull(offset.get(SourceInfo.VGTID_KEYSPACE));
-        assertNotNull(offset.get(SourceInfo.VGTID_SHARD));
-        assertNotNull(offset.get(SourceInfo.VGTID_GTID));
+        assertNotNull(offset.get(SourceInfo.VGTID));
         assertNotNull(offset.get(SourceInfo.EVENTS_TO_SKIP));
         Object snapshot = offset.get(SourceInfo.SNAPSHOT_KEY);
         assertNull("Snapshot marker not expected, but found", snapshot);
 
         if (expectedRecordOffset != null) {
-            Assert.assertEquals(expectedRecordOffset.getKeyspace(), offset.get(SourceInfo.VGTID_KEYSPACE));
-            Assert.assertEquals(expectedRecordOffset.getShard(), offset.get(SourceInfo.VGTID_SHARD));
-            Assert.assertEquals(expectedRecordOffset.getGtid(), offset.get(SourceInfo.VGTID_GTID));
+            Assert.assertEquals(expectedRecordOffset.getVgtid(), offset.get(SourceInfo.VGTID));
             Assert.assertEquals(expectedRecordOffset.getEventsToSkip(), offset.get(SourceInfo.EVENTS_TO_SKIP));
         }
     }
@@ -308,9 +304,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         Assert.assertEquals(db, source.getString(SourceInfo.DATABASE_NAME_KEY));
         Assert.assertEquals(schema, source.getString(SourceInfo.SCHEMA_NAME_KEY));
         Assert.assertEquals(table, source.getString(SourceInfo.TABLE_NAME_KEY));
-        Assert.assertEquals(schema, source.getString(SourceInfo.VGTID_KEYSPACE));
-        assertNotNull(source.getString(SourceInfo.VGTID_SHARD));
-        assertNotNull(source.getString(SourceInfo.VGTID_GTID));
+        assertNotNull(source.getString(SourceInfo.VGTID));
     }
 
     protected void assertRecordSchemaAndValues(
@@ -330,28 +324,16 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
     }
 
     protected static class RecordOffset {
-        private final String keyspace;
-        private final String shard;
-        private final String gtid;
+        private final String vgtid;
         private final long eventsToSkip;
 
-        public RecordOffset(String keyspace, String shard, String gtid, long eventsToSkip) {
-            this.keyspace = keyspace;
-            this.shard = shard;
-            this.gtid = gtid;
+        public RecordOffset(String vgtid, long eventsToSkip) {
+            this.vgtid = vgtid;
             this.eventsToSkip = eventsToSkip;
         }
 
-        public String getKeyspace() {
-            return keyspace;
-        }
-
-        public String getShard() {
-            return shard;
-        }
-
-        public String getGtid() {
-            return gtid;
+        public String getVgtid() {
+            return vgtid;
         }
 
         public long getEventsToSkip() {
@@ -359,10 +341,15 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         }
 
         /**
-         * Increment the gtid suffix
+         * Increment the shard gtid suffix
          */
         public RecordOffset incrementOffset(int increment) {
-            return new RecordOffset(keyspace, shard, incrementGtid(gtid, increment), eventsToSkip);
+            Vgtid oldVgtid = Vgtid.of(vgtid);
+            Vgtid newVgtid = Vgtid.of(oldVgtid.getShardGtids().stream()
+                    .map(shardGtid -> new Vgtid.ShardGtid(shardGtid.getKeyspace(), shardGtid.getShard(), incrementGtid(shardGtid.getGtid(), increment)))
+                    .collect(Collectors.toList()));
+
+            return new RecordOffset(newVgtid.toString(), eventsToSkip);
         }
 
         /**
@@ -371,11 +358,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         public static RecordOffset fromSourceInfo(SourceRecord record, int eventsToSkip) {
             if (record.value() instanceof Struct) {
                 Struct source = ((Struct) record.value()).getStruct("source");
-                return new RecordOffset(
-                        source.getString(SourceInfo.VGTID_KEYSPACE),
-                        source.getString(SourceInfo.VGTID_SHARD),
-                        source.getString(SourceInfo.VGTID_GTID),
-                        eventsToSkip);
+                return new RecordOffset(source.getString(SourceInfo.VGTID), eventsToSkip);
             }
             else {
                 throw new IllegalArgumentException("Record value is not a struct");
@@ -388,9 +371,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
          */
         protected void assertFor(SourceRecord record) {
             Map<String, ?> offset = record.sourceOffset();
-            Assert.assertEquals(keyspace, offset.get(SourceInfo.VGTID_KEYSPACE));
-            Assert.assertEquals(shard, offset.get(SourceInfo.VGTID_SHARD));
-            Assert.assertEquals(gtid, offset.get(SourceInfo.VGTID_GTID));
+            Assert.assertEquals(vgtid, offset.get(SourceInfo.VGTID));
             Assert.assertEquals(eventsToSkip, offset.get(SourceInfo.EVENTS_TO_SKIP));
         }
     }

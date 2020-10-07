@@ -21,6 +21,7 @@
 
         <!-- Dependencies -->
         <version.vitess.grpc>7.0.0</version.vitess.grpc>
+        <version.gson>2.7</version.gson>
 
         <!--
           Specify the properties that will be used for setting up the integration tests' Docker container.
@@ -111,6 +112,11 @@
                     <artifactId>j2objc-annotations</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>${version.gson}</version>
         </dependency>
         <!-- Testing -->
         <dependency>

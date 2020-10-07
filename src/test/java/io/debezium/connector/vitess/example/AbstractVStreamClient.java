@@ -31,6 +31,8 @@ public abstract class AbstractVStreamClient {
     // vtctld grpc server
     private static int VTCTLD_PORT = 15999;
 
+    private static String CURRENT_GTID = "current";
+
     private final String keyspace;
     private final List<String> shards;
     private final int gtidIdx;
@@ -90,13 +92,22 @@ public abstract class AbstractVStreamClient {
         return ManagedChannelBuilder.forAddress(host, VTGATE_PORT).usePlaintext().build();
     }
 
-    // Get current vgtid position of a specific keyspace/shard
+    // Get current vgtid position of a specific keyspace/shard, or of all shards from a specific keyspace
     protected Binlogdata.VGtid getPosition() {
         Binlogdata.VGtid.Builder builder = Binlogdata.VGtid.newBuilder();
-        for (String shard : shards) {
-            builder.addShardGtids(getShardGtid(shard));
+        if (shards.isEmpty()) {
+            Binlogdata.ShardGtid shardGtid = Binlogdata.ShardGtid.newBuilder()
+                    .setKeyspace(keyspace)
+                    .setGtid(CURRENT_GTID)
+                    .build();
+            return builder.addShardGtids(shardGtid).build();
         }
-        return builder.build();
+        else {
+            for (String shard : shards) {
+                builder.addShardGtids(getShardGtid(shard));
+            }
+            return builder.build();
+        }
     }
 
     protected Binlogdata.ShardGtid getShardGtid(String shard) {

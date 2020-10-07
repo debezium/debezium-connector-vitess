@@ -64,7 +64,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withType(Type.STRING)
             .withWidth(Width.MEDIUM)
             .withImportance(ConfigDef.Importance.HIGH)
-            .withValidation(Field::isRequired)
             .withDescription(
                     "Single shard of which keyspace to read data from."
                             + "E.p. \"0\" for an unsharded keyspace. "

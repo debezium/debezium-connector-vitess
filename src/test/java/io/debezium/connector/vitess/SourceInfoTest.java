@@ -19,8 +19,25 @@ import io.debezium.connector.AbstractSourceInfoStructMaker;
 import io.debezium.connector.SnapshotRecord;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
+import io.debezium.util.Collect;
 
 public class SourceInfoTest {
+    private static final String TEST_KEYSPACE = "test_keyspace";
+    private static final String TEST_SHARD = "-80";
+    private static final String TEST_GTID = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-1513";
+    private static final String TEST_SHARD2 = "80-";
+    private static final String TEST_GTID2 = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000b:1-1513";
+    private static final String VGTID_JSON = String.format(
+            "[" +
+                    "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}," +
+                    "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}" +
+                    "]",
+            TEST_KEYSPACE,
+            TEST_SHARD,
+            TEST_GTID,
+            TEST_KEYSPACE,
+            TEST_SHARD2,
+            TEST_GTID2);
 
     private SourceInfo source;
 
@@ -38,7 +55,10 @@ public class SourceInfoTest {
                         .build());
         source = new SourceInfo(connectorConfig);
         source.initialVgtid(
-                Vgtid.of("k", "s", "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-2"),
+                Vgtid.of(
+                        Collect.arrayListOf(
+                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
+                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2))),
                 Instant.ofEpochMilli(1000));
         source.setTableId(new TableId("c", "s", "t"));
         source.setSnapshot(SnapshotRecord.FALSE);
@@ -63,18 +83,7 @@ public class SourceInfoTest {
 
     @Test
     public void vgtidKeyspaceIsPresent() {
-        assertThat(source.struct().getString(SourceInfo.VGTID_KEYSPACE)).isEqualTo("k");
-    }
-
-    @Test
-    public void vgtidShardIsPresent() {
-        assertThat(source.struct().getString(SourceInfo.VGTID_SHARD)).isEqualTo("s");
-    }
-
-    @Test
-    public void vgtidGtidIsPresent() {
-        assertThat(source.struct().getString(SourceInfo.VGTID_GTID))
-                .isEqualTo("MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-2");
+        assertThat(source.struct().getString(SourceInfo.VGTID)).isEqualTo(VGTID_JSON);
     }
 
     @Test
@@ -107,9 +116,7 @@ public class SourceInfoTest {
                 .field("db", Schema.STRING_SCHEMA)
                 .field("schema", Schema.STRING_SCHEMA)
                 .field("table", Schema.STRING_SCHEMA)
-                .field("vgtid_keyspace", Schema.STRING_SCHEMA)
-                .field("vgtid_shard", Schema.STRING_SCHEMA)
-                .field("vgtid_gtid", Schema.STRING_SCHEMA)
+                .field("vgtid", Schema.STRING_SCHEMA)
                 .build();
 
         assertThat(source.struct().schema()).isEqualTo(schema);

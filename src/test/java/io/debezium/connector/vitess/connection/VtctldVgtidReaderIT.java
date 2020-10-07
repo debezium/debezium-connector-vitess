@@ -38,9 +38,10 @@ public class VtctldVgtidReaderIT {
 
         // verify outcome
         assertThat(vgtid).isNotNull();
-        assertThat(vgtid.getKeyspace()).isEqualTo(conf.getKeyspace());
-        assertThat(vgtid.getShard()).isEqualTo(conf.getShard());
-        assertThat(vgtid.getGtid().startsWith("MySQL") || vgtid.getGtid().startsWith("MariaDB"))
-                .isTrue();
+        assertThat(vgtid.getShardGtids()).hasSize(1);
+        assertThat(vgtid.getShardGtids().iterator().next().getKeyspace()).isEqualTo(conf.getKeyspace());
+        assertThat(vgtid.getShardGtids().iterator().next().getShard()).isEqualTo(conf.getShard());
+        String gtid = vgtid.getShardGtids().iterator().next().getGtid();
+        assertThat(gtid.startsWith("MySQL") || gtid.startsWith("MariaDB")).isTrue();
     }
 }

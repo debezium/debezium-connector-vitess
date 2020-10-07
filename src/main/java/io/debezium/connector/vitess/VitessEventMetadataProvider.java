@@ -44,12 +44,8 @@ public class VitessEventMetadataProvider implements EventMetadataProvider {
         }
 
         return Collect.hashMapOf(
-                SourceInfo.VGTID_KEYSPACE,
-                sourceInfo.getString(SourceInfo.VGTID_KEYSPACE),
-                SourceInfo.VGTID_SHARD,
-                sourceInfo.getString(SourceInfo.VGTID_SHARD),
-                SourceInfo.VGTID_GTID,
-                sourceInfo.getString(SourceInfo.VGTID_GTID));
+                SourceInfo.VGTID,
+                sourceInfo.getString(SourceInfo.VGTID));
     }
 
     @Override
@@ -61,8 +57,8 @@ public class VitessEventMetadataProvider implements EventMetadataProvider {
         }
 
         final Struct sourceInfo = value.getStruct(Envelope.FieldName.SOURCE);
-        // Use GTID as transaction id, if further granularity is needed, add keyspace + shard
-        return sourceInfo.getString(SourceInfo.VGTID_GTID);
+        // Use the entire VGTID as transaction id
+        return sourceInfo.getString(SourceInfo.VGTID);
     }
 
 }

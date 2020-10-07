@@ -7,7 +7,7 @@ package io.debezium.connector.vitess;
 
 import static org.fest.assertions.Assertions.assertThat;
 
-import java.util.Map;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -16,32 +16,111 @@ import io.debezium.util.Collect;
 import binlogdata.Binlogdata;
 
 public class VgtidTest {
+    private static final String TEST_KEYSPACE = "test_keyspace";
+    private static final String TEST_SHARD = "-80";
+    private static final String TEST_GTID = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-1513";
+    private static final String TEST_SHARD2 = "80-";
+    private static final String TEST_GTID2 = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000b:1-1513";
+    private static final String VGTID_JSON = String.format(
+            "[" +
+                    "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}," +
+                    "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}" +
+                    "]",
+            TEST_KEYSPACE,
+            TEST_SHARD,
+            TEST_GTID,
+            TEST_KEYSPACE,
+            TEST_SHARD2,
+            TEST_GTID2);
 
     @Test
-    public void shouldReturnOffset() {
-        Binlogdata.ShardGtid shardGtid = Binlogdata.ShardGtid.newBuilder()
-                .setKeyspace("foo")
-                .setShard("0")
-                .setGtid("MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-2")
+    public void shouldCreateFromRawVgtid() {
+        // setup fixture
+        Binlogdata.VGtid rawVgtid = Binlogdata.VGtid.newBuilder()
+                .addShardGtids(Binlogdata.ShardGtid.newBuilder()
+                        .setKeyspace(TEST_KEYSPACE)
+                        .setShard(TEST_SHARD)
+                        .setGtid(TEST_GTID)
+                        .build())
+                .addShardGtids(Binlogdata.ShardGtid.newBuilder()
+                        .setKeyspace(TEST_KEYSPACE)
+                        .setShard(TEST_SHARD2)
+                        .setGtid(TEST_GTID2)
+                        .build())
                 .build();
 
-        Binlogdata.VGtid vgtid = Binlogdata.VGtid.newBuilder().addShardGtids(shardGtid).build();
+        // exercise SUT
+        Vgtid vgtid = Vgtid.of(rawVgtid);
 
-        Map<String, Object> offset = Vgtid.of(vgtid).offset();
-        assertThat(offset).hasSize(3);
-        assertThat(offset.get(Vgtid.OFFSET_KEYSPACE)).isEqualTo("foo");
-        assertThat(offset.get(Vgtid.OFFSET_SHARD)).isEqualTo("0");
-        assertThat(offset.get(Vgtid.OFFSET_GTID))
-                .isEqualTo("MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-2");
+        // verify outcome
+        assertThat(vgtid.getRawVgtid()).isEqualTo(rawVgtid);
+        assertThat(vgtid.getShardGtids()).isEqualTo(Collect.unmodifiableSet(
+                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
+                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2)));
+        assertThat(vgtid.toString()).isEqualTo(VGTID_JSON);
     }
 
     @Test
-    public void shouldCreateFromOffset() {
-        Map<String, Object> expected = Collect.hashMapOf(
-                Vgtid.OFFSET_KEYSPACE, "foo",
-                Vgtid.OFFSET_SHARD, "0",
-                Vgtid.OFFSET_GTID, "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-2");
+    public void shouldCreateFromShardGtids() {
+        // setup fixture
+        List<Vgtid.ShardGtid> shardGtids = Collect.arrayListOf(
+                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
+                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2));
 
-        assertThat(Vgtid.of(expected).offset()).isEqualTo(expected);
+        // exercise SUT
+        Vgtid vgtid = Vgtid.of(shardGtids);
+
+        // verify outcome
+        assertThat(vgtid.getRawVgtid()).isEqualTo(
+                Binlogdata.VGtid.newBuilder()
+                        .addShardGtids(Binlogdata.ShardGtid.newBuilder()
+                                .setKeyspace(TEST_KEYSPACE)
+                                .setShard(TEST_SHARD)
+                                .setGtid(TEST_GTID)
+                                .build())
+                        .addShardGtids(Binlogdata.ShardGtid.newBuilder()
+                                .setKeyspace(TEST_KEYSPACE)
+                                .setShard(TEST_SHARD2)
+                                .setGtid(TEST_GTID2)
+                                .build())
+                        .build());
+
+        assertThat(vgtid.getShardGtids()).isEqualTo(Collect.unmodifiableSet(
+                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
+                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2)));
+
+        assertThat(vgtid.toString()).isEqualTo(VGTID_JSON);
+    }
+
+    @Test
+    public void shouldCreateFromShardGtidsInJson() {
+        // setup fixture
+        List<Vgtid.ShardGtid> shardGtids = Collect.arrayListOf(
+                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
+                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2));
+
+        // exercise SUT
+        Vgtid vgtid = Vgtid.of(VGTID_JSON);
+
+        // verify outcome
+        assertThat(vgtid.getRawVgtid()).isEqualTo(
+                Binlogdata.VGtid.newBuilder()
+                        .addShardGtids(Binlogdata.ShardGtid.newBuilder()
+                                .setKeyspace(TEST_KEYSPACE)
+                                .setShard(TEST_SHARD)
+                                .setGtid(TEST_GTID)
+                                .build())
+                        .addShardGtids(Binlogdata.ShardGtid.newBuilder()
+                                .setKeyspace(TEST_KEYSPACE)
+                                .setShard(TEST_SHARD2)
+                                .setGtid(TEST_GTID2)
+                                .build())
+                        .build());
+
+        assertThat(vgtid.getShardGtids()).isEqualTo(Collect.unmodifiableSet(
+                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
+                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2)));
+
+        assertThat(vgtid.toString()).isEqualTo(VGTID_JSON);
     }
 }

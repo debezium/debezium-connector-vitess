@@ -18,9 +18,22 @@ import io.debezium.util.Collect;
 public class VitessOffsetContextTest {
 
     private static final String TEST_KEYSPACE = "test_keyspace";
-    private static final String TEST_SHARD = "0";
+    private static final String TEST_SHARD = "-80";
     private static final String TEST_GTID = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-1513";
+    private static final String TEST_SHARD2 = "80-";
+    private static final String TEST_GTID2 = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000b:1-1513";
     private static final Long TEST_EVENTS_TO_SKIP = 3L;
+    private static final String VGTID_JSON = String.format(
+            "[" +
+                    "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}," +
+                    "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}" +
+                    "]",
+            TEST_KEYSPACE,
+            TEST_SHARD,
+            TEST_GTID,
+            TEST_KEYSPACE,
+            TEST_SHARD2,
+            TEST_GTID2);
 
     private VitessOffsetContext.Loader loader;
     private VitessOffsetContext offsetContext;
@@ -32,12 +45,8 @@ public class VitessOffsetContextTest {
 
         offsetContext = (VitessOffsetContext) loader.load(
                 Collect.hashMapOf(
-                        SourceInfo.VGTID_KEYSPACE,
-                        TEST_KEYSPACE,
-                        SourceInfo.VGTID_SHARD,
-                        TEST_SHARD,
-                        SourceInfo.VGTID_GTID,
-                        TEST_GTID,
+                        SourceInfo.VGTID,
+                        VGTID_JSON,
                         SourceInfo.EVENTS_TO_SKIP,
                         TEST_EVENTS_TO_SKIP));
     }
@@ -50,8 +59,10 @@ public class VitessOffsetContextTest {
         assertThat(offsetContext.getInitialEventsToSkip()).isEqualTo(TEST_EVENTS_TO_SKIP);
         assertThat(offsetContext.getRestartEventsToSkip()).isEqualTo(0);
         assertThat(offsetContext.getPartition()).isNotNull();
-        assertThat(offsetContext.getRestartVgtid())
-                .isEqualTo(Vgtid.of(TEST_KEYSPACE, TEST_SHARD, TEST_GTID));
+        assertThat(offsetContext.getRestartVgtid()).isEqualTo(Vgtid.of(
+                Collect.arrayListOf(
+                        new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
+                        new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2))));
         assertThat((offsetContext).getTransactionContext()).isNotNull();
     }
 
@@ -59,11 +70,18 @@ public class VitessOffsetContextTest {
     public void shouldRotateToNewVGgtid() {
         // exercise SUT
         offsetContext.rotateVgtid(
-                Vgtid.of(TEST_KEYSPACE, TEST_SHARD, "new_gtid"), AnonymousValue.getInstant());
+                Vgtid.of(
+                        Collect.arrayListOf(
+                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, "new_gtid"),
+                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, "new_gtid"))),
+                AnonymousValue.getInstant());
 
         // verify outcome
-        assertThat(offsetContext.getRestartVgtid())
-                .isEqualTo(Vgtid.of(TEST_KEYSPACE, TEST_SHARD, TEST_GTID));
+        assertThat(offsetContext.getRestartVgtid()).isEqualTo(
+                Vgtid.of(
+                        Collect.arrayListOf(
+                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
+                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2))));
         assertThat(offsetContext.getInitialEventsToSkip()).isEqualTo(TEST_EVENTS_TO_SKIP);
         assertThat(offsetContext.getRestartEventsToSkip()).isEqualTo(0L);
 
@@ -82,9 +100,7 @@ public class VitessOffsetContextTest {
     public void shouldBeAbleToConvertToOffset() {
         Map<String, ?> offset = offsetContext.getOffset();
         assertThat(offset).isNotNull();
-        assertThat(offset.get(SourceInfo.VGTID_KEYSPACE)).isEqualTo(TEST_KEYSPACE);
-        assertThat(offset.get(SourceInfo.VGTID_SHARD)).isEqualTo(TEST_SHARD);
-        assertThat(offset.get(SourceInfo.VGTID_GTID)).isEqualTo(TEST_GTID);
+        assertThat(offset.get(SourceInfo.VGTID)).isEqualTo(VGTID_JSON);
         // for each row event, we increment event-to-skip by 1
         assertThat(offset.get(SourceInfo.EVENTS_TO_SKIP)).isEqualTo(0L);
     }

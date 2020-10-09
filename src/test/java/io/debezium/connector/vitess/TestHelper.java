@@ -32,7 +32,7 @@ import binlogdata.Binlogdata;
 
 public class TestHelper {
     protected static final String TEST_SERVER = "test_server";
-    public static final String TEST_KEYSPACE = "commerce";
+    public static final String TEST_KEYSPACE = "test_unsharded_keyspace";
     public static final String TEST_TABLE = "test_table";
     private static final String TEST_VITESS_FULL_TABLE = TEST_KEYSPACE + "." + TEST_TABLE;
     protected static final String PK_FIELD = "id";

@@ -29,7 +29,7 @@ public class MySQLConnection extends JdbcConnection {
 
     protected static void addDefaults(Configuration.Builder builder) {
         builder
-                .withDefault(JdbcConfiguration.DATABASE, "commerce")
+                .withDefault(JdbcConfiguration.DATABASE, TestHelper.TEST_KEYSPACE)
                 .withDefault(JdbcConfiguration.HOSTNAME, "localhost")
                 .withDefault(JdbcConfiguration.PORT, 15306)
                 .withDefault(JdbcConfiguration.USER, "")

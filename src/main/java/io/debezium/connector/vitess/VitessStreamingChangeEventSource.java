@@ -118,7 +118,6 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
                     // Right before processing the last row, reset the previous offset to the new vgtid so the last row has the new vgtid as offset.
                     offsetContext.resetVgtid(newVgtid, message.getCommitTime());
                 }
-                // Update offset position
                 dispatcher.dispatchDataChangeEvent(
                         tableId,
                         new VitessChangeRecordEmitter(

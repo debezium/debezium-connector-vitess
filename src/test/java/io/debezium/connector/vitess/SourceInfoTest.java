@@ -54,7 +54,7 @@ public class SourceInfoTest {
                         .with(VitessConnectorConfig.VTGATE_PORT, AnonymousValue.getInt())
                         .build());
         source = new SourceInfo(connectorConfig);
-        source.initialVgtid(
+        source.resetVgtid(
                 Vgtid.of(
                         Collect.arrayListOf(
                                 new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),

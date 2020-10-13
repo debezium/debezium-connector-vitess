@@ -37,7 +37,7 @@ public class VitessChangeRecordEmitterTest {
                 VitessTopicSelector.defaultSelector(connectorConfig));
         decoder = new VStreamOutputMessageDecoder(schema);
         // initialize schema by FIELD event
-        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null);
+        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);
     }
 
     @Test
@@ -47,7 +47,7 @@ public class VitessChangeRecordEmitterTest {
                 ReplicationMessage.Operation.INSERT,
                 AnonymousValue.getInstant(),
                 AnonymousValue.getString(),
-                new TableId(null, TestHelper.TEST_KEYSPACE, TestHelper.TEST_TABLE)
+                new TableId(null, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE)
                         .toDoubleQuotedString(),
                 null,
                 TestHelper.defaultRelationMessageColumns());
@@ -73,7 +73,7 @@ public class VitessChangeRecordEmitterTest {
                 ReplicationMessage.Operation.DELETE,
                 AnonymousValue.getInstant(),
                 AnonymousValue.getString(),
-                new TableId(null, TestHelper.TEST_KEYSPACE, TestHelper.TEST_TABLE)
+                new TableId(null, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE)
                         .toDoubleQuotedString(),
                 TestHelper.defaultRelationMessageColumns(),
                 null);
@@ -99,7 +99,7 @@ public class VitessChangeRecordEmitterTest {
                 ReplicationMessage.Operation.UPDATE,
                 AnonymousValue.getInstant(),
                 AnonymousValue.getString(),
-                new TableId(null, TestHelper.TEST_KEYSPACE, TestHelper.TEST_TABLE)
+                new TableId(null, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE)
                         .toDoubleQuotedString(),
                 TestHelper.defaultRelationMessageColumns(),
                 TestHelper.defaultRelationMessageColumns());

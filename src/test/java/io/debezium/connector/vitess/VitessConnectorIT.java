@@ -5,7 +5,6 @@
  */
 package io.debezium.connector.vitess;
 
-import static io.debezium.connector.vitess.TestHelper.TEST_KEYSPACE;
 import static junit.framework.TestCase.assertEquals;
 import static org.fest.assertions.Assertions.assertThat;
 import static org.junit.Assert.assertFalse;
@@ -23,6 +22,7 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -102,63 +102,19 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         consumer = testConsumer(expectedRecordsCount);
 
         consumer.expects(expectedRecordsCount);
-        SourceRecord sourceRecord = assertInsert(
-                INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), null);
+        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes());
 
         consumer.expects(expectedRecordsCount);
-        sourceRecord = assertInsert(
-                INSERT_STRING_TYPES_STMT,
-                schemasAndValuesForStringTypes(),
-                RecordOffset.fromSourceInfo(sourceRecord, expectedRecordsCount));
+        assertInsert(INSERT_STRING_TYPES_STMT, schemasAndValuesForStringTypes());
 
         consumer.expects(expectedRecordsCount);
-        sourceRecord = assertInsert(
-                INSERT_ENUM_TYPE_STMT,
-                schemasAndValuesForEnumType(),
-                RecordOffset.fromSourceInfo(sourceRecord, expectedRecordsCount));
+        assertInsert(INSERT_ENUM_TYPE_STMT, schemasAndValuesForEnumType());
 
         consumer.expects(expectedRecordsCount);
-        sourceRecord = assertInsert(
-                INSERT_SET_TYPE_STMT,
-                schemasAndValuesForSetType(),
-                RecordOffset.fromSourceInfo(sourceRecord, expectedRecordsCount));
+        assertInsert(INSERT_SET_TYPE_STMT, schemasAndValuesForSetType());
 
         consumer.expects(expectedRecordsCount);
-        assertInsert(
-                INSERT_TIME_TYPES_STMT,
-                schemasAndValuesForTimeType(),
-                RecordOffset.fromSourceInfo(sourceRecord, expectedRecordsCount));
-
-        stopConnector();
-        assertConnectorNotRunning();
-    }
-
-    @Test
-    public void shouldOffsetContainMultipleEventSkips() throws Exception {
-        TestHelper.executeDDL("vitess_create_tables.ddl");
-        startConnector();
-        assertConnectorIsRunning();
-
-        // insert 1 row to get the initial vgtid
-        int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount);
-        SourceRecord sourceRecord = assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), null);
-
-        // insert 2 rows
-        expectedRecordsCount = 2;
-        List<String> two_inserts = new ArrayList<>(expectedRecordsCount);
-        IntStream.rangeClosed(1, expectedRecordsCount).forEach(i -> two_inserts.add(INSERT_NUMERIC_TYPES_STMT));
-        consumer.expects(expectedRecordsCount);
-        TableId table = tableIdFromInsertStmt(INSERT_NUMERIC_TYPES_STMT);
-        executeAndWait(two_inserts);
-
-        for (int expectedEventsToSkip = 1; expectedEventsToSkip <= expectedRecordsCount; expectedEventsToSkip++) {
-            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT));
-            // verify the offset has correct eventsToSkip value
-            assertRecordOffset(record, RecordOffset.fromSourceInfo(sourceRecord, expectedEventsToSkip));
-            assertSourceInfo(record, TestHelper.TEST_SERVER, table.schema(), table.table());
-            assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
-        }
+        assertInsert(INSERT_TIME_TYPES_STMT, schemasAndValuesForTimeType());
 
         stopConnector();
         assertConnectorNotRunning();
@@ -173,7 +129,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // insert 1 row to get the initial vgtid
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
-        SourceRecord sourceRecord = assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), null);
+        SourceRecord sourceRecord = assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes());
 
         // apply DDL
         TestHelper.execute("ALTER TABLE numeric_table ADD foo INT default 10;");
@@ -186,17 +142,57 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         List<SchemaAndValueField> expectedSchemaAndValuesByColumn = schemasAndValuesForNumericTypes();
         expectedSchemaAndValuesByColumn.add(
                 new SchemaAndValueField("foo", SchemaBuilder.OPTIONAL_INT32_SCHEMA, 10));
-        RecordOffset expectedOffset = RecordOffset
-                .fromSourceInfo(sourceRecord, expectedRecordsCount)
-                .incrementOffset(numOfGtidsFromDdl);
-        assertInsert(INSERT_NUMERIC_TYPES_STMT, expectedSchemaAndValuesByColumn, expectedOffset);
+        SourceRecord sourceRecord2 = assertInsert(INSERT_NUMERIC_TYPES_STMT, expectedSchemaAndValuesByColumn);
+
+        String expectedOffset = RecordOffset
+                .fromSourceInfo(sourceRecord)
+                .incrementOffset(numOfGtidsFromDdl + 1).getVgtid();
+        String actualOffset = (String) sourceRecord2.sourceOffset().get(SourceInfo.VGTID);
+        Assert.assertEquals(expectedOffset, actualOffset);
 
         stopConnector();
         assertConnectorNotRunning();
     }
 
     @Test
-    public void shouldReceiveMultipleRowsInSameStmt() throws Exception {
+    public void shouldSameTransactionLastRowOffsetBeNewVgtid() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector();
+        assertConnectorIsRunning();
+
+        // insert 1 row to get the initial vgtid
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        SourceRecord sourceRecord = assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes());
+
+        // insert 2 rows
+        expectedRecordsCount = 2;
+        List<String> two_inserts = new ArrayList<>(expectedRecordsCount);
+        IntStream.rangeClosed(1, expectedRecordsCount).forEach(i -> two_inserts.add(INSERT_NUMERIC_TYPES_STMT));
+        consumer.expects(expectedRecordsCount);
+        TableId table = tableIdFromInsertStmt(INSERT_NUMERIC_TYPES_STMT);
+        executeAndWait(two_inserts);
+
+        for (int i = 1; i <= expectedRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT));
+            if (i != expectedRecordsCount) {
+                // other row events have the previous vgtid
+                assertRecordOffset(record, RecordOffset.fromSourceInfo(sourceRecord));
+            }
+            else {
+                // last row event has the new vgtid
+                assertRecordOffset(record, RecordOffset.fromSourceInfo(record));
+            }
+            assertSourceInfo(record, TestHelper.TEST_SERVER, table.schema(), table.table());
+            assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
+        }
+
+        stopConnector();
+        assertConnectorNotRunning();
+    }
+
+    @Test
+    public void shouldMultipleRowsInSameStmtLastRowOffsetBeNewVgtid() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         startConnector();
         assertConnectorIsRunning();
@@ -204,7 +200,8 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         int expectedRecordsCount = 2;
         consumer = testConsumer(expectedRecordsCount);
 
-        consumer.expects(expectedRecordsCount);
+        Vgtid baseVgtid = TestHelper.getCurrentVgtid();
+        // insert 2 rows
         String insertTwoRowsInSameStmt = "INSERT INTO numeric_table ("
                 + "tinyint_col,"
                 + "smallint_col,"
@@ -216,8 +213,22 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 + "decimal_col,"
                 + "boolean_col)"
                 + " VALUES (1, 12, 123, 1234, 12345, 1.5, 2.5, 12.34, true), (1, 12, 123, 1234, 12345, 1.5, 2.5, 12.34, true);";
-        // wait to receive 2 rows, but only verify the first row is enough
-        assertInsert(insertTwoRowsInSameStmt, schemasAndValuesForNumericTypes(), null);
+        executeAndWait(insertTwoRowsInSameStmt);
+        TableId table = tableIdFromInsertStmt(insertTwoRowsInSameStmt);
+
+        for (int i = 1; i <= expectedRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(insertTwoRowsInSameStmt));
+            if (i != expectedRecordsCount) {
+                // other row events have the previous vgtid
+                assertRecordOffset(record, new RecordOffset(baseVgtid.toString()));
+            }
+            else {
+                // last row event has the new vgtid
+                assertRecordOffset(record, RecordOffset.fromSourceInfo(record));
+            }
+            assertSourceInfo(record, TestHelper.TEST_SERVER, table.schema(), table.table());
+            assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
+        }
 
         stopConnector();
         assertConnectorNotRunning();
@@ -230,19 +241,12 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         startConnector();
         assertConnectorIsRunning();
 
-        // Insert 1 row to get the starting offset
-        int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount);
-        consumer.expects(expectedRecordsCount);
-        // verify outcome: offset should be x
-        final SourceRecord previousRecord = assertInsert(
-                INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), null);
-
+        Vgtid baseVgtid = TestHelper.getCurrentVgtid();
         // Insert 1000 rows
         // We should get multiple gRPC responses:
         // The first response contains BEGIN and ROW events; The last response contains ROW, VGTID and COMMIT events.
-        expectedRecordsCount = 1000;
-        consumer.expects(expectedRecordsCount);
+        int expectedRecordsCount = 1000;
+        consumer = testConsumer(expectedRecordsCount);
         String rowValue = "(1, 12, 123, 1234, 12345, 1.5, 2.5, 12.34, true)";
         StringBuilder insertRows = new StringBuilder().append("INSERT INTO numeric_table ("
                 + "tinyint_col,"
@@ -263,36 +267,61 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         try {
             // exercise SUT
             executeAndWait(insertRowsStatement);
-            for (int eventsToSkip = 1; eventsToSkip <= expectedRecordsCount; eventsToSkip++) {
-                SourceRecord actualRecord = assertRecordInserted(TEST_KEYSPACE + ".numeric_table");
-                // verify outcome: offset should be x + 1
-                assertRecordOffset(actualRecord, RecordOffset.fromSourceInfo(previousRecord, eventsToSkip));
+            for (int i = 1; i <= expectedRecordsCount; i++) {
+                SourceRecord actualRecord = assertRecordInserted(TestHelper.TEST_UNSHARDED_KEYSPACE + ".numeric_table");
+                if (i != expectedRecordsCount) {
+                    // other row events have the previous vgtid
+                    assertRecordOffset(actualRecord, new RecordOffset(baseVgtid.toString()));
+                }
+                else {
+                    // last row event has the new vgtid
+                    assertRecordOffset(actualRecord, RecordOffset.fromSourceInfo(actualRecord));
+                }
             }
         }
         catch (Exception e) {
             throw new RuntimeException(e);
         }
 
-        // Insert 1 row
-        expectedRecordsCount = 1;
-        consumer.expects(expectedRecordsCount);
-        // verify outcome: offset should be x + 2
-        assertInsert(
-                INSERT_NUMERIC_TYPES_STMT,
-                schemasAndValuesForNumericTypes(),
-                RecordOffset.fromSourceInfo(previousRecord, expectedRecordsCount).incrementOffset(1));
         stopConnector();
         assertConnectorNotRunning();
         Testing.Print.enable();
     }
 
-    private void startConnector() throws InterruptedException {
-        startConnector(Function.identity());
+    @Test
+    public void shouldMultiShardSubscriptionHaveMultiShardGtidsInVgtid() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl", TestHelper.TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(true);
+        assertConnectorIsRunning();
+
+        // insert 1 row
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        TableId table = tableIdFromInsertStmt(INSERT_NUMERIC_TYPES_STMT, TestHelper.TEST_SHARDED_KEYSPACE);
+        executeAndWait(INSERT_NUMERIC_TYPES_STMT, TestHelper.TEST_SHARDED_KEYSPACE);
+
+        SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT, TestHelper.TEST_SHARDED_KEYSPACE));
+        // verify the offset has multiple shard gtids
+        assertRecordOffset(record, RecordOffset.fromSourceInfo(record), true);
+        assertSourceInfo(record, TestHelper.TEST_SERVER, table.schema(), table.table());
+        assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
+
+        stopConnector();
+        assertConnectorNotRunning();
     }
 
-    private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig)
+    private void startConnector() throws InterruptedException {
+        startConnector(false);
+    }
+
+    private void startConnector(boolean isMultiShards) throws InterruptedException {
+        startConnector(Function.identity(), isMultiShards);
+    }
+
+    private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig, boolean isMultiShards)
             throws InterruptedException {
-        Configuration.Builder configBuilder = customConfig.apply(TestHelper.defaultConfig());
+        Configuration.Builder configBuilder = customConfig.apply(TestHelper.defaultConfig(isMultiShards));
         start(VitessConnector.class, configBuilder.build());
         assertConnectorIsRunning();
         waitForStreamingRunning();
@@ -304,14 +333,20 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
     private SourceRecord assertInsert(
                                       String statement,
+                                      List<SchemaAndValueField> expectedSchemaAndValuesByColumn) {
+        return assertInsert(statement, expectedSchemaAndValuesByColumn, TestHelper.TEST_UNSHARDED_KEYSPACE);
+    }
+
+    private SourceRecord assertInsert(
+                                      String statement,
                                       List<SchemaAndValueField> expectedSchemaAndValuesByColumn,
-                                      RecordOffset expectedRecordOffset) {
-        TableId table = tableIdFromInsertStmt(statement);
+                                      String database) {
+        TableId table = tableIdFromInsertStmt(statement, database);
 
         try {
-            executeAndWait(statement);
-            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(statement));
-            assertRecordOffset(record, expectedRecordOffset);
+            executeAndWait(statement, database);
+            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(statement, database));
+            assertRecordOffset(record);
             assertSourceInfo(record, TestHelper.TEST_SERVER, table.schema(), table.table());
             assertRecordSchemaAndValues(
                     expectedSchemaAndValuesByColumn, record, Envelope.FieldName.AFTER);
@@ -346,11 +381,19 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     private void executeAndWait(String statement) throws Exception {
-        executeAndWait(Collections.singletonList(statement));
+        executeAndWait(statement, TestHelper.TEST_UNSHARDED_KEYSPACE);
+    }
+
+    private void executeAndWait(String statement, String database) throws Exception {
+        executeAndWait(Collections.singletonList(statement), database);
     }
 
     private void executeAndWait(List<String> statements) throws Exception {
-        TestHelper.execute(statements);
+        executeAndWait(statements, TestHelper.TEST_UNSHARDED_KEYSPACE);
+    }
+
+    private void executeAndWait(List<String> statements, String database) throws Exception {
+        TestHelper.execute(statements, database);
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
     }
 

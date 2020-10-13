@@ -31,6 +31,9 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.Assert;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
 import io.debezium.data.SchemaUtil;
 import io.debezium.data.VerifyRecord;
 import io.debezium.embedded.AbstractConnectorTest;
@@ -73,6 +76,8 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
             + "timestamp_col,"
             + "year_col)"
             + " VALUES ('01:02:03', '2020-02-11', '2020-02-12 01:02:03', '2020-02-13 01:02:03', '2020')";
+
+    private static final Gson gson = new Gson();
 
     protected List<SchemaAndValueField> schemasAndValuesForNumericTypes() {
         final List<SchemaAndValueField> fields = new ArrayList<>();
@@ -139,6 +144,10 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
     }
 
     protected static TableId tableIdFromInsertStmt(String statement) {
+        return tableIdFromInsertStmt(statement, TestHelper.TEST_UNSHARDED_KEYSPACE);
+    }
+
+    protected static TableId tableIdFromInsertStmt(String statement, String database) {
         Matcher matcher = INSERT_TABLE_MATCHING_PATTERN.matcher(statement);
         assertTrue(
                 "Extraction of table name from insert statement failed: " + statement, matcher.matches());
@@ -146,14 +155,18 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         TableId id = TableId.parse(matcher.group(1), false);
 
         if (id.schema() == null) {
-            id = new TableId(id.catalog(), TestHelper.TEST_KEYSPACE, id.table());
+            id = new TableId(id.catalog(), database, id.table());
         }
 
         return id;
     }
 
     protected static String topicNameFromInsertStmt(String statement) {
-        TableId table = tableIdFromInsertStmt(statement);
+        return topicNameFromInsertStmt(statement, TestHelper.TEST_UNSHARDED_KEYSPACE);
+    }
+
+    protected static String topicNameFromInsertStmt(String statement, String database) {
+        TableId table = tableIdFromInsertStmt(statement, database);
         String expectedTopicName = table.schema() + "." + table.table();
         return expectedTopicName;
     }
@@ -285,16 +298,29 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         }
     }
 
+    protected void assertRecordOffset(SourceRecord record) {
+        assertRecordOffset(record, RecordOffset.fromSourceInfo(record), false);
+    }
+
     protected void assertRecordOffset(SourceRecord record, RecordOffset expectedRecordOffset) {
+        assertRecordOffset(record, expectedRecordOffset, false);
+    }
+
+    protected void assertRecordOffset(SourceRecord record, RecordOffset expectedRecordOffset, boolean isMultiShards) {
         Map<String, ?> offset = record.sourceOffset();
         assertNotNull(offset.get(SourceInfo.VGTID));
-        assertNotNull(offset.get(SourceInfo.EVENTS_TO_SKIP));
         Object snapshot = offset.get(SourceInfo.SNAPSHOT_KEY);
         assertNull("Snapshot marker not expected, but found", snapshot);
 
+        if (isMultiShards) {
+            String shardGtidsInJson = offset.get(SourceInfo.VGTID).toString();
+            List<Vgtid.ShardGtid> shardGtids = gson.fromJson(shardGtidsInJson, new TypeToken<List<Vgtid.ShardGtid>>() {
+            }.getType());
+            assertThat(shardGtids.size() > 1).isTrue();
+        }
+
         if (expectedRecordOffset != null) {
             Assert.assertEquals(expectedRecordOffset.getVgtid(), offset.get(SourceInfo.VGTID));
-            Assert.assertEquals(expectedRecordOffset.getEventsToSkip(), offset.get(SourceInfo.EVENTS_TO_SKIP));
         }
     }
 
@@ -325,19 +351,13 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
 
     protected static class RecordOffset {
         private final String vgtid;
-        private final long eventsToSkip;
 
-        public RecordOffset(String vgtid, long eventsToSkip) {
+        public RecordOffset(String vgtid) {
             this.vgtid = vgtid;
-            this.eventsToSkip = eventsToSkip;
         }
 
         public String getVgtid() {
             return vgtid;
-        }
-
-        public long getEventsToSkip() {
-            return eventsToSkip;
         }
 
         /**
@@ -349,16 +369,16 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
                     .map(shardGtid -> new Vgtid.ShardGtid(shardGtid.getKeyspace(), shardGtid.getShard(), incrementGtid(shardGtid.getGtid(), increment)))
                     .collect(Collectors.toList()));
 
-            return new RecordOffset(newVgtid.toString(), eventsToSkip);
+            return new RecordOffset(newVgtid.toString());
         }
 
         /**
          * Convert {@link SourceRecord}'s source to offset.
          */
-        public static RecordOffset fromSourceInfo(SourceRecord record, int eventsToSkip) {
+        public static RecordOffset fromSourceInfo(SourceRecord record) {
             if (record.value() instanceof Struct) {
                 Struct source = ((Struct) record.value()).getStruct("source");
-                return new RecordOffset(source.getString(SourceInfo.VGTID), eventsToSkip);
+                return new RecordOffset(source.getString(SourceInfo.VGTID));
             }
             else {
                 throw new IllegalArgumentException("Record value is not a struct");
@@ -372,7 +392,6 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         protected void assertFor(SourceRecord record) {
             Map<String, ?> offset = record.sourceOffset();
             Assert.assertEquals(vgtid, offset.get(SourceInfo.VGTID));
-            Assert.assertEquals(eventsToSkip, offset.get(SourceInfo.EVENTS_TO_SKIP));
         }
     }
 

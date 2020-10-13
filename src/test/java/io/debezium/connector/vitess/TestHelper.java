@@ -7,6 +7,8 @@ package io.debezium.connector.vitess;
 
 import static org.junit.Assert.assertNotNull;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -24,6 +26,7 @@ import com.google.protobuf.ByteString;
 import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageColumn;
+import io.debezium.connector.vitess.connection.VtctldConnection;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.vitess.proto.Query;
 import io.vitess.proto.Query.Field;
@@ -32,33 +35,50 @@ import binlogdata.Binlogdata;
 
 public class TestHelper {
     protected static final String TEST_SERVER = "test_server";
-    public static final String TEST_KEYSPACE = "test_unsharded_keyspace";
+    public static final String TEST_UNSHARDED_KEYSPACE = "test_unsharded_keyspace";
+    public static final String TEST_SHARDED_KEYSPACE = "test_sharded_keyspace";
+    public static final String TEST_SHARD = "0";
     public static final String TEST_TABLE = "test_table";
-    private static final String TEST_VITESS_FULL_TABLE = TEST_KEYSPACE + "." + TEST_TABLE;
+    private static final String TEST_VITESS_FULL_TABLE = TEST_UNSHARDED_KEYSPACE + "." + TEST_TABLE;
     protected static final String PK_FIELD = "id";
     private static final String TEST_PROPERTY_PREFIX = "debezium.test.";
+    private static final String VTCTLD_HOST = "localhost";
+    private static final int VTCTLD_PORT = 15999;
 
     public static Configuration.Builder defaultConfig() {
+        return defaultConfig(false);
+    }
+
+    public static Configuration.Builder defaultConfig(boolean isMultiShards) {
         Configuration.Builder builder = Configuration.create();
-        builder
+        builder = builder
                 .with(RelationalDatabaseConnectorConfig.SERVER_NAME, TEST_SERVER)
                 .with(VitessConnectorConfig.VTGATE_HOST, "localhost")
                 .with(VitessConnectorConfig.VTGATE_PORT, 15991)
-                .with(VitessConnectorConfig.KEYSPACE, TEST_KEYSPACE)
-                .with(VitessConnectorConfig.SHARD, 0)
-                .with(VitessConnectorConfig.VTCTLD_HOST, "localhost")
-                .with(VitessConnectorConfig.VTCTLD_PORT, 15999)
+                .with(VitessConnectorConfig.VTCTLD_HOST, VTCTLD_HOST)
+                .with(VitessConnectorConfig.VTCTLD_PORT, VTCTLD_PORT)
                 .with(VitessConnectorConfig.POLL_INTERVAL_MS, 100);
-        return builder;
+        if (isMultiShards) {
+            return builder.with(VitessConnectorConfig.KEYSPACE, TEST_SHARDED_KEYSPACE);
+        }
+        else {
+            return builder.with(VitessConnectorConfig.KEYSPACE, TEST_UNSHARDED_KEYSPACE)
+                    .with(VitessConnectorConfig.SHARD, TEST_SHARD);
+        }
+    }
+
+    public static void execute(List<String> statements) {
+        execute(statements, TEST_UNSHARDED_KEYSPACE);
     }
 
     /**
      * Executes a JDBC statement using the default jdbc config without autocommitting the connection
      * @param statements A list of SQL statements
+     * @param database Keyspace
      */
-    public static void execute(List<String> statements) {
+    public static void execute(List<String> statements, String database) {
 
-        try (MySQLConnection connection = MySQLConnection.forTestDatabase()) {
+        try (MySQLConnection connection = MySQLConnection.forTestDatabase(database)) {
             connection.setAutoCommit(false);
             Connection jdbcConn = null;
             for (String statement : statements) {
@@ -73,16 +93,47 @@ public class TestHelper {
     }
 
     public static void execute(String statement) {
-        execute(Collections.singletonList(statement));
+        execute(statement, TEST_UNSHARDED_KEYSPACE);
+    }
+
+    public static void execute(String statement, String database) {
+        execute(Collections.singletonList(statement), database);
     }
 
     protected static void executeDDL(String ddlFile) throws Exception {
+        executeDDL(ddlFile, TEST_UNSHARDED_KEYSPACE);
+    }
+
+    protected static void executeDDL(String ddlFile, String database) throws Exception {
+        String statements = readStringFromFile(ddlFile);
+        execute(Arrays.asList(statements.split(";")), database);
+    }
+
+    protected static void applyVSchema(String vschemaFile) throws Exception {
+        try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT)) {
+            vtctldConnection.applyVSchema(readStringFromFile(vschemaFile), TEST_SHARDED_KEYSPACE);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    protected static Vgtid getCurrentVgtid() throws Exception {
+        try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT)) {
+            return vtctldConnection.latestVgtid(TEST_UNSHARDED_KEYSPACE, TEST_SHARD, VtctldConnection.TabletType.MASTER);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static String readStringFromFile(String ddlFile) throws IOException, URISyntaxException {
         URL ddlTestFile = TestHelper.class.getClassLoader().getResource(ddlFile);
         assertNotNull("Cannot locate " + ddlFile, ddlTestFile);
         String statements = Files.readAllLines(Paths.get(ddlTestFile.toURI())).stream()
                 .filter(line -> !line.isEmpty())
                 .collect(Collectors.joining(System.lineSeparator()));
-        execute(Arrays.asList(statements.split(";")));
+        return statements;
     }
 
     public static int waitTimeForRecords() {

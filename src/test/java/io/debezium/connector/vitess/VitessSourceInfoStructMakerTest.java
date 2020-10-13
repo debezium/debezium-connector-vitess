@@ -54,19 +54,14 @@ public class VitessSourceInfoStructMakerTest {
         String schemaName = "test_schema";
         String tableName = "test_table";
         SourceInfo sourceInfo = new SourceInfo(new VitessConnectorConfig(TestHelper.defaultConfig().build()));
-        sourceInfo.initialVgtid(
+        sourceInfo.resetVgtid(
                 Vgtid.of(
                         Collect.arrayListOf(
                                 new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
                                 new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2))),
                 AnonymousValue.getInstant());
-        sourceInfo.rotateVgtid(
-                Vgtid.of(
-                        Collect.arrayListOf(
-                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
-                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2))),
-                AnonymousValue.getInstant());
-        sourceInfo.startRowEvent(AnonymousValue.getInstant(), new TableId(null, schemaName, tableName));
+        sourceInfo.setTableId(new TableId(null, schemaName, tableName));
+        sourceInfo.setTimestamp(AnonymousValue.getInstant());
 
         // exercise SUT
         Struct struct = new VitessSourceInfoStructMaker(

@@ -19,7 +19,6 @@ import io.debezium.relational.TableId;
 @NotThreadSafe
 public class SourceInfo extends BaseSourceInfo {
     public static final String VGTID = "vgtid";
-    public static final String EVENTS_TO_SKIP = "event";
 
     private final String dbServerName;
 
@@ -29,8 +28,6 @@ public class SourceInfo extends BaseSourceInfo {
     private Instant timestamp;
     // kafka offset topic stores restartVgtid, it is the previous commited transaction vgtid
     private Vgtid restartVgtid;
-    // number of row events to skip when restarting from the restartVgtid
-    private long restartEventsToSkip = 0;
 
     public SourceInfo(CommonConnectorConfig config) {
         super(config);
@@ -67,11 +64,7 @@ public class SourceInfo extends BaseSourceInfo {
         return restartVgtid;
     }
 
-    public long getRestartEventsToSkip() {
-        return restartEventsToSkip;
-    }
-
-    public void initialVgtid(Vgtid vgtid, Instant commitTime) {
+    public void resetVgtid(Vgtid vgtid, Instant commitTime) {
         this.restartVgtid = vgtid;
         this.currentVgtid = vgtid;
         this.timestamp = commitTime;
@@ -85,19 +78,12 @@ public class SourceInfo extends BaseSourceInfo {
         // Also, upon restart, the newVgtid could be null if the grpc response does not contain vgtid.
         if (!this.currentVgtid.equals(newVgtid)) {
             this.restartVgtid = this.currentVgtid;
-            this.restartEventsToSkip = 0;
             // keep using the same currentVgtid if the newVgtid is null
             if (newVgtid != null) {
                 this.currentVgtid = newVgtid;
             }
             this.timestamp = commitTime;
         }
-    }
-
-    public void startRowEvent(Instant commitTime, TableId tableId) {
-        this.timestamp = commitTime;
-        this.tableId = tableId;
-        restartEventsToSkip++;
     }
 
     @Override
@@ -111,8 +97,6 @@ public class SourceInfo extends BaseSourceInfo {
                 + currentVgtid
                 + ", restartVgtid="
                 + restartVgtid
-                + ", restartEventsToSkip="
-                + restartEventsToSkip
                 + '}';
     }
 }

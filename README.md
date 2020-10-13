@@ -19,14 +19,18 @@ E.g. the format of emitted messages may change, specific features may not be imp
 
 ## Supported Features
 
-- Get the current VGTID of a specific shard from VTCtld (via gRPC).
-- Constantly get data-changes of a specific shard or from all shards of the keyspace from VTGate (via gRPC, a.k.a VStream).
+- Constantly get data-changes of from all shards (or from a specific shard) of the keyspace from VTGate (via gRPC, a.k.a VStream).
+- One connector instance can subscribe to all shards of a given keyspace.
+- One connector instance can also choose to subscribe to only 1 shard. However, the vitess `Reshard` operation would be manual in this case.
+- Supoort vitess `Reshard` operation when subscribing to all shards of a given keyspace, no data loss, no data duplication.
+- Support vitess `MoveTables` operation, no data loss, no data duplication.
 - Each transaction has multiple events. All events in the transaction have the same VGTID.
 - Support basic MySQL type -> Kafka Connect type mapping.
 - Support AVRO/JSON connect converters.
 - Support extracting only the `after` struct of the message, by using `ExtractNewRecordState` single message transformation (SMT).
 - If for any reason, a message in a transaction fails the task, we can restart from the offset where it has left off.
-- If no previous offset exists, start from the current vgtid of the specified shard, or of all shards of the keyspace.
+- If no previous offset exists, start from the current vgtid.
+- Have at-least-once delivery guarantee. In most cases, data is delivered once. In case of immediate shutdown of the server, data could be delivered twice. 
 - Mapping vitess table to kafka topics (e.g. Mapping vitess table `product` in `commerce` keyspace to kafka topic `connect_vitess_customer_sharded.customer.customer`, `connect_vitess_customer_sharded` is the `database.server.name` connector config, the first `customer` is the keyspace, the second `customer` is the table's name)
 - Use async grpc stub for vstream service so that `ChangeEventSourceCoordinator` can be stopped gracefully
 - Some configurations supported out-of-the-box from Debezium Development Framework.
@@ -41,12 +45,10 @@ E.g. the format of emitted messages may change, specific features may not be imp
     - poll.interval.ms ✅
     - event.processing.failure.handling.mode ✅
     - converters ✅
-- Support vitess `MoveTables` workflow, no data loss, no data duplication.
 - Vitess Sequence tables also generate events, users can optionally filter them out by `table.exclude.list`.
 
 ## Future Improvements
 
-- Support vitess resharding operation
 - Add primary key to message. A workaround at the moment is using `message.key.columns` configuration.
 - Support for initial database snapshot
 - Support `decimal.handling.mode` configuration. (It was limited by VStream API, but now Vitess has added support for this.) 
@@ -75,8 +77,12 @@ would have 5 seconds to consume all expected `SourceRecord` before fail the test
 
 ## How Vitess Connector Works
 
-Each connector instance captures data-changes from a specific keyspace/shard.
-To get the initial (a.k.a. the current) vgtid position of the keyspace/shard, connectors communicate with the VTCtld.
+Each connector instance captures data-changes from all shards in a keyspace, or from a specific shard in a keyspace.
+
+If you subscribe to all shards, no VTCtld is needed to get the initial vgtid.
+![VitessAllShards](./documentation/assets/VitessAllShards.png)
+
+If you subscribe to a specific shard, connectors communicate with the VTCtld to get the initial (a.k.a. the current) vgtid position of the keyspace/shard.
 ![ConnectorShardMapping](./documentation/assets/ConnectorShardMapping.png)
 
 Internally, each connector constantly polls data-changes from VStream gRPC and send them to an in-memory queue.
@@ -256,8 +262,7 @@ The value is of format
 ```json
 {
     "transaction_id": null,
-    "vgtid": "<vgtid_in_json>",
-    "event":"<number_of_row_events_to_skip>"
+    "vgtid": "<vgtid_in_json>"
 }
 ```
 
@@ -265,15 +270,12 @@ E.g.
 ```json
 {
     "transaction_id": null,
-    "vgtid": "[{\"keyspace\":\"customer\",\"shard\":\"80-\",\"gtid\":\"MariaDB/0-54610504-45\"},{\"keyspace\":\"customer\",\"shard\":\"-80\",\"gtid\":\"MariaDB/0-1592148-41\"}]",
-    "event": 1
+    "vgtid": "[{\"keyspace\":\"customer\",\"shard\":\"80-\",\"gtid\":\"MariaDB/0-54610504-45\"},{\"keyspace\":\"customer\",\"shard\":\"-80\",\"gtid\":\"MariaDB/0-1592148-41\"}]"
 }
 ```
 
 allows the connector to start reading from `MariaDB/0-54610504-46` (inclusive) from the `80-` shard and `MariaDB/0-1592148-42`
 (inclusive) from the `-80` shard, from the `commerce` keyspace.
-The connector will skip 1 row-event as description by the `event`, it is because this row-event has already been processed
-and sent to the data topic.
 
 The following diagram shows how each record's offset is managed:
 ![Offsets](./documentation/assets/Offsets.png)
@@ -323,20 +325,23 @@ The vitess-connector supports this workflow. No data lose, nor data duplication 
 
 The entire history of the moved table will be replicated to another connector if the later is replicating from the target keyspace.
 
-## Vitess Resharding
+## Vitess Reshard
 
-This is not fully supported. You will get an error `Only 1 shard gtid per vgtid is allowed` from the connector who listens to the source shard `-`.
+Vitess's `Reshard` operation copies data from the source shards into the target shards, then remove the source shards.
 
-A few reasons why it is not supported yet:
+### Recommended way
+The vitess-connector automatically supports Reshard if it subscribes to all shards in the keyspace.
+No data lose, nor data duplication will happen during the reshard operation.
+After the `SwitchWrites` of the Reshard and before deleting the source shards, make sure that the connector is not down and the offset
+topic has the new VGTID from the target shards. Otherwise, if the source shards are already deleted, VStream will throw an error when reading 
+from the old VGTID from the source shards.
 
-- The current design of the connector's offset management supports only 1 shard_gtid at moment. The connector that listens to the `-` shard will receive VGTID event that contains multiple `shard_gtids` when resharding.
-- Upon connector restart, we need to subscribe to a vgtid with multiple `shard_gtids`, this way, we can start from where we left off from the entire keyspace.
-
-One manual way to support Vitess Reshard:
+### Manual way
+When subscribing to individual shard, we need to do the following manual steps for reshard.
 
 - Create 1 new connector per target shards, e.g. `commerce/-80` and `commerce/80-`. It is ok to run the new connector even before resharding.
 - Because they're new connectors, new topics will be created.
-- The source shard's connector `-` will keep sending events of all shards to old topics.
+- The source shard's connector `-` will keep sending events of all shards to old topics, until the source shard is removed.
 
 ## Contributing
 

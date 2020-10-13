@@ -3,16 +3,15 @@
   "config": {
     "connector.class": "io.debezium.connector.vitess.VitessConnector",
     "tasks.max": 1,
-    "database.server.name": "connect_vitess_customer_sharded",
+    "database.server.name": "connect_vitess_test_sharded_keyspace",
     "database.hostname": "host.docker.internal",
     "database.port": "15991",
-    "vitess.keyspace": "customer",
+    "vitess.keyspace": "test_sharded_keyspace",
     "vitess.vtctld.host": "host.docker.internal",
     "vitess.vtctld.port": "15999",
     "vitess.tablet.type": "MASTER",
     "decimal.handling.mode": "string",
     "max.queue.size": "24576",
-    "max.batch.size": "6144",
-    "message.key.columns": "customer.customer:customer_id"
+    "max.batch.size": "6144"
   }
 }

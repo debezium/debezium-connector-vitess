@@ -53,14 +53,15 @@ public class VStreamOutputMessageDecoderTest {
         final boolean[] processed = { false };
         decoder.processMessage(
                 event,
-                (message, vgtid) -> {
+                (message, vgtid, isLastRowEventOfTransaction) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(TransactionalMessage.class);
                     assertThat(message.getOperation()).isEqualTo(ReplicationMessage.Operation.BEGIN);
                     processed[0] = true;
                 },
-                null);
+                null,
+                false);
         assertThat(processed[0]).isTrue();
     }
 
@@ -76,14 +77,15 @@ public class VStreamOutputMessageDecoderTest {
         final boolean[] processed = { false };
         decoder.processMessage(
                 event,
-                (message, vgtid) -> {
+                (message, vgtid, isLastRowEventOfTransaction) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(TransactionalMessage.class);
                     assertThat(message.getOperation()).isEqualTo(ReplicationMessage.Operation.COMMIT);
                     processed[0] = true;
                 },
-                null);
+                null,
+                false);
         assertThat(processed[0]).isTrue();
     }
 
@@ -100,14 +102,15 @@ public class VStreamOutputMessageDecoderTest {
         final boolean[] processed = { false };
         decoder.processMessage(
                 event,
-                (message, vgtid) -> {
+                (message, vgtid, isLastRowEventOfTransaction) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(DdlMessage.class);
                     assertThat(message.getOperation()).isEqualTo(ReplicationMessage.Operation.DDL);
                     processed[0] = true;
                 },
-                null);
+                null,
+                false);
         assertThat(processed[0]).isTrue();
     }
 
@@ -123,26 +126,27 @@ public class VStreamOutputMessageDecoderTest {
         final boolean[] processed = { false };
         decoder.processMessage(
                 event,
-                (message, vgtid) -> {
+                (message, vgtid, isLastRowEventOfTransaction) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(OtherMessage.class);
                     assertThat(message.getOperation()).isEqualTo(ReplicationMessage.Operation.OTHER);
                     processed[0] = true;
                 },
-                null);
+                null,
+                false);
         assertThat(processed[0]).isTrue();
     }
 
     @Test
     public void shouldProcessFieldEvent() throws Exception {
         // exercise SUT
-        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null);
-        Table table = schema.tableFor(new TableId(null, TestHelper.TEST_KEYSPACE, TestHelper.TEST_TABLE));
+        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);
+        Table table = schema.tableFor(new TableId(null, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE));
 
         // verify outcome
         assertThat(table).isNotNull();
-        assertThat(table.id().schema()).isEqualTo(TestHelper.TEST_KEYSPACE);
+        assertThat(table.id().schema()).isEqualTo(TestHelper.TEST_UNSHARDED_KEYSPACE);
         assertThat(table.id().table()).isEqualTo(TestHelper.TEST_TABLE);
         assertThat(table.columns().size()).isEqualTo(TestHelper.defaultNumOfColumns());
         for (Query.Field field : TestHelper.defaultFields()) {
@@ -153,14 +157,14 @@ public class VStreamOutputMessageDecoderTest {
     @Test
     public void shouldProcessInsertEvent() throws Exception {
         // setup fixture
-        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null);
-        Table table = schema.tableFor(new TableId(null, TestHelper.TEST_KEYSPACE, TestHelper.TEST_TABLE));
+        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);
+        Table table = schema.tableFor(new TableId(null, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE));
 
         // exercise SUT
         final boolean[] processed = { false };
         decoder.processMessage(
                 TestHelper.defaultInsertEvent(),
-                (message, vgtid) -> {
+                (message, vgtid, isLastRowEventOfTransaction) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
@@ -169,21 +173,21 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message.getNewTupleList().size()).isEqualTo(TestHelper.defaultNumOfColumns());
                     processed[0] = true;
                 },
-                null);
+                null, false);
         assertThat(processed[0]).isTrue();
     }
 
     @Test
     public void shouldProcessDeleteEvent() throws Exception {
         // setup fixture
-        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null);
-        Table table = schema.tableFor(new TableId(null, TestHelper.TEST_KEYSPACE, TestHelper.TEST_TABLE));
+        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);
+        Table table = schema.tableFor(new TableId(null, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE));
 
         // exercise SUT
         final boolean[] processed = { false };
         decoder.processMessage(
                 TestHelper.defaultDeleteEvent(),
-                (message, vgtid) -> {
+                (message, vgtid, isLastRowEventOfTransaction) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
@@ -192,21 +196,22 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message.getOldTupleList().size()).isEqualTo(TestHelper.defaultNumOfColumns());
                     processed[0] = true;
                 },
-                null);
+                null,
+                false);
         assertThat(processed[0]).isTrue();
     }
 
     @Test
     public void shouldProcessUpdateEvent() throws Exception {
         // setup fixture
-        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null);
-        Table table = schema.tableFor(new TableId(null, TestHelper.TEST_KEYSPACE, TestHelper.TEST_TABLE));
+        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);
+        Table table = schema.tableFor(new TableId(null, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE));
 
         // exercise SUT
         final boolean[] processed = { false };
         decoder.processMessage(
                 TestHelper.defaultUpdateEvent(),
-                (message, vgtid) -> {
+                (message, vgtid, isLastRowEventOfTransaction) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
@@ -215,7 +220,8 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message.getNewTupleList().size()).isEqualTo(TestHelper.defaultNumOfColumns());
                     processed[0] = true;
                 },
-                null);
+                null,
+                false);
         assertThat(processed[0]).isTrue();
     }
 }

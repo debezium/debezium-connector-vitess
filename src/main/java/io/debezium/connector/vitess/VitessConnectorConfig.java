@@ -15,7 +15,7 @@ import io.debezium.config.ConfigDefinition;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.SourceInfoStructMaker;
-import io.debezium.connector.vitess.connection.VgtidReader;
+import io.debezium.connector.vitess.connection.VtctldConnection;
 import io.debezium.function.Predicates;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.relational.ColumnId;
@@ -91,7 +91,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withType(Type.STRING)
             .withWidth(Width.SHORT)
             .withImportance(ConfigDef.Importance.HIGH)
-            .withDefault(VgtidReader.TabletType.MASTER.name())
+            .withDefault(VtctldConnection.TabletType.MASTER.name())
             .withDescription(
                     "Tablet type used to get latest vgtid from Vtctld and get data-changes from Vtgate."
                             + " Value can be MASTER, REPLICA, and RDONLY.");

@@ -42,29 +42,30 @@ public class VitessReplicationConnectionIT {
     protected long pollTimeoutInMs = TimeUnit.SECONDS.toMillis(5);
 
     @Test
-    public void shouldHaveVgtidInResponse() throws InterruptedException {
+    public void shouldHaveVgtidInResponse() throws Exception {
         // setup fixture
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
                 conf, SchemaNameAdjuster.create(LOGGER), VitessTopicSelector.defaultSelector(conf));
-        VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema);
 
         // exercise SUT
         TestHelper.execute(SETUP_TABLES_STMT);
         TestHelper.execute(INSERT_STMT);
-        Vgtid startingVgtid = VtctldVgtidReader.of(conf.getVtctldHost(), conf.getVtctldPort())
-                .latestVgtid(
-                        conf.getKeyspace(),
-                        conf.getShard(),
-                        VgtidReader.TabletType.valueOf(conf.getTabletType()));
 
         AtomicReference<Throwable> error = new AtomicReference<>();
-        try {
+        try (VtctldConnection vtctldConnection = VtctldConnection.of(conf.getVtctldHost(), conf.getVtctldPort());
+                VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
+
+            Vgtid startingVgtid = vtctldConnection.latestVgtid(
+                    conf.getKeyspace(),
+                    conf.getShard(),
+                    VtctldConnection.TabletType.valueOf(conf.getTabletType()));
+
             BlockingQueue<MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
             TestHelper.execute(String.format(INSERT_STMT));
             connection.startStreaming(
                     startingVgtid,
-                    (message, vgtid) -> {
+                    (message, vgtid, isLastRowEventOfTransaction) -> {
                         consumedMessages.add(new MessageAndVgtid(message, vgtid));
                     },
                     error);
@@ -90,12 +91,6 @@ public class VitessReplicationConnectionIT {
         finally {
             if (error.get() != null) {
                 LOGGER.error("Error during streaming", error.get());
-            }
-            try {
-                connection.close();
-            }
-            catch (Exception e) {
-                LOGGER.warn("Can not close connection", e);
             }
         }
     }

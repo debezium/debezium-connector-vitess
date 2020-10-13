@@ -39,23 +39,16 @@ public class VitessOffsetContext implements OffsetContext {
     private final Map<String, String> partition;
     private final TransactionContext transactionContext;
 
-    // Only used when resuming from the previous offset
-    private long initialEventsToSkip = 0L;
-    private boolean skipEvent = false;
-
     public VitessOffsetContext(
                                VitessConnectorConfig connectorConfig,
                                Vgtid initialVgtid,
-                               long restartEventsToSkip,
                                Instant time,
                                TransactionContext transactionContext) {
         this.partition = Collections.singletonMap(SERVER_PARTITION_KEY, connectorConfig.getLogicalName());
         this.sourceInfo = new SourceInfo(connectorConfig);
-        this.sourceInfo.initialVgtid(initialVgtid, time);
+        this.sourceInfo.resetVgtid(initialVgtid, time);
         this.sourceInfoSchema = sourceInfo.schema();
         this.transactionContext = transactionContext;
-        this.initialEventsToSkip = restartEventsToSkip;
-        this.skipEvent = initialEventsToSkip > 0;
     }
 
     /** Initialize VitessOffsetContext if no previous offset exists */
@@ -64,15 +57,7 @@ public class VitessOffsetContext implements OffsetContext {
         LOGGER.info("No previous offset exists. Use default VGTID.");
         final Vgtid defaultVgtid = VitessReplicationConnection.defaultVgtid(connectorConfig);
         return new VitessOffsetContext(
-                connectorConfig, defaultVgtid, 0L, clock.currentTimeAsInstant(), new TransactionContext());
-    }
-
-    public void startRowEvent(Instant commitTime, TableId tableId) {
-        if (skipEvent) {
-            initialEventsToSkip--;
-            skipEvent = initialEventsToSkip > 0;
-        }
-        sourceInfo.startRowEvent(commitTime, tableId);
+                connectorConfig, defaultVgtid, clock.currentTimeAsInstant(), new TransactionContext());
     }
 
     /**
@@ -82,20 +67,12 @@ public class VitessOffsetContext implements OffsetContext {
         sourceInfo.rotateVgtid(newVgtid, commitTime);
     }
 
+    public void resetVgtid(Vgtid newVgtid, Instant commitTime) {
+        sourceInfo.resetVgtid(newVgtid, commitTime);
+    }
+
     public Vgtid getRestartVgtid() {
         return sourceInfo.getRestartVgtid();
-    }
-
-    public long getRestartEventsToSkip() {
-        return sourceInfo.getRestartEventsToSkip();
-    }
-
-    public long getInitialEventsToSkip() {
-        return initialEventsToSkip;
-    }
-
-    public boolean isSkipEvent() {
-        return skipEvent;
     }
 
     @Override
@@ -114,7 +91,6 @@ public class VitessOffsetContext implements OffsetContext {
         if (sourceInfo.getRestartVgtid() != null) {
             result.put(SourceInfo.VGTID, sourceInfo.getRestartVgtid().toString());
         }
-        result.put(SourceInfo.EVENTS_TO_SKIP, sourceInfo.getRestartEventsToSkip());
         // put OFFSET_TRANSACTION_ID
         return transactionContext.store(result);
     }
@@ -168,10 +144,6 @@ public class VitessOffsetContext implements OffsetContext {
                 + sourceInfo
                 + ", partition="
                 + partition
-                + ", initialEventsToSkip="
-                + initialEventsToSkip
-                + ", skipEvent="
-                + skipEvent
                 + '}';
     }
 
@@ -192,15 +164,10 @@ public class VitessOffsetContext implements OffsetContext {
 
         @Override
         public OffsetContext load(Map<String, ?> offset) {
-            // final String keyspace = (String) offset.get(SourceInfo.VGTID_KEYSPACE);
-            // final String shard = (String) offset.get(SourceInfo.VGTID_SHARD);
-            // final String gtid = (String) offset.get(SourceInfo.VGTID_GTID);
             final String vgtid = (String) offset.get(SourceInfo.VGTID);
-            final Long restartEventsToSkip = (Long) offset.get(SourceInfo.EVENTS_TO_SKIP);
             return new VitessOffsetContext(
                     connectorConfig,
                     Vgtid.of(vgtid),
-                    restartEventsToSkip,
                     null,
                     TransactionContext.load(offset));
         }

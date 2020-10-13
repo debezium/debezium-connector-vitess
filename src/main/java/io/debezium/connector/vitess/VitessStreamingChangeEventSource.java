@@ -90,7 +90,7 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
     }
 
     private ReplicationMessageProcessor newReplicationMessageProcessor() {
-        return (message, newVgtid) -> {
+        return (message, newVgtid, isLastRowOfTransaction) -> {
             if (message.isTransactionalMessage()) {
                 // Tx BEGIN/END event
                 offsetContext.rotateVgtid(newVgtid, message.getCommitTime());
@@ -113,23 +113,17 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
                 TableId tableId = VitessDatabaseSchema.parse(message.getTable());
                 Objects.requireNonNull(tableId);
 
-                if (offsetContext.isSkipEvent()) {
-                    LOGGER.info(
-                            "Skipping event {} from {}, initialEventsToSkip = {}",
-                            message,
-                            newVgtid,
-                            offsetContext.getInitialEventsToSkip());
-                    offsetContext.startRowEvent(message.getCommitTime(), tableId);
-                    return;
+                offsetContext.event(tableId, message.getCommitTime());
+                if (isLastRowOfTransaction) {
+                    // Right before processing the last row, reset the previous offset to the new vgtid so the last row has the new vgtid as offset.
+                    offsetContext.resetVgtid(newVgtid, message.getCommitTime());
                 }
-                else {
-                    offsetContext.startRowEvent(message.getCommitTime(), tableId);
-                    // Update offset position
-                    dispatcher.dispatchDataChangeEvent(
-                            tableId,
-                            new VitessChangeRecordEmitter(
-                                    offsetContext, clock, connectorConfig, schema, message));
-                }
+                // Update offset position
+                dispatcher.dispatchDataChangeEvent(
+                        tableId,
+                        new VitessChangeRecordEmitter(
+                                offsetContext, clock, connectorConfig, schema, message));
+
             }
         };
     }

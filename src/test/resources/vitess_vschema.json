@@ -1,0 +1,82 @@
+{
+  "sharded": true,
+  "vindexes": {
+    "hash": {
+      "type": "hash"
+    }
+  },
+  "tables": {
+    "t1": {
+      "columnVindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ],
+      "autoIncrement": {
+        "column": "id",
+        "sequence": "my_seq"
+      }
+    },
+    "numeric_table": {
+      "columnVindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ],
+      "autoIncrement": {
+        "column": "id",
+        "sequence": "my_seq"
+      }
+    },
+    "string_table": {
+      "columnVindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ],
+      "autoIncrement": {
+        "column": "id",
+        "sequence": "my_seq"
+      }
+    },
+    "enum_table": {
+      "columnVindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ],
+      "autoIncrement": {
+        "column": "id",
+        "sequence": "my_seq"
+      }
+    },
+    "set_table": {
+      "columnVindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ],
+      "autoIncrement": {
+        "column": "id",
+        "sequence": "my_seq"
+      }
+    },
+    "time_table": {
+      "columnVindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ],
+      "autoIncrement": {
+        "column": "id",
+        "sequence": "my_seq"
+      }
+    }
+  }
+}

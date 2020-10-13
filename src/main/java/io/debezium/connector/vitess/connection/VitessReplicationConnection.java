@@ -73,10 +73,17 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 }
 
                 Vgtid newVgtid = getVgtid(response);
+                int numOfRowEvents = getNumOfRowEvents(response);
 
                 try {
-                    for (VEvent vEvent : response.getEventsList()) {
-                        messageDecoder.processMessage(vEvent, processor, newVgtid);
+                    int rowEventSeen = 0;
+                    for (int i = 0; i < response.getEventsCount(); i++) {
+                        Binlogdata.VEvent vEvent = response.getEvents(i);
+                        if (vEvent.getType() == Binlogdata.VEventType.ROW) {
+                            rowEventSeen++;
+                        }
+                        boolean isLastRowEventOfTransaction = newVgtid != null && numOfRowEvents != 0 && rowEventSeen == numOfRowEvents ? true : false;
+                        messageDecoder.processMessage(response.getEvents(i), processor, newVgtid, isLastRowEventOfTransaction);
                     }
                 }
                 catch (InterruptedException e) {
@@ -99,7 +106,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 LOGGER.info("VStream streaming completed.");
             }
 
-            // We assume there is only one vgtid event for response.
+            // We assume there is at most one vgtid event for response.
             // Even in case of resharding, there is only one vgtid event that contains multiple shard
             // gtids.
             private Vgtid getVgtid(Vtgate.VStreamResponse response) {
@@ -124,13 +131,23 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 }
                 return vgtids.getLast();
             }
+
+            private int getNumOfRowEvents(Vtgate.VStreamResponse response) {
+                int num = 0;
+                for (VEvent vEvent : response.getEventsList()) {
+                    if (vEvent.getType() == Binlogdata.VEventType.ROW) {
+                        num++;
+                    }
+                }
+                return num;
+            }
         };
 
         stub.vStream(
                 Vtgate.VStreamRequest.newBuilder()
                         .setVgtid(vgtid.getRawVgtid())
                         .setTabletType(
-                                toTopodataTabletType(VgtidReader.TabletType.valueOf(config.getTabletType())))
+                                toTopodataTabletType(VtctldConnection.TabletType.valueOf(config.getTabletType())))
                         .build(),
                 responseObserver);
     }
@@ -164,16 +181,20 @@ public class VitessReplicationConnection implements ReplicationConnection {
                             .build());
         }
         else {
-            return VtctldVgtidReader.of(config.getVtctldHost(), config.getVtctldPort())
-                    .latestVgtid(
-                            config.getKeyspace(),
-                            config.getShard(),
-                            VgtidReader.TabletType.valueOf(config.getTabletType()));
+            try (VtctldConnection vtctldConnection = VtctldConnection.of(config.getVtctldHost(), config.getVtctldPort())) {
+                return vtctldConnection.latestVgtid(
+                        config.getKeyspace(),
+                        config.getShard(),
+                        VtctldConnection.TabletType.valueOf(config.getTabletType()));
+            }
+            catch (Exception e) {
+                LOGGER.error("Cannot get vgtid from VTCtld", e);
+                throw new RuntimeException(e);
+            }
         }
-
     }
 
-    private static Topodata.TabletType toTopodataTabletType(VgtidReader.TabletType tabletType) {
+    private static Topodata.TabletType toTopodataTabletType(VtctldConnection.TabletType tabletType) {
         switch (tabletType) {
             case MASTER:
                 return Topodata.TabletType.MASTER;

@@ -16,7 +16,7 @@ import io.debezium.jdbc.JdbcConnection;
 public class MySQLConnection extends JdbcConnection {
 
     /**
-     * Obtain a connection instance to the named test database.
+     * Obtain a connection instance to the named test database. Use the default database (a.k.a keyspace).
      *
      * @return the MySQLConnection instance; never null
      */
@@ -27,9 +27,23 @@ public class MySQLConnection extends JdbcConnection {
                         .build());
     }
 
+    /**
+     * Obtain a connection instance to the named test database.
+     *
+     * @param database the keyspace name
+     * @return the MySQLConnection instance; never null
+     */
+    public static MySQLConnection forTestDatabase(String database) {
+        return new MySQLConnection(
+                JdbcConfiguration.copy(Configuration.fromSystemProperties("database."))
+                        .with(JdbcConfiguration.DATABASE, database)
+                        .with("useSSL", false)
+                        .build());
+    }
+
     protected static void addDefaults(Configuration.Builder builder) {
         builder
-                .withDefault(JdbcConfiguration.DATABASE, TestHelper.TEST_KEYSPACE)
+                .withDefault(JdbcConfiguration.DATABASE, TestHelper.TEST_UNSHARDED_KEYSPACE)
                 .withDefault(JdbcConfiguration.HOSTNAME, "localhost")
                 .withDefault(JdbcConfiguration.PORT, 15306)
                 .withDefault(JdbcConfiguration.USER, "")

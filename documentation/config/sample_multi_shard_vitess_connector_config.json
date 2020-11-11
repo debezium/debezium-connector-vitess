@@ -10,8 +10,8 @@
     "vitess.vtctld.host": "host.docker.internal",
     "vitess.vtctld.port": "15999",
     "vitess.tablet.type": "MASTER",
-    "decimal.handling.mode": "string",
     "max.queue.size": "24576",
-    "max.batch.size": "6144"
+    "max.batch.size": "6144",
+    "table.exclude.list": ".*_gho$,.*_ghc$"
   }
 }

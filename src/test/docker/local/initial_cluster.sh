@@ -37,8 +37,8 @@ vtctlclient InitShardMaster -force test_sharded_keyspace/-80 zone1-200
 vtctlclient InitShardMaster -force test_sharded_keyspace/80- zone1-300
 
 # create seq table unsharded keyspace, other tables and vschema in sharded keyspace
-vtctlclient ApplySchema -sql-file create_seq.sql test_unsharded_keyspace
-vtctlclient ApplyVSchema -vschema_file vschema_seq.json test_unsharded_keyspace
+vtctlclient ApplySchema -sql-file create_tables_unsharded.sql test_unsharded_keyspace
+vtctlclient ApplyVSchema -vschema_file vschema_tables_unsharded.json test_unsharded_keyspace
 vtctlclient ApplySchema -sql-file create_tables_sharded.sql test_sharded_keyspace
 vtctlclient ApplyVSchema -vschema_file vschema_tables_sharded.json test_sharded_keyspace
 

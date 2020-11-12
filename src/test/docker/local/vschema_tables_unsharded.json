@@ -1,0 +1,8 @@
+{
+  "tables": {
+    "my_seq": {
+      "type": "sequence"
+    },
+    "t1": {}
+  }
+}

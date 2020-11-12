@@ -120,7 +120,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                     // The VStreamResponse that contains an VERSION vEvent does not have VGTID.
                     // We do not update lastReceivedVgtid in this case.
                     // It can also be null if the 1st grpc response does not have vgtid upon restart
-                    LOGGER.warn("No vgtid found in response {}...", response.toString().substring(0, 100));
+                    LOGGER.warn("No vgtid found in response {}...", response.toString().substring(0, Math.min(100, response.toString().length())));
                     LOGGER.debug("Response is {}", response);
                     return null;
                 }

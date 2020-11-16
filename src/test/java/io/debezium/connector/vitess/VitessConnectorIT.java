@@ -32,6 +32,7 @@ import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.data.Envelope;
 import io.debezium.data.VerifyRecord;
+import io.debezium.doc.FixFor;
 import io.debezium.relational.TableId;
 import io.debezium.util.Testing;
 
@@ -102,19 +103,19 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         consumer = testConsumer(expectedRecordsCount);
 
         consumer.expects(expectedRecordsCount);
-        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes());
+        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
 
         consumer.expects(expectedRecordsCount);
-        assertInsert(INSERT_STRING_TYPES_STMT, schemasAndValuesForStringTypes());
+        assertInsert(INSERT_STRING_TYPES_STMT, schemasAndValuesForStringTypes(), TestHelper.PK_FIELD);
 
         consumer.expects(expectedRecordsCount);
-        assertInsert(INSERT_ENUM_TYPE_STMT, schemasAndValuesForEnumType());
+        assertInsert(INSERT_ENUM_TYPE_STMT, schemasAndValuesForEnumType(), TestHelper.PK_FIELD);
 
         consumer.expects(expectedRecordsCount);
-        assertInsert(INSERT_SET_TYPE_STMT, schemasAndValuesForSetType());
+        assertInsert(INSERT_SET_TYPE_STMT, schemasAndValuesForSetType(), TestHelper.PK_FIELD);
 
         consumer.expects(expectedRecordsCount);
-        assertInsert(INSERT_TIME_TYPES_STMT, schemasAndValuesForTimeType());
+        assertInsert(INSERT_TIME_TYPES_STMT, schemasAndValuesForTimeType(), TestHelper.PK_FIELD);
 
         stopConnector();
         assertConnectorNotRunning();
@@ -129,7 +130,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // insert 1 row to get the initial vgtid
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
-        SourceRecord sourceRecord = assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes());
+        SourceRecord sourceRecord = assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
 
         // apply DDL
         TestHelper.execute("ALTER TABLE numeric_table ADD foo INT default 10;");
@@ -142,7 +143,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         List<SchemaAndValueField> expectedSchemaAndValuesByColumn = schemasAndValuesForNumericTypes();
         expectedSchemaAndValuesByColumn.add(
                 new SchemaAndValueField("foo", SchemaBuilder.OPTIONAL_INT32_SCHEMA, 10));
-        SourceRecord sourceRecord2 = assertInsert(INSERT_NUMERIC_TYPES_STMT, expectedSchemaAndValuesByColumn);
+        SourceRecord sourceRecord2 = assertInsert(INSERT_NUMERIC_TYPES_STMT, expectedSchemaAndValuesByColumn, TestHelper.PK_FIELD);
 
         String expectedOffset = RecordOffset
                 .fromSourceInfo(sourceRecord)
@@ -163,7 +164,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // insert 1 row to get the initial vgtid
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
-        SourceRecord sourceRecord = assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes());
+        SourceRecord sourceRecord = assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
 
         // insert 2 rows
         expectedRecordsCount = 2;
@@ -174,7 +175,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         executeAndWait(two_inserts);
 
         for (int i = 1; i <= expectedRecordsCount; i++) {
-            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT));
+            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
             if (i != expectedRecordsCount) {
                 // other row events have the previous vgtid
                 assertRecordOffset(record, RecordOffset.fromSourceInfo(sourceRecord));
@@ -217,7 +218,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TableId table = tableIdFromInsertStmt(insertTwoRowsInSameStmt);
 
         for (int i = 1; i <= expectedRecordsCount; i++) {
-            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(insertTwoRowsInSameStmt));
+            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(insertTwoRowsInSameStmt), TestHelper.PK_FIELD);
             if (i != expectedRecordsCount) {
                 // other row events have the previous vgtid
                 assertRecordOffset(record, new RecordOffset(baseVgtid.toString()));
@@ -268,7 +269,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
             // exercise SUT
             executeAndWait(insertRowsStatement);
             for (int i = 1; i <= expectedRecordsCount; i++) {
-                SourceRecord actualRecord = assertRecordInserted(TestHelper.TEST_UNSHARDED_KEYSPACE + ".numeric_table");
+                SourceRecord actualRecord = assertRecordInserted(TestHelper.TEST_UNSHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
                 if (i != expectedRecordsCount) {
                     // other row events have the previous vgtid
                     assertRecordOffset(actualRecord, new RecordOffset(baseVgtid.toString()));
@@ -290,22 +291,105 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
     @Test
     public void shouldMultiShardSubscriptionHaveMultiShardGtidsInVgtid() throws Exception {
+        final boolean hasMultipleShards = true;
+
         TestHelper.executeDDL("vitess_create_tables.ddl", TestHelper.TEST_SHARDED_KEYSPACE);
         TestHelper.applyVSchema("vitess_vschema.json");
-        startConnector(true);
+        startConnector(hasMultipleShards);
         assertConnectorIsRunning();
 
-        // insert 1 row
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
-        TableId table = tableIdFromInsertStmt(INSERT_NUMERIC_TYPES_STMT, TestHelper.TEST_SHARDED_KEYSPACE);
-        executeAndWait(INSERT_NUMERIC_TYPES_STMT, TestHelper.TEST_SHARDED_KEYSPACE);
+        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.TEST_SHARDED_KEYSPACE, TestHelper.PK_FIELD, hasMultipleShards);
 
-        SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT, TestHelper.TEST_SHARDED_KEYSPACE));
-        // verify the offset has multiple shard gtids
-        assertRecordOffset(record, RecordOffset.fromSourceInfo(record), true);
+        stopConnector();
+        assertConnectorNotRunning();
+    }
+
+    @Test
+    @FixFor("DBZ-2578")
+    public void shouldUseMultiColumnPkAsRecordKey() throws Exception {
+        final boolean hasMultipleShards = true;
+
+        TestHelper.executeDDL("vitess_create_tables.ddl", TestHelper.TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(hasMultipleShards);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        final String insertStatement = "INSERT INTO comp_pk_table (int_col, int_col2) VALUES (1, 2);";
+        executeAndWait(insertStatement, TestHelper.TEST_SHARDED_KEYSPACE);
+        final SourceRecord record = consumer.remove();
+        final String expectedTopicName = topicNameFromInsertStmt(insertStatement, TestHelper.TEST_SHARDED_KEYSPACE);
+        TableId table = tableIdFromInsertStmt(insertStatement, TestHelper.TEST_SHARDED_KEYSPACE);
+
+        // Record key has all columns from the multi-column primary key
+        assertRecordInserted(record, expectedTopicName, TestHelper.PK_FIELD);
+        assertRecordInserted(record, expectedTopicName, "int_col");
+        assertRecordOffset(record, hasMultipleShards);
         assertSourceInfo(record, TestHelper.TEST_SERVER, table.schema(), table.table());
-        assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
+
+        stopConnector();
+        assertConnectorNotRunning();
+    }
+
+    @Test
+    @FixFor("DBZ-2578")
+    public void shouldUseUniqueKeyAsRecordKey() throws Exception {
+        final boolean hasMultipleShards = true;
+
+        TestHelper.executeDDL("vitess_create_tables.ddl", TestHelper.TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(hasMultipleShards);
+        assertConnectorIsRunning();
+
+        // Record key is the unique key if no primary key
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        assertInsert("INSERT INTO no_pk_multi_unique_keys_table (int_col, int_col2) VALUES (1, 2);", null, TestHelper.TEST_SHARDED_KEYSPACE, "int_col",
+                hasMultipleShards);
+
+        // Record key is the unique key, not the multi-column composite key
+        consumer.expects(expectedRecordsCount);
+        assertInsert("INSERT INTO no_pk_multi_comp_unique_keys_table (int_col, int_col2, int_col3, int_col4, int_col5) VALUES (1, 2, 3, 4, 5);", null,
+                TestHelper.TEST_SHARDED_KEYSPACE, "int_col3", hasMultipleShards);
+
+        stopConnector();
+        assertConnectorNotRunning();
+    }
+
+    @Test
+    @FixFor("DBZ-2578")
+    public void shouldNotHaveRecordKeyIfNoPrimaryKeyUniqueKey() throws Exception {
+        final boolean hasMultipleShards = true;
+
+        TestHelper.executeDDL("vitess_create_tables.ddl", TestHelper.TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(hasMultipleShards);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        assertInsert("INSERT INTO no_pk_table (int_col) VALUES (1);", null, TestHelper.TEST_SHARDED_KEYSPACE, null, hasMultipleShards);
+
+        stopConnector();
+        assertConnectorNotRunning();
+    }
+
+    @Test
+    @FixFor("DBZ-2578")
+    public void shouldPrioritizePrimaryKeyAsRecordKey() throws Exception {
+        final boolean hasMultipleShards = true;
+
+        TestHelper.executeDDL("vitess_create_tables.ddl", TestHelper.TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(hasMultipleShards);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        assertInsert("INSERT INTO pk_single_unique_key_table (int_col) VALUES (1);", null, TestHelper.TEST_SHARDED_KEYSPACE, TestHelper.PK_FIELD, hasMultipleShards);
 
         stopConnector();
         assertConnectorNotRunning();
@@ -315,13 +399,19 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         startConnector(false);
     }
 
-    private void startConnector(boolean isMultiShards) throws InterruptedException {
-        startConnector(Function.identity(), isMultiShards);
+    /**
+     * Start the connector.
+     *
+     * @param hasMultipleShards whether the keyspace has multiple shards
+     * @throws InterruptedException
+     */
+    private void startConnector(boolean hasMultipleShards) throws InterruptedException {
+        startConnector(Function.identity(), hasMultipleShards);
     }
 
-    private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig, boolean isMultiShards)
+    private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig, boolean hasMultipleShards)
             throws InterruptedException {
-        Configuration.Builder configBuilder = customConfig.apply(TestHelper.defaultConfig(isMultiShards));
+        Configuration.Builder configBuilder = customConfig.apply(TestHelper.defaultConfig(hasMultipleShards));
         start(VitessConnector.class, configBuilder.build());
         assertConnectorIsRunning();
         waitForStreamingRunning();
@@ -333,23 +423,38 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
     private SourceRecord assertInsert(
                                       String statement,
-                                      List<SchemaAndValueField> expectedSchemaAndValuesByColumn) {
-        return assertInsert(statement, expectedSchemaAndValuesByColumn, TestHelper.TEST_UNSHARDED_KEYSPACE);
+                                      List<SchemaAndValueField> expectedSchemaAndValuesByColumn,
+                                      String pkField) {
+        return assertInsert(statement, expectedSchemaAndValuesByColumn, TestHelper.TEST_UNSHARDED_KEYSPACE, pkField, false);
     }
 
+    /**
+     * Assert that the connector receives a valid insert event.
+     *
+     * @param statement The insert sql statement
+     * @param expectedSchemaAndValuesByColumn The expected column type and value
+     * @param database The database (a.k.a keyspace or schema) name
+     * @param pkField The primary key column's name
+     * @param hasMultipleShards whether the keyspace has multiple shards
+     * @return The {@link SourceRecord} generated from the insert event
+     */
     private SourceRecord assertInsert(
                                       String statement,
                                       List<SchemaAndValueField> expectedSchemaAndValuesByColumn,
-                                      String database) {
+                                      String database,
+                                      String pkField,
+                                      boolean hasMultipleShards) {
         TableId table = tableIdFromInsertStmt(statement, database);
 
         try {
             executeAndWait(statement, database);
-            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(statement, database));
-            assertRecordOffset(record);
+            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(statement, database), pkField);
+            assertRecordOffset(record, hasMultipleShards);
             assertSourceInfo(record, TestHelper.TEST_SERVER, table.schema(), table.table());
-            assertRecordSchemaAndValues(
-                    expectedSchemaAndValuesByColumn, record, Envelope.FieldName.AFTER);
+            if (expectedSchemaAndValuesByColumn != null && !expectedSchemaAndValuesByColumn.isEmpty()) {
+                assertRecordSchemaAndValues(
+                        expectedSchemaAndValuesByColumn, record, Envelope.FieldName.AFTER);
+            }
             return record;
         }
         catch (Exception e) {
@@ -363,6 +468,12 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         return assertRecordInserted(insertedRecord, expectedTopicName);
     }
 
+    private SourceRecord assertRecordInserted(String expectedTopicName, String pkField) {
+        assertFalse("records not generated", consumer.isEmpty());
+        SourceRecord insertedRecord = consumer.remove();
+        return assertRecordInserted(insertedRecord, expectedTopicName, pkField);
+    }
+
     private SourceRecord assertRecordUpdated() {
         assertFalse("records not generated", consumer.isEmpty());
         SourceRecord updatedRecord = consumer.remove();
@@ -372,6 +483,17 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     private SourceRecord assertRecordInserted(SourceRecord insertedRecord, String expectedTopicName) {
         assertEquals(topicName(expectedTopicName), insertedRecord.topic());
         VerifyRecord.isValidInsert(insertedRecord);
+        return insertedRecord;
+    }
+
+    private SourceRecord assertRecordInserted(SourceRecord insertedRecord, String expectedTopicName, String pkField) {
+        assertEquals(topicName(expectedTopicName), insertedRecord.topic());
+        if (pkField != null) {
+            VitessVerifyRecord.isValidInsert(insertedRecord, pkField);
+        }
+        else {
+            VerifyRecord.isValidInsert(insertedRecord);
+        }
         return insertedRecord;
     }
 

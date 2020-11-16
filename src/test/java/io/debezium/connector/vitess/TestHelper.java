@@ -49,7 +49,12 @@ public class TestHelper {
         return defaultConfig(false);
     }
 
-    public static Configuration.Builder defaultConfig(boolean isMultiShards) {
+    /**
+     * Get the default configuration of the connector
+     * @param hasMultipleShards whether the keyspace has multiple shards
+     * @return Configuration builder
+     */
+    public static Configuration.Builder defaultConfig(boolean hasMultipleShards) {
         Configuration.Builder builder = Configuration.create();
         builder = builder
                 .with(RelationalDatabaseConnectorConfig.SERVER_NAME, TEST_SERVER)
@@ -58,7 +63,7 @@ public class TestHelper {
                 .with(VitessConnectorConfig.VTCTLD_HOST, VTCTLD_HOST)
                 .with(VitessConnectorConfig.VTCTLD_PORT, VTCTLD_PORT)
                 .with(VitessConnectorConfig.POLL_INTERVAL_MS, 100);
-        if (isMultiShards) {
+        if (hasMultipleShards) {
             return builder.with(VitessConnectorConfig.KEYSPACE, TEST_SHARDED_KEYSPACE);
         }
         else {

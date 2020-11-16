@@ -302,17 +302,28 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         assertRecordOffset(record, RecordOffset.fromSourceInfo(record), false);
     }
 
+    protected void assertRecordOffset(SourceRecord record, boolean hasMultipleShards) {
+        assertRecordOffset(record, RecordOffset.fromSourceInfo(record), hasMultipleShards);
+    }
+
     protected void assertRecordOffset(SourceRecord record, RecordOffset expectedRecordOffset) {
         assertRecordOffset(record, expectedRecordOffset, false);
     }
 
-    protected void assertRecordOffset(SourceRecord record, RecordOffset expectedRecordOffset, boolean isMultiShards) {
+    /**
+     * Assert the {@link SourceRecord}'s offset.
+     *
+     * @param record The {@link SourceRecord} to be checked
+     * @param expectedRecordOffset The expected offset
+     * @param hasMultipleShards whether the keyspace has multiple shards
+     */
+    protected void assertRecordOffset(SourceRecord record, RecordOffset expectedRecordOffset, boolean hasMultipleShards) {
         Map<String, ?> offset = record.sourceOffset();
         assertNotNull(offset.get(SourceInfo.VGTID));
         Object snapshot = offset.get(SourceInfo.SNAPSHOT_KEY);
         assertNull("Snapshot marker not expected, but found", snapshot);
 
-        if (isMultiShards) {
+        if (hasMultipleShards) {
             String shardGtidsInJson = offset.get(SourceInfo.VGTID).toString();
             List<Vgtid.ShardGtid> shardGtids = gson.fromJson(shardGtidsInJson, new TypeToken<List<Vgtid.ShardGtid>>() {
             }.getType());
@@ -339,14 +350,9 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
                                                String envelopeFieldName) {
         Struct content = ((Struct) record.value()).getStruct(envelopeFieldName);
 
-        if (expectedSchemaAndValuesByColumn == null) {
-            assertThat(content).isNull();
-        }
-        else {
-            assertNotNull("expected there to be content in Envelope under " + envelopeFieldName, content);
-            expectedSchemaAndValuesByColumn.forEach(
-                    schemaAndValueField -> schemaAndValueField.assertFor(content));
-        }
+        assertNotNull("expected there to be content in Envelope under " + envelopeFieldName, content);
+        expectedSchemaAndValuesByColumn.forEach(
+                schemaAndValueField -> schemaAndValueField.assertFor(content));
     }
 
     protected static class RecordOffset {

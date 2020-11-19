@@ -56,3 +56,52 @@ CREATE TABLE time_table
     year_col      YEAR      NOT NULL DEFAULT '2020',
     PRIMARY KEY (id)
 );
+
+DROP TABLE IF EXISTS no_pk_table;
+CREATE TABLE no_pk_table
+(
+    id             BIGINT NOT NULL,
+    int_col        INT NOT NULL
+);
+
+DROP TABLE IF EXISTS pk_single_unique_key_table;
+CREATE TABLE pk_single_unique_key_table
+(
+    id             BIGINT NOT NULL,
+    int_col        INT,
+    PRIMARY KEY (id),
+    UNIQUE KEY unique_col (int_col)
+);
+
+DROP TABLE IF EXISTS no_pk_multi_unique_keys_table;
+CREATE TABLE no_pk_multi_unique_keys_table
+(
+    id             BIGINT NOT NULL,
+    int_col        INT,
+    int_col2       INT,
+    UNIQUE KEY unique_col (int_col),
+    UNIQUE KEY unique_col2 (int_col2)
+);
+
+DROP TABLE IF EXISTS no_pk_multi_comp_unique_keys_table;
+CREATE TABLE no_pk_multi_comp_unique_keys_table
+(
+    id             BIGINT NOT NULL,
+    int_col        INT,
+    int_col2       INT,
+    int_col3       INT,
+    int_col4       INT,
+    int_col5       INT,
+    UNIQUE KEY unique_col_1_2 (int_col, int_col2),
+    UNIQUE KEY unique_col_3 (int_col3),
+    UNIQUE KEY unique_col_4_5 (int_col4, int_col5)
+);
+
+DROP TABLE IF EXISTS comp_pk_table;
+CREATE TABLE comp_pk_table
+(
+    id             BIGINT NOT NULL,
+    int_col        INT,
+    int_col2        INT,
+    PRIMARY KEY (id, int_col)
+);

@@ -6,18 +6,6 @@
     }
   },
   "tables": {
-    "t1": {
-      "columnVindexes": [
-        {
-          "column": "id",
-          "name": "hash"
-        }
-      ],
-      "autoIncrement": {
-        "column": "id",
-        "sequence": "my_seq"
-      }
-    },
     "numeric_table": {
       "columnVindexes": [
         {
@@ -67,6 +55,66 @@
       }
     },
     "time_table": {
+      "columnVindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ],
+      "autoIncrement": {
+        "column": "id",
+        "sequence": "my_seq"
+      }
+    },
+    "no_pk_table": {
+      "columnVindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ],
+      "autoIncrement": {
+        "column": "id",
+        "sequence": "my_seq"
+      }
+    },
+    "pk_single_unique_key_table": {
+      "columnVindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ],
+      "autoIncrement": {
+        "column": "id",
+        "sequence": "my_seq"
+      }
+    },
+    "no_pk_multi_unique_keys_table": {
+      "columnVindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ],
+      "autoIncrement": {
+        "column": "id",
+        "sequence": "my_seq"
+      }
+    },
+    "no_pk_multi_comp_unique_keys_table": {
+      "columnVindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ],
+      "autoIncrement": {
+        "column": "id",
+        "sequence": "my_seq"
+      }
+    },
+    "comp_pk_table": {
       "columnVindexes": [
         {
           "column": "id",

@@ -17,13 +17,13 @@ import io.debezium.relational.Table;
 public class ColumnMetaData {
     private final String columnName;
     private final VitessType vitessType;
-    private final boolean key;
     private final boolean optional;
+    private final KeyMetaData keyMetaData;
 
-    public ColumnMetaData(String columnName, VitessType vitessType, boolean key, boolean optional) {
+    public ColumnMetaData(String columnName, VitessType vitessType, boolean optional, KeyMetaData keyMetaData) {
         this.columnName = columnName;
         this.vitessType = vitessType;
-        this.key = key;
+        this.keyMetaData = keyMetaData;
         this.optional = optional;
     }
 
@@ -35,11 +35,11 @@ public class ColumnMetaData {
         return vitessType;
     }
 
-    public boolean isKey() {
-        return key;
-    }
-
     public boolean isOptional() {
         return optional;
+    }
+
+    public KeyMetaData getKeyMetaData() {
+        return keyMetaData;
     }
 }

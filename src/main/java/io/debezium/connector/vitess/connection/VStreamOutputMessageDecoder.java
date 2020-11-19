@@ -10,6 +10,7 @@ import static io.debezium.connector.vitess.connection.ReplicationMessage.Column;
 import java.sql.Types;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,6 +23,7 @@ import io.debezium.connector.vitess.VitessType;
 import io.debezium.connector.vitess.connection.ReplicationMessage.Operation;
 import io.debezium.relational.ColumnEditor;
 import io.debezium.relational.Table;
+import io.debezium.relational.TableEditor;
 import io.debezium.relational.TableId;
 import io.vitess.proto.Query.Field;
 import io.vitess.proto.Query.Row;
@@ -30,6 +32,10 @@ import binlogdata.Binlogdata;
 
 public class VStreamOutputMessageDecoder implements MessageDecoder {
     private static final Logger LOGGER = LoggerFactory.getLogger(VStreamOutputMessageDecoder.class);
+
+    // See all flags: https://dev.mysql.com/doc/dev/mysql-server/8.0.12/group__group__cs__column__definition__flags.html
+    private static final int PRI_KEY_FLAG = 1 << 1;
+    private static final int UNIQUE_KEY_FLAG = 1 << 2;
 
     private Instant commitTimestamp;
     private String transactionId = null;
@@ -321,11 +327,17 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                     if (vitessType.getJdbcId() == Types.OTHER) {
                         LOGGER.error("Cannot resolve JDBC type from vstream type {}", columnType);
                     }
-                    // TODO: Vitess community has recently added pk flag
-                    boolean key = false;
+
+                    KeyMetaData keyMetaData = KeyMetaData.NONE;
+                    if ((field.getFlags() & PRI_KEY_FLAG) != 0) {
+                        keyMetaData = KeyMetaData.IS_KEY;
+                    }
+                    else if ((field.getFlags() & UNIQUE_KEY_FLAG) != 0) {
+                        keyMetaData = KeyMetaData.IS_UNIQUE_KEY;
+                    }
                     boolean optional = true;
 
-                    columns.add(new ColumnMetaData(columnName, vitessType, key, optional));
+                    columns.add(new ColumnMetaData(columnName, vitessType, optional, keyMetaData));
                 }
 
                 Table table = resolveTable(schemaName, tableName, columns);
@@ -335,6 +347,8 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     }
 
     private Table resolveTable(String schemaName, String tableName, List<ColumnMetaData> columns) {
+        List<String> pkColumnNames = new ArrayList<>();
+        String uniqueKeyColumnName = null;
         List<io.debezium.relational.Column> cols = new ArrayList<>(columns.size());
         for (ColumnMetaData columnMetaData : columns) {
             ColumnEditor editor = io.debezium.relational.Column.editor()
@@ -342,8 +356,34 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                     .type(columnMetaData.getVitessType().getName())
                     .jdbcType(columnMetaData.getVitessType().getJdbcId());
             cols.add(editor.create());
+
+            switch (columnMetaData.getKeyMetaData()) {
+                case IS_KEY:
+                    pkColumnNames.add(columnMetaData.getColumnName());
+                    break;
+                case IS_UNIQUE_KEY:
+                    if (uniqueKeyColumnName == null) {
+                        // use the 1st unique column
+                        uniqueKeyColumnName = columnMetaData.getColumnName();
+                    }
+                    break;
+                default:
+                    break;
+            }
         }
-        Table table = Table.editor().addColumns(cols).tableId(new TableId(null, schemaName, tableName)).create();
-        return table;
+
+        TableEditor tableEditor = Table
+                .editor()
+                .addColumns(cols)
+                .tableId(new TableId(null, schemaName, tableName));
+
+        if (!pkColumnNames.isEmpty()) {
+            tableEditor = tableEditor.setPrimaryKeyNames(pkColumnNames);
+        }
+        else if (uniqueKeyColumnName != null) {
+            tableEditor = tableEditor.setPrimaryKeyNames(Collections.singletonList(uniqueKeyColumnName));
+        }
+
+        return tableEditor.create();
     }
 }

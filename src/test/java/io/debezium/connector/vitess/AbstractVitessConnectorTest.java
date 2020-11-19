@@ -116,7 +116,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         final List<SchemaAndValueField> fields = new ArrayList<>();
         fields.addAll(
                 Arrays.asList(
-                        new SchemaAndValueField("enum_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "3")));
+                        new SchemaAndValueField("enum_col", SchemaBuilder.STRING_SCHEMA, "3")));
         return fields;
     }
 
@@ -125,7 +125,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         fields.addAll(
                 Arrays.asList(
                         // value is 5 because a = 0001 (1), c = 0100 (4), so a,c = 5
-                        new SchemaAndValueField("set_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "5")));
+                        new SchemaAndValueField("set_col", SchemaBuilder.STRING_SCHEMA, "5")));
         return fields;
     }
 
@@ -133,13 +133,13 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         final List<SchemaAndValueField> fields = new ArrayList<>();
         fields.addAll(
                 Arrays.asList(
-                        new SchemaAndValueField("time_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "01:02:03"),
-                        new SchemaAndValueField("date_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "2020-02-11"),
+                        new SchemaAndValueField("time_col", SchemaBuilder.STRING_SCHEMA, "01:02:03"),
+                        new SchemaAndValueField("date_col", SchemaBuilder.STRING_SCHEMA, "2020-02-11"),
                         new SchemaAndValueField(
-                                "datetime_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "2020-02-12 01:02:03"),
+                                "datetime_col", SchemaBuilder.STRING_SCHEMA, "2020-02-12 01:02:03"),
                         new SchemaAndValueField(
-                                "timestamp_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "2020-02-13 01:02:03"),
-                        new SchemaAndValueField("year_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "2020")));
+                                "timestamp_col", SchemaBuilder.STRING_SCHEMA, "2020-02-13 01:02:03"),
+                        new SchemaAndValueField("year_col", SchemaBuilder.STRING_SCHEMA, "2020")));
         return fields;
     }
 

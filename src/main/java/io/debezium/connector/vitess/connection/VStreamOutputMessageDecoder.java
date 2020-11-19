@@ -34,6 +34,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     private static final Logger LOGGER = LoggerFactory.getLogger(VStreamOutputMessageDecoder.class);
 
     // See all flags: https://dev.mysql.com/doc/dev/mysql-server/8.0.12/group__group__cs__column__definition__flags.html
+    private static final int NOT_NULL_FLAG = 1;
     private static final int PRI_KEY_FLAG = 1 << 1;
     private static final int UNIQUE_KEY_FLAG = 1 << 2;
 
@@ -335,7 +336,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                     else if ((field.getFlags() & UNIQUE_KEY_FLAG) != 0) {
                         keyMetaData = KeyMetaData.IS_UNIQUE_KEY;
                     }
-                    boolean optional = true;
+                    boolean optional = (field.getFlags() & NOT_NULL_FLAG) == 0;
 
                     columns.add(new ColumnMetaData(columnName, vitessType, optional, keyMetaData));
                 }
@@ -354,7 +355,8 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             ColumnEditor editor = io.debezium.relational.Column.editor()
                     .name(columnMetaData.getColumnName())
                     .type(columnMetaData.getVitessType().getName())
-                    .jdbcType(columnMetaData.getVitessType().getJdbcId());
+                    .jdbcType(columnMetaData.getVitessType().getJdbcId())
+                    .optional(columnMetaData.isOptional());
             cols.add(editor.create());
 
             switch (columnMetaData.getKeyMetaData()) {

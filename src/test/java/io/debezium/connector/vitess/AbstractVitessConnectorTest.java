@@ -48,15 +48,21 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
 
     protected static final String INSERT_NUMERIC_TYPES_STMT = "INSERT INTO numeric_table ("
             + "tinyint_col,"
+            + "tinyint_unsigned_col,"
             + "smallint_col,"
+            + "smallint_unsigned_col,"
             + "mediumint_col,"
+            + "mediumint_unsigned_col,"
             + "int_col,"
+            + "int_unsigned_col,"
             + "bigint_col,"
+            + "bigint_unsigned_col,"
+            + "bigint_unsigned_overflow_col,"
             + "float_col,"
             + "double_col,"
             + "decimal_col,"
             + "boolean_col)"
-            + " VALUES (1, 12, 123, 1234, 12345, 1.5, 2.5, 12.34, true);";
+            + " VALUES (1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true);";
     protected static final String INSERT_STRING_TYPES_STMT = "INSERT INTO string_table ("
             + "char_col,"
             + "varchar_col,"
@@ -84,11 +90,18 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         fields.addAll(
                 Arrays.asList(
                         new SchemaAndValueField("tinyint_col", SchemaBuilder.OPTIONAL_INT16_SCHEMA, (short) 1),
+                        new SchemaAndValueField("tinyint_unsigned_col", SchemaBuilder.OPTIONAL_INT16_SCHEMA, (short) 1),
                         new SchemaAndValueField(
                                 "smallint_col", SchemaBuilder.OPTIONAL_INT16_SCHEMA, (short) 12),
+                        new SchemaAndValueField(
+                                "smallint_unsigned_col", SchemaBuilder.OPTIONAL_INT32_SCHEMA, 12),
                         new SchemaAndValueField("mediumint_col", SchemaBuilder.OPTIONAL_INT32_SCHEMA, 123),
+                        new SchemaAndValueField("mediumint_unsigned_col", SchemaBuilder.OPTIONAL_INT32_SCHEMA, 123),
                         new SchemaAndValueField("int_col", SchemaBuilder.OPTIONAL_INT32_SCHEMA, 1234),
+                        new SchemaAndValueField("int_unsigned_col", SchemaBuilder.OPTIONAL_INT64_SCHEMA, 1234L),
                         new SchemaAndValueField("bigint_col", SchemaBuilder.OPTIONAL_INT64_SCHEMA, 12345L),
+                        new SchemaAndValueField("bigint_unsigned_col", SchemaBuilder.OPTIONAL_INT64_SCHEMA, 12345L),
+                        new SchemaAndValueField("bigint_unsigned_overflow_col", SchemaBuilder.OPTIONAL_INT64_SCHEMA, -1L),
                         new SchemaAndValueField("float_col", SchemaBuilder.OPTIONAL_FLOAT64_SCHEMA, 1.5),
                         new SchemaAndValueField("double_col", SchemaBuilder.OPTIONAL_FLOAT64_SCHEMA, 2.5),
                         new SchemaAndValueField("decimal_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "12.3400"),

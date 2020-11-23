@@ -37,12 +37,17 @@ public class VitessType {
     public static VitessType resolve(String columnType) {
         switch (columnType) {
             case "INT8":
+            case "UINT8":
             case "INT16":
                 return new VitessType(columnType, Types.SMALLINT);
+            case "UINT16":
             case "INT24":
+            case "UINT24":
             case "INT32":
                 return new VitessType(columnType, Types.INTEGER);
+            case "UINT32":
             case "INT64":
+            case "UINT64":
                 return new VitessType(columnType, Types.BIGINT);
             case "VARBINARY":
             case "BINARY":

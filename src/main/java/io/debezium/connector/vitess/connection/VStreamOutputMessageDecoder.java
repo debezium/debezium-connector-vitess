@@ -282,7 +282,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         for (short i = 0; i < numberOfColumns; i++) {
             final io.debezium.relational.Column column = table.columns().get(i);
             final String columnName = column.name();
-            final VitessType vitessType = new VitessType(columnName, column.jdbcType());
+            final VitessType vitessType = new VitessType(column.typeName(), column.jdbcType());
             final boolean optional = column.isOptional();
 
             final int rawValueLength = (int) row.getLengths(i);

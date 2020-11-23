@@ -1,16 +1,22 @@
 DROP TABLE IF EXISTS numeric_table;
 CREATE TABLE numeric_table
 (
-    id            BIGINT NOT NULL AUTO_INCREMENT,
-    tinyint_col   TINYINT,
-    smallint_col  SMALLINT,
-    mediumint_col MEDIUMINT,
-    int_col       INT,
-    bigint_col    BIGINT,
-    float_col     FLOAT,
-    double_col    DOUBLE,
-    decimal_col   decimal(10, 4),
-    boolean_col   BOOLEAN,
+    id                              BIGINT NOT NULL AUTO_INCREMENT,
+    tinyint_col                     TINYINT,
+    tinyint_unsigned_col            TINYINT UNSIGNED,
+    smallint_col                    SMALLINT,
+    smallint_unsigned_col           SMALLINT UNSIGNED,
+    mediumint_col                   MEDIUMINT,
+    mediumint_unsigned_col          MEDIUMINT UNSIGNED,
+    int_col                         INT,
+    int_unsigned_col                INT UNSIGNED,
+    bigint_col                      BIGINT,
+    bigint_unsigned_col             BIGINT UNSIGNED,
+    bigint_unsigned_overflow_col    BIGINT UNSIGNED,
+    float_col                       FLOAT,
+    double_col                      DOUBLE,
+    decimal_col                     DECIMAL(10, 4),
+    boolean_col                     BOOLEAN,
     PRIMARY KEY (id)
 );
 

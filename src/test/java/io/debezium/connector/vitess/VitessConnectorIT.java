@@ -94,6 +94,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    @FixFor("DBZ-2776")
     public void shouldReceiveChangesForInsertsWithDifferentDataTypes() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         startConnector();
@@ -205,15 +206,21 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // insert 2 rows
         String insertTwoRowsInSameStmt = "INSERT INTO numeric_table ("
                 + "tinyint_col,"
+                + "tinyint_unsigned_col,"
                 + "smallint_col,"
+                + "smallint_unsigned_col,"
                 + "mediumint_col,"
+                + "mediumint_unsigned_col,"
                 + "int_col,"
+                + "int_unsigned_col,"
                 + "bigint_col,"
+                + "bigint_unsigned_col,"
+                + "bigint_unsigned_overflow_col,"
                 + "float_col,"
                 + "double_col,"
                 + "decimal_col,"
                 + "boolean_col)"
-                + " VALUES (1, 12, 123, 1234, 12345, 1.5, 2.5, 12.34, true), (1, 12, 123, 1234, 12345, 1.5, 2.5, 12.34, true);";
+                + " VALUES (1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true), (1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true);";
         executeAndWait(insertTwoRowsInSameStmt);
         TableId table = tableIdFromInsertStmt(insertTwoRowsInSameStmt);
 
@@ -248,13 +255,19 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // The first response contains BEGIN and ROW events; The last response contains ROW, VGTID and COMMIT events.
         int expectedRecordsCount = 1000;
         consumer = testConsumer(expectedRecordsCount);
-        String rowValue = "(1, 12, 123, 1234, 12345, 1.5, 2.5, 12.34, true)";
+        String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
         StringBuilder insertRows = new StringBuilder().append("INSERT INTO numeric_table ("
                 + "tinyint_col,"
+                + "tinyint_unsigned_col,"
                 + "smallint_col,"
+                + "smallint_unsigned_col,"
                 + "mediumint_col,"
+                + "mediumint_unsigned_col,"
                 + "int_col,"
+                + "int_unsigned_col,"
                 + "bigint_col,"
+                + "bigint_unsigned_col,"
+                + "bigint_unsigned_overflow_col,"
                 + "float_col,"
                 + "double_col,"
                 + "decimal_col,"

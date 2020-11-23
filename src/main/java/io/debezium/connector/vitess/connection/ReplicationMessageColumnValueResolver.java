@@ -8,6 +8,7 @@ package io.debezium.connector.vitess.connection;
 import java.sql.Types;
 
 import io.debezium.connector.vitess.VitessType;
+import io.vitess.proto.Query;
 
 /** Resolve raw column value to Java value */
 public class ReplicationMessageColumnValueResolver {
@@ -24,7 +25,12 @@ public class ReplicationMessageColumnValueResolver {
             case Types.INTEGER:
                 return value.asInteger();
             case Types.BIGINT:
-                return value.asLong();
+                if (vitessType.getName().equals(Query.Type.UINT64.name())) {
+                    return Long.parseUnsignedLong(value.asString());
+                }
+                else {
+                    return value.asLong();
+                }
             case Types.VARCHAR:
                 return value.asString();
             case Types.FLOAT:

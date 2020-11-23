@@ -286,7 +286,7 @@ public class TestHelper {
                            String columnName, Query.Type queryType, int jdbcId, String rawValue, Object javaValue) {
             this.field = Field.newBuilder().setName(columnName).setType(queryType).build();
             this.replicationMessageColumn = new ReplicationMessageColumn(
-                    columnName, new VitessType(columnName, jdbcId), true, rawValue);
+                    columnName, new VitessType(queryType.name(), jdbcId), true, rawValue);
             this.javaValue = javaValue;
         }
 

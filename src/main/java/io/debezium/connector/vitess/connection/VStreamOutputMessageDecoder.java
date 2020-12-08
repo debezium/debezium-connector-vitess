@@ -322,7 +322,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                 List<ColumnMetaData> columns = new ArrayList<>(columnCount);
                 for (short i = 0; i < columnCount; ++i) {
                     Field field = fieldEvent.getFields(i);
-                    String columnName = field.getName();
+                    String columnName = validateColumnName(field.getName(), schemaName, tableName);
                     String columnType = field.getType().name();
                     VitessType vitessType = VitessType.resolve(columnType);
                     if (vitessType.getJdbcId() == Types.OTHER) {
@@ -387,5 +387,21 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         }
 
         return tableEditor.create();
+    }
+
+    private static String validateColumnName(String columnName, String schemaName, String tableName) {
+        int length = columnName.length();
+        if (length == 0) {
+            throw new IllegalArgumentException(
+                    String.format("Empty column name from schema: %s, table: %s", schemaName, tableName));
+        }
+        char first = columnName.charAt(0);
+        // Vitess VStreamer schema reloading transient bug could cause column names to be anonymized to @1, @2, etc
+        // We want to fail in this case instead of sending the corrupted row events with @1, @2 as column names.
+        if (first == '@') {
+            throw new IllegalArgumentException(
+                    String.format("Illegal prefix '@' for column: %s, from schema: %s, table: %s", columnName, schemaName, tableName));
+        }
+        return columnName;
     }
 }

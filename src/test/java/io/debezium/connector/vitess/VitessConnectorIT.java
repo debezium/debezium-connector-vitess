@@ -9,10 +9,12 @@ import static junit.framework.TestCase.assertEquals;
 import static org.fest.assertions.Assertions.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.IntStream;
@@ -33,6 +35,7 @@ import io.debezium.config.Field;
 import io.debezium.data.Envelope;
 import io.debezium.data.VerifyRecord;
 import io.debezium.doc.FixFor;
+import io.debezium.embedded.EmbeddedEngine;
 import io.debezium.relational.TableId;
 import io.debezium.util.Testing;
 
@@ -405,6 +408,34 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertInsert("INSERT INTO pk_single_unique_key_table (int_col) VALUES (1);", null, TestHelper.TEST_SHARDED_KEYSPACE, TestHelper.PK_FIELD, hasMultipleShards);
 
         stopConnector();
+        assertConnectorNotRunning();
+    }
+
+    @Test
+    @FixFor("DBZ-2836")
+    public void shouldTaskFailIfColumnNameInvalid() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        TestHelper.execute("ALTER TABLE numeric_table ADD `@1` INT;");
+
+        CountDownLatch latch = new CountDownLatch(1);
+        EmbeddedEngine.CompletionCallback completionCallback = (success, message, error) -> {
+            if (error != null) {
+                latch.countDown();
+            }
+            else {
+                fail("A controlled exception was expected....");
+            }
+        };
+        start(VitessConnector.class, TestHelper.defaultConfig().build(), completionCallback);
+        assertConnectorIsRunning();
+        waitForStreamingRunning();
+
+        // Connector receives a row whose column name is not valid, task should fail
+        TestHelper.execute(INSERT_NUMERIC_TYPES_STMT);
+        if (!latch.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS)) {
+            fail("did not reach stop condition in time");
+        }
+
         assertConnectorNotRunning();
     }
 

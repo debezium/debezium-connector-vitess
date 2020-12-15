@@ -33,4 +33,6 @@ vtctld \
  -port $vtctld_web_port \
  -grpc_port $grpc_port \
  -pid_file $VTDATAROOT/tmp/vtctld.pid \
+ -grpc_auth_mode static\
+ -grpc_auth_static_password_file grpc_static_auth.json\
   > $VTDATAROOT/tmp/vtctld.out 2>&1 &

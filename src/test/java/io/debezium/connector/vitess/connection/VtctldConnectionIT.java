@@ -34,7 +34,8 @@ public class VtctldConnectionIT {
         final VitessConnectorConfig conf = new VitessConnectorConfig(
                 TestHelper.defaultConfig().with(VitessConnectorConfig.TABLET_TYPE, tabletType).build());
 
-        try (VtctldConnection vtctldConnection = VtctldConnection.of(conf.getVtctldHost(), conf.getVtctldPort())) {
+        try (VtctldConnection vtctldConnection = VtctldConnection.of(
+                conf.getVtctldHost(), conf.getVtctldPort(), conf.getVtctldUsername(), conf.getVtctldPassword())) {
             // exercise SUT
             Vgtid vgtid = vtctldConnection.latestVgtid(
                     conf.getKeyspace(),

@@ -38,6 +38,8 @@ vtgate \
   -service_map 'grpc-vtgateservice' \
   -pid_file $VTDATAROOT/tmp/vtgate.pid \
   -mysql_auth_server_impl none \
+  -grpc_auth_mode static\
+  -grpc_auth_static_password_file grpc_static_auth.json\
   > $VTDATAROOT/tmp/vtgate.out 2>&1 &
 
 # Block waiting for vtgate to be listening

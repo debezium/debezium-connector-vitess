@@ -29,6 +29,8 @@ public class ClientRunner {
     public static void main(String[] args) throws InterruptedException {
         String host = args[0];
         String keyspace = args[1];
+        String username = "vitess";
+        String password = "vitess_password";
         LOGGER.info("host: " + host);
         LOGGER.info("keyspace: " + keyspace);
 
@@ -41,9 +43,9 @@ public class ClientRunner {
             LOGGER.info("gtidIdx: " + gtidIdx);
         }
 
-        AbstractVStreamClient client = new BlockingVStreamClient(keyspace, shards, gtidIdx, host);
-        // AbstractVStreamClient client = new BlockingDeadlineVStreamClient(5);
-        // AbstractVStreamClient client = new AsyncVStreamClient(60);
+        AbstractVStreamClient client = new BlockingVStreamClient(keyspace, shards, gtidIdx, host, username, password);
+        // AbstractVStreamClient client = new BlockingDeadlineVStreamClient(5, keyspace, shards, gtidIdx, host, username, password);
+        // AbstractVStreamClient client = new AsyncVStreamClient(60, keyspace, shards, gtidIdx, host, username, password);
         client.startStreaming();
     }
 }

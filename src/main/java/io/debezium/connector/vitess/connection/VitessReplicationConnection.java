@@ -20,6 +20,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import io.vitess.client.grpc.StaticAuthCredentials;
 import io.vitess.proto.Topodata;
 import io.vitess.proto.Vtgate;
 import io.vitess.proto.grpc.VitessGrpc;
@@ -60,7 +61,13 @@ public class VitessReplicationConnection implements ReplicationConnection {
         // Providing a vgtid MySQL56/19eb2657-abc2-11ea-8ffc-0242ac11000a:1-61 here will make VStream to
         // start receiving
         // row-changes from MySQL56/19eb2657-abc2-11ea-8ffc-0242ac11000a:1-62
-        VitessGrpc.VitessStub stub = VitessGrpc.newStub(channel);
+        VitessGrpc.VitessStub stub = VitessGrpc
+                .newStub(channel);
+        if (config.getVtgateUsername() != null && config.getVtgatePassword() != null) {
+            LOGGER.info("Use authenticated vtgate grpc.");
+            stub = stub.withCallCredentials(new StaticAuthCredentials(config.getVtgateUsername(), config.getVtgatePassword()));
+        }
+
         StreamObserver<Vtgate.VStreamResponse> responseObserver = new StreamObserver<Vtgate.VStreamResponse>() {
 
             @Override
@@ -181,7 +188,11 @@ public class VitessReplicationConnection implements ReplicationConnection {
                             .build());
         }
         else {
-            try (VtctldConnection vtctldConnection = VtctldConnection.of(config.getVtctldHost(), config.getVtctldPort())) {
+            try (VtctldConnection vtctldConnection = VtctldConnection.of(
+                    config.getVtctldHost(),
+                    config.getVtctldPort(),
+                    config.getVtctldUsername(),
+                    config.getVtctldPassword())) {
                 return vtctldConnection.latestVgtid(
                         config.getKeyspace(),
                         config.getShard(),

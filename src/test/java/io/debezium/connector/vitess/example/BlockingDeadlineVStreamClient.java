@@ -12,6 +12,7 @@ import java.util.logging.Logger;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.vitess.client.grpc.StaticAuthCredentials;
 import io.vitess.proto.Topodata;
 import io.vitess.proto.Vtgate;
 import io.vitess.proto.grpc.VitessGrpc;
@@ -24,8 +25,9 @@ public class BlockingDeadlineVStreamClient extends AbstractVStreamClient {
 
     private final int deadlineInSeconds;
 
-    public BlockingDeadlineVStreamClient(int deadlineInSeconds, String keyspace, List<String> shards, int gtidIdx, String host) {
-        super(keyspace, shards, gtidIdx, host);
+    public BlockingDeadlineVStreamClient(
+                                         int deadlineInSeconds, String keyspace, List<String> shards, int gtidIdx, String host, String username, String password) {
+        super(keyspace, shards, gtidIdx, host, username, password);
         this.deadlineInSeconds = deadlineInSeconds;
     }
 
@@ -34,7 +36,10 @@ public class BlockingDeadlineVStreamClient extends AbstractVStreamClient {
         try {
             Binlogdata.VGtid vgtid = getPosition();
 
-            VitessGrpc.VitessBlockingStub sub = VitessGrpc.newBlockingStub(newChannel());
+            VitessGrpc.VitessBlockingStub sub = VitessGrpc
+                    .newBlockingStub(channel)
+                    .withCallCredentials(new StaticAuthCredentials(username, password));
+
             while (true) {
                 Iterator<Vtgate.VStreamResponse> response = sub.withDeadlineAfter(deadlineInSeconds, TimeUnit.SECONDS)
                         .vStream(newVStreamRequest(vgtid, Topodata.TabletType.MASTER));

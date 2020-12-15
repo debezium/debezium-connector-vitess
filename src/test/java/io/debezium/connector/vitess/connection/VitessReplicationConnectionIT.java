@@ -53,7 +53,8 @@ public class VitessReplicationConnectionIT {
         TestHelper.execute(INSERT_STMT);
 
         AtomicReference<Throwable> error = new AtomicReference<>();
-        try (VtctldConnection vtctldConnection = VtctldConnection.of(conf.getVtctldHost(), conf.getVtctldPort());
+        try (VtctldConnection vtctldConnection = VtctldConnection.of(
+                conf.getVtctldHost(), conf.getVtctldPort(), conf.getVtctldUsername(), conf.getVtctldPassword());
                 VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
 
             Vgtid startingVgtid = vtctldConnection.latestVgtid(

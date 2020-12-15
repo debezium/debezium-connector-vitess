@@ -439,6 +439,32 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertConnectorNotRunning();
     }
 
+    @Test
+    @FixFor("DBZ-2852")
+    public void shouldTaskFailIfUsernamePasswordInvalid() throws InterruptedException {
+        Configuration.Builder configBuilder = TestHelper
+                .defaultConfig()
+                .with(VitessConnectorConfig.VTGATE_USER, "incorrect_username")
+                .with(VitessConnectorConfig.VTGATE_PASSWORD, "incorrect_password");
+
+        CountDownLatch latch = new CountDownLatch(1);
+        EmbeddedEngine.CompletionCallback completionCallback = (success, message, error) -> {
+            if (error != null) {
+                latch.countDown();
+            }
+            else {
+                fail("A controlled exception was expected....");
+            }
+        };
+
+        start(VitessConnector.class, configBuilder.build(), completionCallback);
+
+        if (!latch.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS)) {
+            fail("did not reach stop condition in time");
+        }
+        assertConnectorNotRunning();
+    }
+
     private void startConnector() throws InterruptedException {
         startConnector(false);
     }

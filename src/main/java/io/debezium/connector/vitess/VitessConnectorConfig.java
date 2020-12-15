@@ -50,6 +50,20 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withValidation(Field::isInteger)
             .withDescription("Port of the Vitess VTGate gRPC server.");
 
+    public static final Field VTGATE_USER = Field.create(DATABASE_CONFIG_PREFIX + "user")
+            .withDisplayName("User")
+            .withType(Type.STRING)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withDescription("Name of the user to be used when connecting the Vitess VTGate gRPC server.");
+
+    public static final Field VTGATE_PASSWORD = Field.create(DATABASE_CONFIG_PREFIX + "password")
+            .withDisplayName("Password")
+            .withType(Type.PASSWORD)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withDescription("Password of the user to be used when connecting the Vitess VTGate gRPC server.");
+
     public static final Field KEYSPACE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "keyspace")
             .withDisplayName("Keyspace")
             .withType(Type.STRING)
@@ -86,6 +100,20 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withValidation(Field::isInteger)
             .withDescription("VTCtld gRPC server port. E.p. \"15999\".");
 
+    public static final Field VTCTLD_USER = Field.create(VITESS_CONFIG_GROUP_PREFIX + "vtctld.user")
+            .withDisplayName("VTCtld User")
+            .withType(Type.STRING)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withDescription("Name of the user to be used when connecting the Vitess VTCtld gRPC server.");
+
+    public static final Field VTCTLD_PASSWORD = Field.create(VITESS_CONFIG_GROUP_PREFIX + "vtctld.password")
+            .withDisplayName("VTCtld Password")
+            .withType(Type.PASSWORD)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withDescription("Password of the user to be used when connecting the Vitess VTCtld gRPC server.");
+
     public static final Field TABLET_TYPE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "tablet.type")
             .withDisplayName("Tablet type to get data-changes")
             .withType(Type.STRING)
@@ -110,7 +138,18 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     protected static final ConfigDefinition CONFIG_DEFINITION = RelationalDatabaseConnectorConfig.CONFIG_DEFINITION
             .edit()
             .name("Vitess")
-            .type(KEYSPACE, SHARD, VTGATE_HOST, VTGATE_PORT, VTCTLD_HOST, VTCTLD_PORT, TABLET_TYPE)
+            .type(
+                    KEYSPACE,
+                    SHARD,
+                    VTGATE_HOST,
+                    VTGATE_PORT,
+                    VTGATE_USER,
+                    VTGATE_PASSWORD,
+                    VTCTLD_HOST,
+                    VTCTLD_PORT,
+                    VTCTLD_USER,
+                    VTCTLD_PASSWORD,
+                    TABLET_TYPE)
             .events(INCLUDE_UNKNOWN_DATATYPES)
             .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST)
             .create();
@@ -174,12 +213,28 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return getConfig().getInteger(VTGATE_PORT);
     }
 
+    public String getVtgateUsername() {
+        return getConfig().getString(VTGATE_USER);
+    }
+
+    public String getVtgatePassword() {
+        return getConfig().getString(VTGATE_PASSWORD);
+    }
+
     public String getVtctldHost() {
         return getConfig().getString(VTCTLD_HOST);
     }
 
     public int getVtctldPort() {
         return getConfig().getInteger(VTCTLD_PORT);
+    }
+
+    public String getVtctldUsername() {
+        return getConfig().getString(VTCTLD_USER);
+    }
+
+    public String getVtctldPassword() {
+        return getConfig().getString(VTCTLD_PASSWORD);
     }
 
     public String getTabletType() {
@@ -189,4 +244,5 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     public boolean includeUnknownDatatypes() {
         return getConfig().getBoolean(INCLUDE_UNKNOWN_DATATYPES);
     }
+
 }

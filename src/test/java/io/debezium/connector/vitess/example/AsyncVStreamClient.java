@@ -12,6 +12,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import io.grpc.stub.StreamObserver;
+import io.vitess.client.grpc.StaticAuthCredentials;
 import io.vitess.proto.Topodata;
 import io.vitess.proto.Vtgate;
 import io.vitess.proto.grpc.VitessGrpc;
@@ -26,8 +27,9 @@ public class AsyncVStreamClient extends AbstractVStreamClient {
 
     private final int timeoutMinutes;
 
-    public AsyncVStreamClient(int timeoutMinutes, String keyspace, List<String> shards, int gtidIdx, String host) {
-        super(keyspace, shards, gtidIdx, host);
+    public AsyncVStreamClient(
+                              int timeoutMinutes, String keyspace, List<String> shards, int gtidIdx, String host, String username, String password) {
+        super(keyspace, shards, gtidIdx, host, username, password);
         this.timeoutMinutes = timeoutMinutes;
     }
 
@@ -37,7 +39,10 @@ public class AsyncVStreamClient extends AbstractVStreamClient {
         try {
             Binlogdata.VGtid vgtid = getPosition();
 
-            VitessGrpc.VitessStub sub = VitessGrpc.newStub(channel);
+            VitessGrpc.VitessStub sub = VitessGrpc
+                    .newStub(channel)
+                    .withCallCredentials(new StaticAuthCredentials(username, password));
+
             sub.vStream(
                     newVStreamRequest(vgtid, Topodata.TabletType.MASTER), newStreamObserver(finishLatch));
 

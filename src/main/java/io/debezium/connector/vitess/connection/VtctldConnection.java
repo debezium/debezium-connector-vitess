@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import io.debezium.connector.vitess.Vgtid;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.vitess.client.grpc.StaticAuthCredentials;
 
 import binlogdata.Binlogdata;
 import logutil.Logutil;
@@ -47,16 +48,20 @@ public class VtctldConnection implements AutoCloseable {
 
     private final String vtctldHost;
     private final int vtctldPort;
+    private final String vtctldUsername;
+    private final String vtctldPassword;
     private final ManagedChannel managedChannel;
 
-    private VtctldConnection(String vtctldHost, int vtctldPort) {
+    private VtctldConnection(String vtctldHost, int vtctldPort, String vtctldUsername, String vtctldPassword) {
         this.vtctldHost = vtctldHost;
         this.vtctldPort = vtctldPort;
+        this.vtctldUsername = vtctldUsername;
+        this.vtctldPassword = vtctldPassword;
         this.managedChannel = ManagedChannelBuilder.forAddress(vtctldHost, vtctldPort).usePlaintext().build();
     }
 
-    public static VtctldConnection of(String vtctldHost, int vtctldPort) {
-        return new VtctldConnection(vtctldHost, vtctldPort);
+    public static VtctldConnection of(String vtctldHost, int vtctldPort, String vtctldUsername, String vtctldPassword) {
+        return new VtctldConnection(vtctldHost, vtctldPort, vtctldUsername, vtctldPassword);
     }
 
     /**
@@ -125,6 +130,11 @@ public class VtctldConnection implements AutoCloseable {
         List<String> res = new ArrayList<>();
 
         VtctlGrpc.VtctlBlockingStub stub = VtctlGrpc.newBlockingStub(managedChannel);
+        if (vtctldUsername != null && vtctldPassword != null) {
+            LOGGER.info("Use authenticated vtctld grpc.");
+            stub = stub.withCallCredentials(new StaticAuthCredentials(vtctldUsername, vtctldPassword));
+        }
+
         Iterator<Vtctldata.ExecuteVtctlCommandResponse> responseIter = stub.executeVtctlCommand(
                 Vtctldata.ExecuteVtctlCommandRequest.newBuilder()
                         .setActionTimeout(10_000_000_000L) // 10 seconds in nano-seconds

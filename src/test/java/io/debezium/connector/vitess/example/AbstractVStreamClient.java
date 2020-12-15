@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.vitess.client.grpc.StaticAuthCredentials;
 import io.vitess.proto.Topodata;
 import io.vitess.proto.Vtgate;
 
@@ -37,14 +38,19 @@ public abstract class AbstractVStreamClient {
     private final List<String> shards;
     private final int gtidIdx;
     private final String host;
+    protected final String username;
+    protected final String password;
 
     protected final ManagedChannel channel;
 
-    public AbstractVStreamClient(String keyspace, List<String> shards, int gtidIdx, String host) {
+    public AbstractVStreamClient(
+                                 String keyspace, List<String> shards, int gtidIdx, String host, String username, String password) {
         this.keyspace = keyspace;
         this.shards = shards;
         this.gtidIdx = gtidIdx;
         this.host = host;
+        this.username = username;
+        this.password = password;
         this.channel = newChannel();
     }
 
@@ -126,12 +132,14 @@ public abstract class AbstractVStreamClient {
                 .build();
     }
 
-    private static List<String> execVtctl(List<String> args, String vtctldHost, int vtctldPort) {
+    private List<String> execVtctl(List<String> args, String vtctldHost, int vtctldPort) {
         List<String> res = new ArrayList<>();
 
         ManagedChannel channel = ManagedChannelBuilder.forAddress(vtctldHost, vtctldPort).usePlaintext().build();
 
-        VtctlGrpc.VtctlBlockingStub stub = VtctlGrpc.newBlockingStub(channel);
+        VtctlGrpc.VtctlBlockingStub stub = VtctlGrpc
+                .newBlockingStub(channel)
+                .withCallCredentials(new StaticAuthCredentials(username, password));
         Iterator<Vtctldata.ExecuteVtctlCommandResponse> responseIter = stub.executeVtctlCommand(
                 Vtctldata.ExecuteVtctlCommandRequest.newBuilder()
                         .setActionTimeout(10_000_000_000L) // 10 seconds in nano-seconds

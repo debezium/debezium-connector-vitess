@@ -44,6 +44,11 @@ public class TestHelper {
     private static final String TEST_PROPERTY_PREFIX = "debezium.test.";
     private static final String VTCTLD_HOST = "localhost";
     private static final int VTCTLD_PORT = 15999;
+    private static final String VTGATE_HOST = "localhost";
+    private static final int VTGATE_PORT = 15991;
+    // Use the same username and password for vtgate and vtctld
+    private static final String USERNAME = "vitess";
+    private static final String PASSWORD = "vitess_password";
 
     public static Configuration.Builder defaultConfig() {
         return defaultConfig(false);
@@ -58,10 +63,14 @@ public class TestHelper {
         Configuration.Builder builder = Configuration.create();
         builder = builder
                 .with(RelationalDatabaseConnectorConfig.SERVER_NAME, TEST_SERVER)
-                .with(VitessConnectorConfig.VTGATE_HOST, "localhost")
-                .with(VitessConnectorConfig.VTGATE_PORT, 15991)
+                .with(VitessConnectorConfig.VTGATE_HOST, VTGATE_HOST)
+                .with(VitessConnectorConfig.VTGATE_PORT, VTGATE_PORT)
+                .with(VitessConnectorConfig.VTGATE_USER, USERNAME)
+                .with(VitessConnectorConfig.VTGATE_PASSWORD, PASSWORD)
                 .with(VitessConnectorConfig.VTCTLD_HOST, VTCTLD_HOST)
                 .with(VitessConnectorConfig.VTCTLD_PORT, VTCTLD_PORT)
+                .with(VitessConnectorConfig.VTCTLD_USER, USERNAME)
+                .with(VitessConnectorConfig.VTCTLD_PASSWORD, PASSWORD)
                 .with(VitessConnectorConfig.POLL_INTERVAL_MS, 100);
         if (hasMultipleShards) {
             return builder.with(VitessConnectorConfig.KEYSPACE, TEST_SHARDED_KEYSPACE);
@@ -115,7 +124,7 @@ public class TestHelper {
     }
 
     protected static void applyVSchema(String vschemaFile) throws Exception {
-        try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT)) {
+        try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
             vtctldConnection.applyVSchema(readStringFromFile(vschemaFile), TEST_SHARDED_KEYSPACE);
         }
         catch (Exception e) {
@@ -124,7 +133,7 @@ public class TestHelper {
     }
 
     protected static Vgtid getCurrentVgtid() throws Exception {
-        try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT)) {
+        try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
             return vtctldConnection.latestVgtid(TEST_UNSHARDED_KEYSPACE, TEST_SHARD, VtctldConnection.TabletType.MASTER);
         }
         catch (Exception e) {

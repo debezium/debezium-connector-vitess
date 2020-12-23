@@ -171,7 +171,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         TableId tableId;
         List<Column> columns = null;
         if (!resolvedTable.isPresent()) {
-            LOGGER.debug("Row insert for {}.{} is filtered out", schemaName, tableName);
+            LOGGER.trace("Row insert for {}.{} is filtered out", schemaName, tableName);
             tableId = new TableId(null, schemaName, tableName);
             // no need for columns because the event will be filtered out
         }
@@ -208,7 +208,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         List<Column> oldColumns = null;
         List<Column> newColumns = null;
         if (!resolvedTable.isPresent()) {
-            LOGGER.debug("Row update for {}.{} is filtered out", schemaName, tableName);
+            LOGGER.trace("Row update for {}.{} is filtered out", schemaName, tableName);
             tableId = new TableId(null, schemaName, tableName);
             // no need for oldColumns and newColumns because the event will be filtered out
         }
@@ -245,7 +245,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         List<Column> columns = null;
 
         if (!resolvedTable.isPresent()) {
-            LOGGER.debug("Row delete for {}.{} is filtered out", schemaName, tableName);
+            LOGGER.trace("Row delete for {}.{} is filtered out", schemaName, tableName);
             tableId = new TableId(null, schemaName, tableName);
             // no need for columns because the event will be filtered out
         }
@@ -275,12 +275,20 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     /** Resolve the vEvent data to a list of replication message columns (with values). */
     private List<Column> resolveColumns(Row row, Table table) {
         int numberOfColumns = row.getLengthsCount();
-        String rawValues = row.getValues().toStringUtf8();
+        List<io.debezium.relational.Column> tableColumns = table.columns();
+        if (tableColumns.size() != numberOfColumns) {
+            throw new IllegalStateException(
+                    String.format(
+                            "The number of columns in the ROW event {} is different from the in-memory table schema {}.",
+                            row,
+                            table));
+        }
 
+        String rawValues = row.getValues().toStringUtf8();
         int rawValueIndex = 0;
         List<Column> columns = new ArrayList<>(numberOfColumns);
         for (short i = 0; i < numberOfColumns; i++) {
-            final io.debezium.relational.Column column = table.columns().get(i);
+            final io.debezium.relational.Column column = tableColumns.get(i);
             final String columnName = column.name();
             final VitessType vitessType = new VitessType(column.typeName(), column.jdbcType());
             final boolean optional = column.isOptional();
@@ -312,12 +320,10 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                         vEvent);
             }
             else {
+                LOGGER.debug("Handling FIELD vEvent: {}", fieldEvent);
                 String schemaName = schemaTableTuple[0];
                 String tableName = schemaTableTuple[1];
                 int columnCount = fieldEvent.getFieldsCount();
-
-                LOGGER.trace("Event: {}, Columns: {}", Binlogdata.VEventType.FIELD, columnCount);
-                LOGGER.trace("Schema: '{}', Table: '{}'", schemaName, tableName);
 
                 List<ColumnMetaData> columns = new ArrayList<>(columnCount);
                 for (short i = 0; i < columnCount; ++i) {
@@ -342,6 +348,8 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                 }
 
                 Table table = resolveTable(schemaName, tableName, columns);
+                LOGGER.debug("Number of columns in the resolved table: {}", table.columns().size());
+
                 schema.applySchemaChangesForTable(table);
             }
         }

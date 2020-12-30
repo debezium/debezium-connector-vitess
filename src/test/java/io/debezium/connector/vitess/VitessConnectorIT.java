@@ -30,6 +30,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.data.Envelope;
@@ -462,6 +463,26 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         if (!latch.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS)) {
             fail("did not reach stop condition in time");
         }
+        assertConnectorNotRunning();
+    }
+
+    @Test
+    @FixFor("DBZ-2851")
+    public void shouldSanitizeFieldNames() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        TestHelper.execute("ALTER TABLE numeric_table ADD `-foo-` INT default 10;");
+
+        startConnector(builder -> builder.with(CommonConnectorConfig.SANITIZE_FIELD_NAMES, "true"), false);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        final List<SchemaAndValueField> fields = schemasAndValuesForNumericTypes();
+        fields.add(new SchemaAndValueField("_foo_", SchemaBuilder.OPTIONAL_INT32_SCHEMA, 10));
+        assertInsert(INSERT_NUMERIC_TYPES_STMT, fields, TestHelper.PK_FIELD);
+
+        stopConnector();
         assertConnectorNotRunning();
     }
 

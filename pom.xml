@@ -20,6 +20,9 @@
         <!-- Dependencies -->
         <version.vitess.grpc>7.0.0</version.vitess.grpc>
         <version.gson>2.7</version.gson>
+        <version.grpc>1.16.0</version.grpc>
+        <version.joda>2.10.1</version.joda>
+        <version.google.protos>1.17.0</version.google.protos>
 
         <!--
           Specify the properties that will be used for setting up the integration tests' Docker container.
@@ -66,6 +69,92 @@
                 <type>test-jar</type>
                 <scope>test</scope>
             </dependency>
+
+            <!-- Kafka runtime libs -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-handler</artifactId>
+                <version>${version.netty}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-common</artifactId>
+                <version>${version.netty}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-resolver</artifactId>
+                <scope>provided</scope>
+                <version>${version.netty}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-buffer</artifactId>
+                <version>${version.netty}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-transport</artifactId>
+                <version>${version.netty}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-codec</artifactId>
+                <version>${version.netty}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-codec-http2</artifactId>
+                <version>${version.netty}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-handler-proxy</artifactId>
+                <version>${version.netty}</version>
+            </dependency>
+
+            <!-- gRPC libs -->
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-core</artifactId>
+                <version>${version.grpc}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-netty</artifactId>
+                <version>${version.grpc}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-stub</artifactId>
+                <version>${version.grpc}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-protobuf</artifactId>
+                <version>${version.grpc}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-context</artifactId>
+                <version>${version.grpc}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.api.grpc</groupId>
+                <artifactId>proto-google-common-protos</artifactId>
+                <version>${version.google.protos}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>joda-time</groupId>
+                <artifactId>joda-time</artifactId>
+                <version>${version.joda}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -108,6 +197,14 @@
                 <exclusion>
                     <groupId>com.google.j2objc</groupId>
                     <artifactId>j2objc-annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.opentracing.contrib</groupId>
+                    <artifactId>opentracing-grpc</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-api</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>

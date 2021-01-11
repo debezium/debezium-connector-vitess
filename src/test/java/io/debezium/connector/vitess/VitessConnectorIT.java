@@ -486,6 +486,26 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertConnectorNotRunning();
     }
 
+    @Test
+    @FixFor("DBZ-2906")
+    public void shouldSanitizeDecimalValue() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        TestHelper.execute("ALTER TABLE numeric_table ADD decimal_col2 DECIMAL(14, 4) DEFAULT 12.3400;");
+
+        startConnector();
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        final List<SchemaAndValueField> fields = schemasAndValuesForNumericTypes();
+        fields.add(new SchemaAndValueField("decimal_col2", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "12.3400"));
+        assertInsert(INSERT_NUMERIC_TYPES_STMT, fields, TestHelper.PK_FIELD);
+
+        stopConnector();
+        assertConnectorNotRunning();
+    }
+
     private void startConnector() throws InterruptedException {
         startConnector(false);
     }

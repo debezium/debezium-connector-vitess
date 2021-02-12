@@ -491,6 +491,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     public void shouldSanitizeDecimalValue() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         TestHelper.execute("ALTER TABLE numeric_table ADD decimal_col2 DECIMAL(14, 4) DEFAULT 12.3400;");
+        TestHelper.execute("ALTER TABLE numeric_table ADD decimal_col3 DECIMAL(14, 4) DEFAULT -12.3400;");
 
         startConnector();
         assertConnectorIsRunning();
@@ -500,6 +501,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         final List<SchemaAndValueField> fields = schemasAndValuesForNumericTypes();
         fields.add(new SchemaAndValueField("decimal_col2", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "12.3400"));
+        fields.add(new SchemaAndValueField("decimal_col3", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "-12.3400"));
         assertInsert(INSERT_NUMERIC_TYPES_STMT, fields, TestHelper.PK_FIELD);
 
         stopConnector();

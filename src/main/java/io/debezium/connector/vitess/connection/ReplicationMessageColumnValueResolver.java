@@ -6,15 +6,12 @@
 package io.debezium.connector.vitess.connection;
 
 import java.sql.Types;
-import java.util.regex.Pattern;
 
 import io.debezium.connector.vitess.VitessType;
 import io.vitess.proto.Query;
 
 /** Resolve raw column value to Java value */
 public class ReplicationMessageColumnValueResolver {
-
-    private static Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
 
     public static Object resolveValue(
                                       VitessType vitessType, ReplicationMessage.ColumnValue value, boolean includeUnknownDatatypes) {
@@ -35,9 +32,6 @@ public class ReplicationMessageColumnValueResolver {
                     return value.asLong();
                 }
             case Types.VARCHAR:
-                if (Query.Type.DECIMAL.name().equals(vitessType.getName())) {
-                    return WHITESPACE_PATTERN.matcher(value.asString()).replaceAll("");
-                }
                 return value.asString();
             case Types.FLOAT:
                 return value.asFloat();

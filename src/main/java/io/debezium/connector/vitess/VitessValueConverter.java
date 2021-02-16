@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.SchemaBuilder;
 
+import io.debezium.data.Json;
 import io.debezium.jdbc.JdbcValueConverters;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.relational.Column;
@@ -32,6 +33,11 @@ public class VitessValueConverter extends JdbcValueConverters {
     // Get Kafka connect schema from Debebzium column.
     @Override
     public SchemaBuilder schemaBuilder(Column column) {
+        String typeName = column.typeName().toUpperCase();
+        if (matches(typeName, "JSON")) {
+            return Json.builder();
+        }
+
         final SchemaBuilder jdbcSchemaBuilder = super.schemaBuilder(column);
         if (jdbcSchemaBuilder == null) {
             return includeUnknownDatatypes ? SchemaBuilder.bytes() : null;
@@ -53,5 +59,20 @@ public class VitessValueConverter extends JdbcValueConverters {
         else {
             return jdbcConverter;
         }
+    }
+
+    /**
+     * Determine if the uppercase form of a column's type exactly matches or begins with the specified prefix.
+     * Note that this logic works when the column's {@link Column#typeName() type} contains the type name followed by parentheses.
+     *
+     * @param upperCaseTypeName the upper case form of the column's {@link Column#typeName() type name}
+     * @param upperCaseMatch the upper case form of the expected type or prefix of the type; may not be null
+     * @return {@code true} if the type matches the specified type, or {@code false} otherwise
+     */
+    protected boolean matches(String upperCaseTypeName, String upperCaseMatch) {
+        if (upperCaseTypeName == null) {
+            return false;
+        }
+        return upperCaseMatch.equals(upperCaseTypeName) || upperCaseTypeName.startsWith(upperCaseMatch + "(");
     }
 }

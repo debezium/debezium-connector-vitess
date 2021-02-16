@@ -34,6 +34,7 @@ import org.junit.Assert;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import io.debezium.data.Json;
 import io.debezium.data.SchemaUtil;
 import io.debezium.data.VerifyRecord;
 import io.debezium.embedded.AbstractConnectorTest;
@@ -123,7 +124,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
                         new SchemaAndValueField("text_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "ij"),
                         new SchemaAndValueField("mediumtext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "kl"),
                         new SchemaAndValueField("longtext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "mn"),
-                        new SchemaAndValueField("json_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA,
+                        new SchemaAndValueField("json_col", Json.builder().optional().build(),
                                 "{\"key1\":\"value1\",\"key2\":{\"key21\":\"value21\",\"key22\":\"value22\"}}")));
         return fields;
     }

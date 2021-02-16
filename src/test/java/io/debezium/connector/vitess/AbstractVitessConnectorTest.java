@@ -123,7 +123,8 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
                         new SchemaAndValueField("text_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "ij"),
                         new SchemaAndValueField("mediumtext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "kl"),
                         new SchemaAndValueField("longtext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "mn"),
-                        new SchemaAndValueField("json_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "{\"key1\":\"value1\",\"key2\":{\"key21\":\"value21\",\"key22\":\"value22\"}}")));
+                        new SchemaAndValueField("json_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA,
+                                "{\"key1\":\"value1\",\"key2\":{\"key21\":\"value21\",\"key22\":\"value22\"}}")));
         return fields;
     }
 

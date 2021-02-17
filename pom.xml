@@ -18,9 +18,9 @@
         <version.debezium>${project.version}</version.debezium>
 
         <!-- Dependencies -->
-        <version.vitess.grpc>7.0.0</version.vitess.grpc>
+        <version.vitess.grpc>9.0.0</version.vitess.grpc>
         <version.gson>2.7</version.gson>
-        <version.grpc>1.16.0</version.grpc>
+        <version.grpc>1.33.0</version.grpc>
         <version.joda>2.10.1</version.joda>
         <version.google.protos>1.17.0</version.google.protos>
         <version.jsonassert>1.5.0</version.jsonassert>
@@ -143,6 +143,11 @@
             <dependency>
                 <groupId>io.grpc</groupId>
                 <artifactId>grpc-context</artifactId>
+                <version>${version.grpc}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-api</artifactId>
                 <version>${version.grpc}</version>
             </dependency>
             <dependency>

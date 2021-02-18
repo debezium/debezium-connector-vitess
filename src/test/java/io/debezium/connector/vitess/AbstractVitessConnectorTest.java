@@ -31,6 +31,8 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.json.JSONException;
 import org.junit.Assert;
+import org.junit.ComparisonFailure;
+import org.skyscreamer.jsonassert.JSONAssert;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -43,8 +45,6 @@ import io.debezium.relational.TableId;
 import io.debezium.util.Clock;
 import io.debezium.util.ElapsedTimeStrategy;
 import io.debezium.util.Testing;
-import org.junit.ComparisonFailure;
-import org.skyscreamer.jsonassert.JSONAssert;
 
 public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest {
 
@@ -478,9 +478,10 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
                 Schema schema = content.schema().field(fieldName).schema();
                 if (schema.name() != null && !schema.name().isEmpty() && schema.name().equals(Json.LOGICAL_NAME)) {
                     try {
-                        JSONAssert.assertEquals("Values don't match for field '" + fieldName + "'", (String)value, (String)actualValue, false);
-                    } catch (JSONException e) {
-                        throw new ComparisonFailure("Failed to compare JSON field '" + fieldName + "'", (String)value, (String)actualValue);
+                        JSONAssert.assertEquals("Values don't match for field '" + fieldName + "'", (String) value, (String) actualValue, false);
+                    }
+                    catch (JSONException e) {
+                        throw new ComparisonFailure("Failed to compare JSON field '" + fieldName + "'", (String) value, (String) actualValue);
                     }
                 }
                 else {

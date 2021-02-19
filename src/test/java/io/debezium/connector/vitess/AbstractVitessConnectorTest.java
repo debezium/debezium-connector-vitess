@@ -476,7 +476,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
             }
             else {
                 Schema schema = content.schema().field(fieldName).schema();
-                if (schema.name() != null && !schema.name().isEmpty() && schema.name().equals(Json.LOGICAL_NAME)) {
+                if (Json.LOGICAL_NAME.equals(schema.name())) {
                     try {
                         JSONAssert.assertEquals("Values don't match for field '" + fieldName + "'", (String) value, (String) actualValue, false);
                     }

@@ -29,7 +29,10 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
+import org.json.JSONException;
 import org.junit.Assert;
+import org.junit.ComparisonFailure;
+import org.skyscreamer.jsonassert.JSONAssert;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -472,7 +475,18 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
                 assertStruct((Struct) value, (Struct) actualValue);
             }
             else {
-                assertEquals("Values don't match for field '" + fieldName + "'", value, actualValue);
+                Schema schema = content.schema().field(fieldName).schema();
+                if (Json.LOGICAL_NAME.equals(schema.name())) {
+                    try {
+                        JSONAssert.assertEquals("Values don't match for field '" + fieldName + "'", (String) value, (String) actualValue, false);
+                    }
+                    catch (JSONException e) {
+                        throw new ComparisonFailure("Failed to compare JSON field '" + fieldName + "'", (String) value, (String) actualValue);
+                    }
+                }
+                else {
+                    assertEquals("Values don't match for field '" + fieldName + "'", value, actualValue);
+                }
             }
         }
 

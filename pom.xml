@@ -23,6 +23,7 @@
         <version.grpc>1.16.0</version.grpc>
         <version.joda>2.10.1</version.joda>
         <version.google.protos>1.17.0</version.google.protos>
+        <version.jsonassert>1.5.0</version.jsonassert>
 
         <!--
           Specify the properties that will be used for setting up the integration tests' Docker container.
@@ -264,6 +265,12 @@
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.skyscreamer</groupId>
+            <artifactId>jsonassert</artifactId>
+            <version>${version.jsonassert}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

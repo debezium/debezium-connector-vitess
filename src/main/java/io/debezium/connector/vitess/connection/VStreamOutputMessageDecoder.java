@@ -290,7 +290,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         for (short i = 0; i < numberOfColumns; i++) {
             final io.debezium.relational.Column column = tableColumns.get(i);
             final String columnName = column.name();
-            final VitessType vitessType = new VitessType(column.typeName(), column.jdbcType());
+            final VitessType vitessType = new VitessType(column.typeName(), column.jdbcType(), column.enumValues());
             final boolean optional = column.isOptional();
 
             final int rawValueLength = (int) row.getLengths(i);
@@ -329,10 +329,9 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                 for (short i = 0; i < columnCount; ++i) {
                     Field field = fieldEvent.getFields(i);
                     String columnName = validateColumnName(field.getName(), schemaName, tableName);
-                    String columnType = field.getType().name();
-                    VitessType vitessType = VitessType.resolve(columnType);
+                    VitessType vitessType = VitessType.resolve(field);
                     if (vitessType.getJdbcId() == Types.OTHER) {
-                        LOGGER.error("Cannot resolve JDBC type from vstream type {}", columnType);
+                        LOGGER.error("Cannot resolve JDBC type from vstream field {}", field);
                     }
 
                     KeyMetaData keyMetaData = KeyMetaData.NONE;
@@ -365,6 +364,9 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                     .type(columnMetaData.getVitessType().getName())
                     .jdbcType(columnMetaData.getVitessType().getJdbcId())
                     .optional(columnMetaData.isOptional());
+            if (columnMetaData.getVitessType().isEnum()) {
+                editor = editor.enumValues(columnMetaData.getVitessType().getEnumValues());
+            }
             cols.add(editor.create());
 
             switch (columnMetaData.getKeyMetaData()) {

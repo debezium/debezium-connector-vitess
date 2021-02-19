@@ -7,6 +7,7 @@ package io.debezium.connector.vitess;
 
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -23,13 +24,13 @@ public class VitessType {
     private final List<String> enumValues;
 
     public VitessType(String name, int jdbcId) {
-        this(name, jdbcId, null);
+        this(name, jdbcId, Collections.emptyList());
     }
 
     public VitessType(String name, int jdbcId, List<String> enumValues) {
         this.name = name;
         this.jdbcId = jdbcId;
-        this.enumValues = enumValues;
+        this.enumValues = Collections.unmodifiableList(enumValues);
     }
 
     public String getName() {
@@ -45,7 +46,7 @@ public class VitessType {
     }
 
     public boolean isEnum() {
-        return enumValues != null && enumValues.size() != 0;
+        return !enumValues.isEmpty();
     }
 
     @Override

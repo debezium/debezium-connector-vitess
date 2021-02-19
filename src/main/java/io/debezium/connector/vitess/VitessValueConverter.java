@@ -17,7 +17,6 @@ import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.relational.Column;
 import io.debezium.relational.RelationalChangeRecordEmitter;
 import io.debezium.relational.ValueConverter;
-import io.debezium.util.Strings;
 import io.vitess.proto.Query;
 
 /** Used by {@link RelationalChangeRecordEmitter} to convert Java value to Connect value */
@@ -41,8 +40,7 @@ public class VitessValueConverter extends JdbcValueConverters {
             return Json.builder();
         }
         if (matches(typeName, Query.Type.ENUM.name())) {
-            String commaSeperatedOptions = Strings.join(",", column.enumValues());
-            return io.debezium.data.Enum.builder(commaSeperatedOptions);
+            return io.debezium.data.Enum.builder(column.enumValues());
         }
 
         final SchemaBuilder jdbcSchemaBuilder = super.schemaBuilder(column);

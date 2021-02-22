@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.vitess.connection;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -19,7 +20,9 @@ import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status;
+import io.grpc.stub.AbstractStub;
 import io.grpc.stub.StreamObserver;
+import io.vitess.client.Proto;
 import io.vitess.client.grpc.StaticAuthCredentials;
 import io.vitess.proto.Topodata;
 import io.vitess.proto.Vtgate;
@@ -46,6 +49,21 @@ public class VitessReplicationConnection implements ReplicationConnection {
         this.config = config;
     }
 
+    /**
+     * Execute SQL statement via vtgate gRPC.
+     * @param sqlStatement The SQL statement to be executed
+     * @throws io.grpc.StatusRuntimeException if the connection is not valid, or SQL statement can not be successfully exected
+     */
+    public void execute(String sqlStatement) {
+        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort());
+        managedChannel.compareAndSet(null, channel);
+
+        Vtgate.ExecuteRequest request = Vtgate.ExecuteRequest.newBuilder()
+                .setQuery(Proto.bindQuery(sqlStatement, Collections.EMPTY_MAP))
+                .build();
+        newBlockingStub(channel).execute(request);
+    }
+
     @Override
     public void startStreaming(
                                Vgtid vgtid, ReplicationMessageProcessor processor, AtomicReference<Throwable> error) {
@@ -53,21 +71,10 @@ public class VitessReplicationConnection implements ReplicationConnection {
             Objects.requireNonNull(vgtid);
         }
 
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(config.getVtgateHost(), config.getVtgatePort())
-                .usePlaintext()
-                .build();
+        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort());
         managedChannel.compareAndSet(null, channel);
 
-        // Providing a vgtid MySQL56/19eb2657-abc2-11ea-8ffc-0242ac11000a:1-61 here will make VStream to
-        // start receiving
-        // row-changes from MySQL56/19eb2657-abc2-11ea-8ffc-0242ac11000a:1-62
-        VitessGrpc.VitessStub stub = VitessGrpc
-                .newStub(channel);
-        if (config.getVtgateUsername() != null && config.getVtgatePassword() != null) {
-            LOGGER.info("Use authenticated vtgate grpc.");
-            stub = stub.withCallCredentials(new StaticAuthCredentials(config.getVtgateUsername(), config.getVtgatePassword()));
-        }
-
+        VitessGrpc.VitessStub stub = newStub(channel);
         StreamObserver<Vtgate.VStreamResponse> responseObserver = new StreamObserver<Vtgate.VStreamResponse>() {
 
             @Override
@@ -150,6 +157,8 @@ public class VitessReplicationConnection implements ReplicationConnection {
             }
         };
 
+        // Providing a vgtid MySQL56/19eb2657-abc2-11ea-8ffc-0242ac11000a:1-61 here will make VStream to
+        // start receiving row-changes from MySQL56/19eb2657-abc2-11ea-8ffc-0242ac11000a:1-62
         stub.vStream(
                 Vtgate.VStreamRequest.newBuilder()
                         .setVgtid(vgtid.getRawVgtid())
@@ -157,6 +166,31 @@ public class VitessReplicationConnection implements ReplicationConnection {
                                 toTopodataTabletType(VtctldConnection.TabletType.valueOf(config.getTabletType())))
                         .build(),
                 responseObserver);
+    }
+
+    private VitessGrpc.VitessStub newStub(ManagedChannel channel) {
+        VitessGrpc.VitessStub stub = VitessGrpc.newStub(channel);
+        return withCredentials(stub);
+    }
+
+    private VitessGrpc.VitessBlockingStub newBlockingStub(ManagedChannel channel) {
+        VitessGrpc.VitessBlockingStub stub = VitessGrpc.newBlockingStub(channel);
+        return withCredentials(stub);
+    }
+
+    private <T extends AbstractStub<T>> T withCredentials(T stub) {
+        if (config.getVtgateUsername() != null && config.getVtgatePassword() != null) {
+            LOGGER.info("Use authenticated vtgate grpc.");
+            stub = stub.withCallCredentials(new StaticAuthCredentials(config.getVtgateUsername(), config.getVtgatePassword()));
+        }
+        return stub;
+    }
+
+    private ManagedChannel newChannel(String vtgateHost, int vtgatePort) {
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(vtgateHost, vtgatePort)
+                .usePlaintext()
+                .build();
+        return channel;
     }
 
     /** Close the gRPC connection to VStream */
@@ -203,6 +237,14 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    public String connectionString() {
+        return String.format("vtgate gRPC connection %s:%s", config.getVtgateHost(), config.getVtgatePort());
+    }
+
+    public String username() {
+        return config.getVtgateUsername();
     }
 
     private static Topodata.TabletType toTopodataTabletType(VtctldConnection.TabletType tabletType) {

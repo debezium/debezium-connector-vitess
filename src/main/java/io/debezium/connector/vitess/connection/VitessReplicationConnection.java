@@ -14,12 +14,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import binlogdata.Binlogdata;
+import binlogdata.Binlogdata.VEvent;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.AbstractStub;
 import io.grpc.stub.StreamObserver;
 import io.vitess.client.Proto;
@@ -27,9 +30,6 @@ import io.vitess.client.grpc.StaticAuthCredentials;
 import io.vitess.proto.Topodata;
 import io.vitess.proto.Vtgate;
 import io.vitess.proto.grpc.VitessGrpc;
-
-import binlogdata.Binlogdata;
-import binlogdata.Binlogdata.VEvent;
 
 /**
  * Connection to VTGate to replication messages. Also connect to VTCtld to get the latest {@link
@@ -52,14 +52,14 @@ public class VitessReplicationConnection implements ReplicationConnection {
     /**
      * Execute SQL statement via vtgate gRPC.
      * @param sqlStatement The SQL statement to be executed
-     * @throws io.grpc.StatusRuntimeException if the connection is not valid, or SQL statement can not be successfully exected
+     * @throws StatusRuntimeException if the connection is not valid, or SQL statement can not be successfully exected
      */
     public void execute(String sqlStatement) {
         ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort());
         managedChannel.compareAndSet(null, channel);
 
         Vtgate.ExecuteRequest request = Vtgate.ExecuteRequest.newBuilder()
-                .setQuery(Proto.bindQuery(sqlStatement, Collections.EMPTY_MAP))
+                .setQuery(Proto.bindQuery(sqlStatement, Collections.emptyMap()))
                 .build();
         newBlockingStub(channel).execute(request);
     }

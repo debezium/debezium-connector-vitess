@@ -14,8 +14,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import binlogdata.Binlogdata;
-import binlogdata.Binlogdata.VEvent;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
@@ -30,6 +28,9 @@ import io.vitess.client.grpc.StaticAuthCredentials;
 import io.vitess.proto.Topodata;
 import io.vitess.proto.Vtgate;
 import io.vitess.proto.grpc.VitessGrpc;
+
+import binlogdata.Binlogdata;
+import binlogdata.Binlogdata.VEvent;
 
 /**
  * Connection to VTGate to replication messages. Also connect to VTCtld to get the latest {@link

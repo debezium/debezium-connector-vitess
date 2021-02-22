@@ -77,7 +77,8 @@ public class VitessConnector extends RelationalBaseSourceConnector {
             }
         }
         catch (Exception e) {
-            LOGGER.error("Unexpected error shutting down the database connection", e);
+            LOGGER.error("Unexpected error validating the database connection", e);
+            hostnameValue.addErrorMessage("Unable to validate connection: " + e.getMessage());
         }
     }
 

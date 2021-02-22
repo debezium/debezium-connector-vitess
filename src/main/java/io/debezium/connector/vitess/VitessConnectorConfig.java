@@ -50,14 +50,14 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withValidation(Field::isInteger)
             .withDescription("Port of the Vitess VTGate gRPC server.");
 
-    public static final Field VTGATE_USER = Field.create(DATABASE_CONFIG_PREFIX + "user")
+    public static final Field VTGATE_USER = Field.create(DATABASE_CONFIG_PREFIX + JdbcConfiguration.USER)
             .withDisplayName("User")
             .withType(Type.STRING)
             .withWidth(Width.SHORT)
             .withImportance(ConfigDef.Importance.HIGH)
             .withDescription("Name of the user to be used when connecting the Vitess VTGate gRPC server.");
 
-    public static final Field VTGATE_PASSWORD = Field.create(DATABASE_CONFIG_PREFIX + "password")
+    public static final Field VTGATE_PASSWORD = Field.create(DATABASE_CONFIG_PREFIX + JdbcConfiguration.PASSWORD)
             .withDisplayName("Password")
             .withType(Type.PASSWORD)
             .withWidth(Width.SHORT)

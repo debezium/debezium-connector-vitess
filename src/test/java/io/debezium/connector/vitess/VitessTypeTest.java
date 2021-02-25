@@ -38,7 +38,8 @@ public class VitessTypeTest {
         assertThat(VitessType.resolve(asField(Query.Type.DATETIME)).getJdbcId()).isEqualTo(Types.VARCHAR);
         assertThat(VitessType.resolve(asField(Query.Type.TIMESTAMP)).getJdbcId())
                 .isEqualTo(Types.VARCHAR);
-        assertThat(VitessType.resolve(asField(Query.Type.SET)).getJdbcId()).isEqualTo(Types.VARCHAR);
+        assertThat(VitessType.resolve(asField(Query.Type.ENUM)).getJdbcId()).isEqualTo(Types.INTEGER);
+        assertThat(VitessType.resolve(asField(Query.Type.SET)).getJdbcId()).isEqualTo(Types.BIGINT);
         assertThat(VitessType.resolve(asField(Query.Type.GEOMETRY)).getJdbcId()).isEqualTo(Types.OTHER);
     }
 
@@ -71,6 +72,37 @@ public class VitessTypeTest {
                 .build();
         assertThat(VitessType.resolve(enumField))
                 .isEqualTo(new VitessType(Query.Type.ENUM.name(), Types.INTEGER, Arrays.asList("e',','u", "us", "asia")));
+    }
+
+    @Test
+    public void shouldResolveSetToVitessType() {
+        Query.Field setField = Query.Field.newBuilder()
+                .setType(Query.Type.SET)
+                .setColumnType("set('eu','us','asia')")
+                .build();
+        assertThat(VitessType.resolve(setField))
+                .isEqualTo(new VitessType(Query.Type.SET.name(), Types.BIGINT, Arrays.asList("eu", "us", "asia")));
+
+        setField = Query.Field.newBuilder()
+                .setType(Query.Type.SET)
+                .setColumnType("set('e,u','us','asia')")
+                .build();
+        assertThat(VitessType.resolve(setField))
+                .isEqualTo(new VitessType(Query.Type.SET.name(), Types.BIGINT, Arrays.asList("e,u", "us", "asia")));
+
+        setField = Query.Field.newBuilder()
+                .setType(Query.Type.SET)
+                .setColumnType("set('e'',u','us','asia')")
+                .build();
+        assertThat(VitessType.resolve(setField))
+                .isEqualTo(new VitessType(Query.Type.SET.name(), Types.BIGINT, Arrays.asList("e',u", "us", "asia")));
+
+        setField = Query.Field.newBuilder()
+                .setType(Query.Type.SET)
+                .setColumnType("set('e'','',''u','us','asia')")
+                .build();
+        assertThat(VitessType.resolve(setField))
+                .isEqualTo(new VitessType(Query.Type.SET.name(), Types.BIGINT, Arrays.asList("e',','u", "us", "asia")));
     }
 
     private Query.Field asField(Query.Type type) {

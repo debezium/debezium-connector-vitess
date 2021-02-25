@@ -144,8 +144,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         final List<SchemaAndValueField> fields = new ArrayList<>();
         fields.addAll(
                 Arrays.asList(
-                        // value is 5 because a = 0001 (1), c = 0100 (4), so a,c = 5
-                        new SchemaAndValueField("set_col", SchemaBuilder.STRING_SCHEMA, "5")));
+                        new SchemaAndValueField("set_col", io.debezium.data.EnumSet.builder("a,b,c,d").build(), "a,c")));
         return fields;
     }
 

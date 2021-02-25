@@ -89,7 +89,9 @@ public class VitessType {
             case "INT32":
                 return new VitessType(type, Types.INTEGER);
             case "ENUM":
-                return new VitessType(type, Types.INTEGER, resolveEnumValues(field.getColumnType()));
+                return new VitessType(type, Types.INTEGER, resolveEnumAndSetValues(field.getColumnType()));
+            case "SET":
+                return new VitessType(type, Types.BIGINT, resolveEnumAndSetValues(field.getColumnType()));
             case "UINT32":
             case "INT64":
             case "UINT64":
@@ -106,7 +108,6 @@ public class VitessType {
             case "DATETIME":
             case "TIMESTAMP":
             case "YEAR":
-            case "SET":
                 return new VitessType(type, Types.VARCHAR);
             case "FLOAT32":
                 return new VitessType(type, Types.FLOAT);
@@ -118,32 +119,32 @@ public class VitessType {
     }
 
     /**
-     * Resolve the list of permitted Enum values from the Enum Definition
-     * @param enumDefinition the Enum column definition from the MySQL table. E.g. "enum('m','l','xl')"
-     * @return The list of permitted Enum values
+     * Resolve the list of permitted Enum or Set values from the Enum or Set Definition
+     * @param definition the Enum or Set column definition from the MySQL table. E.g. "enum('m','l','xl')" or "set('a','b','c')"
+     * @return The list of permitted Enum values or Set values
      */
-    private static List<String> resolveEnumValues(String enumDefinition) {
-        List<String> enumValues = new ArrayList<>();
-        if (enumDefinition == null || enumDefinition.length() == 0) {
-            return enumValues;
+    private static List<String> resolveEnumAndSetValues(String definition) {
+        List<String> values = new ArrayList<>();
+        if (definition == null || definition.length() == 0) {
+            return values;
         }
 
         StringBuilder sb = new StringBuilder();
         boolean startCollecting = false;
-        char[] chars = enumDefinition.toCharArray();
+        char[] chars = definition.toCharArray();
         for (int i = 0; i < chars.length; i++) {
             if (chars[i] == '\'') {
                 if (chars[i + 1] != '\'') {
                     if (startCollecting) {
-                        // end of the Enum value, add the Enum value to the result list
-                        enumValues.add(sb.toString());
+                        // end of the Enum/Set value, add the Enum/Set value to the result list
+                        values.add(sb.toString());
                         sb.setLength(0);
                     }
                     startCollecting = !startCollecting;
                 }
                 else {
                     sb.append("'");
-                    // In MySQL, the single quote in the Enum definition "a'b" is escaped and becomes "a''b".
+                    // In MySQL, the single quote in the Enum/Set definition "a'b" is escaped and becomes "a''b".
                     // Skip the second single-quote
                     i++;
                 }
@@ -152,6 +153,6 @@ public class VitessType {
                 sb.append(chars[i]);
             }
         }
-        return enumValues;
+        return values;
     }
 }

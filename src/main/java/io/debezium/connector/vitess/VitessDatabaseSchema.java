@@ -64,12 +64,12 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
     }
 
     /** Refreshes the schema content with a table constructed externally */
-    private void refresh(Table table) {
+    public void refresh(Table table) {
         tables().overwriteTable(table);
         refreshSchema(table.id());
     }
 
-    private void refreshSchema(TableId id) {
+    public void refreshSchema(TableId id) {
         LOGGER.trace("refreshing DB schema for table '{}'", id);
         Table table = tableFor(id);
 

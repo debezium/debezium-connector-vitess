@@ -33,7 +33,7 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
                 config,
                 topicSelector,
                 new Filters(config).tableFilter(),
-                new Filters(config).columnFilter(),
+                config.getColumnFilter(),
                 new TableSchemaBuilder(
                         new VitessValueConverter(
                                 config.getDecimalMode(),
@@ -64,11 +64,13 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
     }
 
     /** Refreshes the schema content with a table constructed externally */
+    @Override
     public void refresh(Table table) {
         tables().overwriteTable(table);
         refreshSchema(table.id());
     }
 
+    @Override
     public void refreshSchema(TableId id) {
         LOGGER.trace("refreshing DB schema for table '{}'", id);
         Table table = tableFor(id);

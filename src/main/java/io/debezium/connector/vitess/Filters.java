@@ -21,7 +21,6 @@ public class Filters {
     protected static final String SYSTEM_SCHEMA_EXCLUDE_LIST = String.join(",", SYSTEM_SCHEMAS);
 
     private final Tables.TableFilter tableFilter;
-    private final Tables.ColumnNameFilter columnFilter;
 
     /** @param config the configuration; may not be null */
     public Filters(VitessConnectorConfig config) {
@@ -33,21 +32,9 @@ public class Filters {
                         .excludeTables(config.tableExcludeList())
                         .excludeSchemas(SYSTEM_SCHEMA_EXCLUDE_LIST)
                         .build());
-
-        String columnIncludeList = config.columnIncludeList();
-        if (columnIncludeList != null) {
-            this.columnFilter = Tables.ColumnNameFilterFactory.createIncludeListFilter(columnIncludeList);
-        }
-        else {
-            this.columnFilter = Tables.ColumnNameFilterFactory.createExcludeListFilter(config.columnExcludeList());
-        }
     }
 
     protected Tables.TableFilter tableFilter() {
         return tableFilter;
-    }
-
-    protected Tables.ColumnNameFilter columnFilter() {
-        return columnFilter;
     }
 }

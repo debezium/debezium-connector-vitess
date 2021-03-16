@@ -5,8 +5,6 @@
  */
 package io.debezium.connector.vitess;
 
-import java.util.function.Predicate;
-
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
@@ -16,12 +14,9 @@ import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.SourceInfoStructMaker;
 import io.debezium.connector.vitess.connection.VtctldConnection;
-import io.debezium.function.Predicates;
 import io.debezium.jdbc.JdbcConfiguration;
-import io.debezium.relational.ColumnId;
+import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
-import io.debezium.relational.TableId;
-import io.debezium.relational.Tables.ColumnNameFilter;
 
 /**
  * Vitess connector configuration, including its specific configurations and the common
@@ -164,7 +159,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     }
 
     public VitessConnectorConfig(Configuration config) {
-        super(config, config.getString(SERVER_NAME), null, x -> x.schema() + "." + x.table(), -1);
+        super(config, config.getString(SERVER_NAME), null, x -> x.schema() + "." + x.table(), -1, ColumnFilterMode.CATALOG);
     }
 
     @Override
@@ -181,20 +176,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     protected SourceInfoStructMaker<?> getSourceInfoStructMaker(Version version) {
         // Assume V2 is used because it is the default version
         return new VitessSourceInfoStructMaker(Module.name(), Module.version(), this);
-    }
-
-    private static ColumnNameFilter getColumnNameFilter(String excludedColumnPatterns) {
-        return new ColumnNameFilter() {
-
-            Predicate<ColumnId> delegate = Predicates.excludes(excludedColumnPatterns, ColumnId::toString);
-
-            @Override
-            public boolean matches(
-                                   String catalogName, String schemaName, String tableName, String columnName) {
-                // ignore database name as it's not relevant here
-                return delegate.test(new ColumnId(new TableId(null, schemaName, tableName), columnName));
-            }
-        };
     }
 
     public String getKeyspace() {

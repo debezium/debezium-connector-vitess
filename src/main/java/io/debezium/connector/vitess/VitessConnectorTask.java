@@ -49,7 +49,7 @@ public class VitessConnectorTask extends BaseSourceTask {
 
         final VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
         final TopicSelector<TableId> topicSelector = VitessTopicSelector.defaultSelector(connectorConfig);
-        final SchemaNameAdjuster schemaNameAdjuster = SchemaNameAdjuster.create(LOGGER);
+        final SchemaNameAdjuster schemaNameAdjuster = SchemaNameAdjuster.create();
 
         schema = new VitessDatabaseSchema(connectorConfig, schemaNameAdjuster, topicSelector);
         VitessTaskContext taskContext = new VitessTaskContext(connectorConfig, schema);

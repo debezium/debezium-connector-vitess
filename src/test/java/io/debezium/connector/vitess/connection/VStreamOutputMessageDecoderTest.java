@@ -36,7 +36,7 @@ public class VStreamOutputMessageDecoderTest {
         connectorConfig = new VitessConnectorConfig(TestHelper.defaultConfig().build());
         schema = new VitessDatabaseSchema(
                 connectorConfig,
-                SchemaNameAdjuster.create(LOGGER),
+                SchemaNameAdjuster.create(),
                 VitessTopicSelector.defaultSelector(connectorConfig));
         decoder = new VStreamOutputMessageDecoder(schema);
     }

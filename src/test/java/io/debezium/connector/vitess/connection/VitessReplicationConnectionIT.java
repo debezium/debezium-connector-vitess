@@ -46,7 +46,7 @@ public class VitessReplicationConnectionIT {
         // setup fixture
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
-                conf, SchemaNameAdjuster.create(LOGGER), VitessTopicSelector.defaultSelector(conf));
+                conf, SchemaNameAdjuster.create(), VitessTopicSelector.defaultSelector(conf));
 
         // exercise SUT
         TestHelper.execute(SETUP_TABLES_STMT);

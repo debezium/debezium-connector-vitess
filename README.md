@@ -177,3 +177,12 @@ When subscribing to individual shard, we need to do the following manual steps f
 ## Contributing
 
 The Debezium community welcomes anyone that wants to help out in any way, whether that includes reporting problems, helping with documentation, or contributing code changes to fix bugs, add tests, or implement new features. See [this document](https://github.com/debezium/debezium/blob/master/CONTRIBUTE.md) for details.
+
+### Building just the artifacts, without running tests, CheckStyle, etc.
+
+You can skip all non-essential plug-ins (tests, integration tests, CheckStyle, formatter, API compatibility check, etc.) using the "quick" build profile:
+
+    $ mvn clean verify -Dquick
+
+This provides the fastes way for solely producing the output artifacts, without running any of the QA related Maven plug-ins.
+This comes in handy for producing connector JARs and/or archives as quickly as possible, e.g. for manual testing in Kafka Connect.

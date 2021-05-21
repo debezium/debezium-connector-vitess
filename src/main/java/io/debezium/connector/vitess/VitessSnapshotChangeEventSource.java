@@ -11,7 +11,6 @@ import java.util.Set;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.source.spi.SnapshotProgressListener;
-import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.RelationalSnapshotChangeEventSource;
 import io.debezium.relational.Table;
@@ -20,18 +19,16 @@ import io.debezium.schema.SchemaChangeEvent;
 import io.debezium.util.Clock;
 
 /** Always skip snapshot for now */
-public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEventSource {
+public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEventSource<VitessOffsetContext> {
 
     public VitessSnapshotChangeEventSource(
                                            RelationalDatabaseConnectorConfig connectorConfig,
-                                           OffsetContext previousOffset,
                                            JdbcConnection jdbcConnection,
                                            EventDispatcher<TableId> dispatcher,
                                            Clock clock,
                                            SnapshotProgressListener snapshotProgressListener) {
         super(
                 connectorConfig,
-                previousOffset,
                 jdbcConnection,
                 dispatcher,
                 clock,
@@ -39,59 +36,60 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     }
 
     @Override
-    protected Set<TableId> getAllTableIds(RelationalSnapshotContext snapshotContext)
+    protected Set<TableId> getAllTableIds(RelationalSnapshotContext<VitessOffsetContext> snapshotContext)
             throws Exception {
         return null;
     }
 
     @Override
     protected void lockTablesForSchemaSnapshot(
-                                               ChangeEventSourceContext sourceContext, RelationalSnapshotContext snapshotContext)
+                                               ChangeEventSourceContext sourceContext, RelationalSnapshotContext<VitessOffsetContext> snapshotContext)
             throws Exception {
     }
 
     @Override
-    protected void determineSnapshotOffset(RelationalSnapshotContext snapshotContext)
+    protected void determineSnapshotOffset(RelationalSnapshotContext<VitessOffsetContext> snapshotContext, VitessOffsetContext offsetContext)
             throws Exception {
     }
 
     @Override
-    protected void readTableStructure(
-                                      ChangeEventSourceContext sourceContext, RelationalSnapshotContext snapshotContext)
+    protected void readTableStructure(ChangeEventSourceContext sourceContext,
+                                      RelationalSnapshotContext<VitessOffsetContext> snapshotContext,
+                                      VitessOffsetContext offsetContext)
             throws Exception {
     }
 
     @Override
-    protected void releaseSchemaSnapshotLocks(RelationalSnapshotContext snapshotContext)
+    protected void releaseSchemaSnapshotLocks(RelationalSnapshotContext<VitessOffsetContext> snapshotContext)
             throws Exception {
     }
 
     @Override
     protected SchemaChangeEvent getCreateTableEvent(
-                                                    RelationalSnapshotContext snapshotContext, Table table)
+                                                    RelationalSnapshotContext<VitessOffsetContext> snapshotContext, Table table)
             throws Exception {
         return null;
     }
 
     @Override
-    protected Optional<String> getSnapshotSelect(RelationalSnapshotContext snapshotContext, TableId tableId) {
+    protected Optional<String> getSnapshotSelect(RelationalSnapshotContext<VitessOffsetContext> snapshotContext, TableId tableId) {
         return Optional.empty();
     }
 
     @Override
-    protected SnapshottingTask getSnapshottingTask(OffsetContext previousOffset) {
+    protected SnapshottingTask getSnapshottingTask(VitessOffsetContext previousOffset) {
         boolean snapshotSchema = false;
         boolean snapshotData = false;
         return new SnapshottingTask(snapshotSchema, snapshotData);
     }
 
     @Override
-    protected SnapshotContext prepare(ChangeEventSourceContext changeEventSourceContext)
+    protected SnapshotContext<VitessOffsetContext> prepare(ChangeEventSourceContext changeEventSourceContext)
             throws Exception {
         return null;
     }
 
     @Override
-    protected void complete(SnapshotContext snapshotContext) {
+    protected void complete(SnapshotContext<VitessOffsetContext> snapshotContext) {
     }
 }

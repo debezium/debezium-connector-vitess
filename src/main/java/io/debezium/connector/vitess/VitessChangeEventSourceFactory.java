@@ -12,7 +12,6 @@ import io.debezium.pipeline.source.spi.ChangeEventSourceFactory;
 import io.debezium.pipeline.source.spi.SnapshotChangeEventSource;
 import io.debezium.pipeline.source.spi.SnapshotProgressListener;
 import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
-import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.relational.TableId;
 import io.debezium.util.Clock;
 
@@ -20,7 +19,7 @@ import io.debezium.util.Clock;
  * Factory to create StreamingChangeEventSource and SnapshotChangeEventSource. A dummy
  * SnapshotChangeEventSource is created because snapshot is not supported for now.
  */
-public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory {
+public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<VitessOffsetContext> {
 
     private final VitessConnectorConfig connectorConfig;
     private final ErrorHandler errorHandler;
@@ -45,21 +44,19 @@ public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory 
     }
 
     @Override
-    public SnapshotChangeEventSource getSnapshotChangeEventSource(
-                                                                  OffsetContext offsetContext, SnapshotProgressListener snapshotProgressListener) {
+    public SnapshotChangeEventSource<VitessOffsetContext> getSnapshotChangeEventSource(SnapshotProgressListener snapshotProgressListener) {
         // A dummy SnapshotChangeEventSource, snapshot is skipped.
         return new VitessSnapshotChangeEventSource(
-                connectorConfig, offsetContext, null, dispatcher, clock, null);
+                connectorConfig, null, dispatcher, clock, null);
     }
 
     @Override
-    public StreamingChangeEventSource getStreamingChangeEventSource(OffsetContext offsetContext) {
+    public StreamingChangeEventSource<VitessOffsetContext> getStreamingChangeEventSource() {
         return new VitessStreamingChangeEventSource(
                 dispatcher,
                 errorHandler,
                 clock,
                 schema,
-                (VitessOffsetContext) offsetContext,
                 connectorConfig,
                 replicationConnection);
     }

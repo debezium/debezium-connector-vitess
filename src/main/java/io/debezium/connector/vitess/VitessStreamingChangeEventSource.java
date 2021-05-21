@@ -26,14 +26,13 @@ import io.debezium.util.DelayStrategy;
  * io.debezium.pipeline.source.spi.ChangeEventSource}. It runs in the
  * change-event-source-coordinator thread only.
  */
-public class VitessStreamingChangeEventSource implements StreamingChangeEventSource {
+public class VitessStreamingChangeEventSource implements StreamingChangeEventSource<VitessOffsetContext> {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessStreamingChangeEventSource.class);
 
     private final EventDispatcher<TableId> dispatcher;
     private final ErrorHandler errorHandler;
     private final Clock clock;
     private final VitessDatabaseSchema schema;
-    private final VitessOffsetContext offsetContext;
     private final VitessConnectorConfig connectorConfig;
     private final ReplicationConnection replicationConnection;
     private final DelayStrategy pauseNoMessage;
@@ -43,29 +42,29 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
                                             ErrorHandler errorHandler,
                                             Clock clock,
                                             VitessDatabaseSchema schema,
-                                            VitessOffsetContext offsetContext,
                                             VitessConnectorConfig connectorConfig,
                                             ReplicationConnection replicationConnection) {
         this.dispatcher = dispatcher;
         this.errorHandler = errorHandler;
         this.clock = clock;
         this.schema = schema;
-        this.offsetContext = offsetContext != null
-                ? offsetContext
-                : VitessOffsetContext.initialContext(connectorConfig, clock);
         this.connectorConfig = connectorConfig;
         this.replicationConnection = replicationConnection;
         this.pauseNoMessage = DelayStrategy.constant(connectorConfig.getPollInterval().toMillis());
 
-        LOGGER.info("VitessStreamingChangeEventSource is created with offsetContext: {}", offsetContext);
+        LOGGER.info("VitessStreamingChangeEventSource is created");
     }
 
     @Override
-    public void execute(ChangeEventSourceContext context) {
+    public void execute(ChangeEventSourceContext context, VitessOffsetContext offsetContext) {
+        if (offsetContext == null) {
+            offsetContext = VitessOffsetContext.initialContext(connectorConfig, clock);
+        }
+
         try {
             AtomicReference<Throwable> error = new AtomicReference<>();
             replicationConnection.startStreaming(
-                    offsetContext.getRestartVgtid(), newReplicationMessageProcessor(), error);
+                    offsetContext.getRestartVgtid(), newReplicationMessageProcessor(offsetContext), error);
 
             while (context.isRunning() && error.get() == null) {
                 pauseNoMessage.sleepWhen(true);
@@ -89,7 +88,7 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
         }
     }
 
-    private ReplicationMessageProcessor newReplicationMessageProcessor() {
+    private ReplicationMessageProcessor newReplicationMessageProcessor(VitessOffsetContext offsetContext) {
         return (message, newVgtid, isLastRowOfTransaction) -> {
             if (message.isTransactionalMessage()) {
                 // Tx BEGIN/END event

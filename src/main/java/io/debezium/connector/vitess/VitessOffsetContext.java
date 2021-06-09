@@ -16,8 +16,6 @@ import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.Gson;
-
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.txmetadata.TransactionContext;
@@ -147,14 +145,12 @@ public class VitessOffsetContext implements OffsetContext {
                 + '}';
     }
 
-    public static class Loader implements OffsetContext.Loader {
+    public static class Loader implements OffsetContext.Loader<VitessOffsetContext> {
 
         private final VitessConnectorConfig connectorConfig;
-        private final Gson gson;
 
         public Loader(VitessConnectorConfig connectorConfig) {
             this.connectorConfig = connectorConfig;
-            this.gson = new Gson();
         }
 
         @Override
@@ -163,7 +159,7 @@ public class VitessOffsetContext implements OffsetContext {
         }
 
         @Override
-        public OffsetContext load(Map<String, ?> offset) {
+        public VitessOffsetContext load(Map<String, ?> offset) {
             final String vgtid = (String) offset.get(SourceInfo.VGTID);
             return new VitessOffsetContext(
                     connectorConfig,

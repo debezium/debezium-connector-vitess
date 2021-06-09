@@ -30,7 +30,7 @@ import io.debezium.util.LoggingContext;
 import io.debezium.util.SchemaNameAdjuster;
 
 /** The main task executing streaming from Vitess. */
-public class VitessConnectorTask extends BaseSourceTask {
+public class VitessConnectorTask extends BaseSourceTask<VitessOffsetContext> {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessConnectorTask.class);
     private static final String CONTEXT_NAME = "vitess-connector-task";
 
@@ -45,7 +45,7 @@ public class VitessConnectorTask extends BaseSourceTask {
     }
 
     @Override
-    protected ChangeEventSourceCoordinator start(Configuration config) {
+    protected ChangeEventSourceCoordinator<VitessOffsetContext> start(Configuration config) {
 
         final VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
         final TopicSelector<TableId> topicSelector = VitessTopicSelector.defaultSelector(connectorConfig);
@@ -53,7 +53,7 @@ public class VitessConnectorTask extends BaseSourceTask {
 
         schema = new VitessDatabaseSchema(connectorConfig, schemaNameAdjuster, topicSelector);
         VitessTaskContext taskContext = new VitessTaskContext(connectorConfig, schema);
-        final VitessOffsetContext previousOffset = (VitessOffsetContext) getPreviousOffset(new VitessOffsetContext.Loader(connectorConfig));
+        final VitessOffsetContext previousOffset = getPreviousOffset(new VitessOffsetContext.Loader(connectorConfig));
         final Clock clock = Clock.system();
 
         // Mapped Diagnostic Context (MDC) logging
@@ -92,7 +92,7 @@ public class VitessConnectorTask extends BaseSourceTask {
                     metadataProvider,
                     schemaNameAdjuster);
 
-            ChangeEventSourceCoordinator coordinator = new ChangeEventSourceCoordinator(
+            ChangeEventSourceCoordinator<VitessOffsetContext> coordinator = new ChangeEventSourceCoordinator<>(
                     previousOffset,
                     errorHandler,
                     VitessConnector.class,

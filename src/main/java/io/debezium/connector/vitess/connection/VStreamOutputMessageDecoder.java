@@ -7,9 +7,11 @@ package io.debezium.connector.vitess.connection;
 
 import static io.debezium.connector.vitess.connection.ReplicationMessage.Column;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Types;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -296,7 +298,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             final int rawValueLength = (int) row.getLengths(i);
             final String rawValue = rawValueLength == -1
                     ? null
-                    : rawValues.substring(rawValueIndex, rawValueIndex + rawValueLength);
+                    : new String(Arrays.copyOfRange(rawValues.getBytes(StandardCharsets.UTF_8), rawValueIndex, rawValueIndex + rawValueLength));
             if (rawValueLength != -1) {
                 // no update to rawValueIndex when no value in the rawValue
                 rawValueIndex += rawValueLength;

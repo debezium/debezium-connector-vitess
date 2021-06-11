@@ -70,6 +70,8 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
     protected static final String INSERT_STRING_TYPES_STMT = "INSERT INTO string_table ("
             + "char_col,"
             + "varchar_col,"
+            + "varchar_ko_col,"
+            + "varchar_ja_col,"
             + "binary_col,"
             + "varbinary_col,"
             + "tinytext_col,"
@@ -77,7 +79,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
             + "mediumtext_col,"
             + "longtext_col,"
             + "json_col)"
-            + " VALUES ('a', 'bc', 'd', 'ef', 'gh', 'ij', 'kl','mn', '{\"key1\": \"value1\", \"key2\": {\"key21\": \"value21\", \"key22\": \"value22\"}}');";
+            + " VALUES ('a', 'bc', '상품 명1', 'リンゴ', 'd', 'ef', 'gh', 'ij', 'kl','mn', '{\"key1\": \"value1\", \"key2\": {\"key21\": \"value21\", \"key22\": \"value22\"}}');";
     protected static final String INSERT_ENUM_TYPE_STMT = "INSERT INTO enum_table (enum_col)" + " VALUES ('large');";
     protected static final String INSERT_SET_TYPE_STMT = "INSERT INTO set_table (set_col)" + " VALUES ('a,c');";
     protected static final String INSERT_TIME_TYPES_STMT = "INSERT INTO time_table ("

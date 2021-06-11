@@ -23,16 +23,18 @@ CREATE TABLE numeric_table
 DROP TABLE IF EXISTS string_table;
 CREATE TABLE string_table
 (
-    id             BIGINT NOT NULL AUTO_INCREMENT,
-    char_col       CHAR(2),
-    varchar_col    VARCHAR(32),
-    binary_col     BINARY(2),
-    varbinary_col  VARBINARY(32),
-    tinytext_col   TINYTEXT,
-    text_col       TEXT,
-    mediumtext_col MEDIUMTEXT,
-    longtext_col   LONGTEXT,
-    json_col       JSON,
+    id                  BIGINT NOT NULL AUTO_INCREMENT,
+    char_col            CHAR(2),
+    varchar_col         VARCHAR(32),
+    varchar_ko_col      VARCHAR(32),
+    varchar_ja_col      VARCHAR(32),
+    binary_col          BINARY(2),
+    varbinary_col       VARBINARY(32),
+    tinytext_col        TINYTEXT,
+    text_col            TEXT,
+    mediumtext_col      MEDIUMTEXT,
+    longtext_col        LONGTEXT,
+    json_col            JSON,
     PRIMARY KEY (id)
 );
 

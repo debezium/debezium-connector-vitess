@@ -26,7 +26,7 @@ CREATE TABLE string_table
     id                  BIGINT NOT NULL AUTO_INCREMENT,
     char_col            CHAR(2),
     varchar_col         VARCHAR(32),
-    varchar_kr_col      VARCHAR(32),
+    varchar_ko_col      VARCHAR(32),
     varchar_ja_col      VARCHAR(32),
     binary_col          BINARY(2),
     varbinary_col       VARBINARY(32),

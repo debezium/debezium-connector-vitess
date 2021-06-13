@@ -70,7 +70,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
     protected static final String INSERT_STRING_TYPES_STMT = "INSERT INTO string_table ("
             + "char_col,"
             + "varchar_col,"
-            + "varchar_kr_col,"
+            + "varchar_ko_col,"
             + "varchar_ja_col,"
             + "binary_col,"
             + "varbinary_col,"

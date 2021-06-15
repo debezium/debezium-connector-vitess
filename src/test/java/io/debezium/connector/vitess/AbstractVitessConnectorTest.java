@@ -123,6 +123,8 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
                 Arrays.asList(
                         new SchemaAndValueField("char_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "a"),
                         new SchemaAndValueField("varchar_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "bc"),
+                        new SchemaAndValueField("varchar_ko_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "상품 명1"),
+                        new SchemaAndValueField("varchar_ja_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "リンゴ"),
                         new SchemaAndValueField("binary_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "d"),
                         new SchemaAndValueField("varbinary_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "ef"),
                         new SchemaAndValueField("tinytext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "gh"),

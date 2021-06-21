@@ -6,6 +6,7 @@
 package io.debezium.connector.vitess;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.connect.source.SourceRecord;
@@ -30,7 +31,7 @@ import io.debezium.util.LoggingContext;
 import io.debezium.util.SchemaNameAdjuster;
 
 /** The main task executing streaming from Vitess. */
-public class VitessConnectorTask extends BaseSourceTask<VitessOffsetContext> {
+public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessOffsetContext> {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessConnectorTask.class);
     private static final String CONTEXT_NAME = "vitess-connector-task";
 
@@ -45,7 +46,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessOffsetContext> {
     }
 
     @Override
-    protected ChangeEventSourceCoordinator<VitessOffsetContext> start(Configuration config) {
+    protected ChangeEventSourceCoordinator<VitessPartition, VitessOffsetContext> start(Configuration config) {
 
         final VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
         final TopicSelector<TableId> topicSelector = VitessTopicSelector.defaultSelector(connectorConfig);
@@ -53,7 +54,9 @@ public class VitessConnectorTask extends BaseSourceTask<VitessOffsetContext> {
 
         schema = new VitessDatabaseSchema(connectorConfig, schemaNameAdjuster, topicSelector);
         VitessTaskContext taskContext = new VitessTaskContext(connectorConfig, schema);
-        final VitessOffsetContext previousOffset = getPreviousOffset(new VitessOffsetContext.Loader(connectorConfig));
+        Map<VitessPartition, VitessOffsetContext> previousOffsets = getPreviousOffsets(new VitessPartition.Provider(connectorConfig),
+                new VitessOffsetContext.Loader(connectorConfig));
+        final VitessOffsetContext previousOffset = getTheOnlyOffset(previousOffsets);
         final Clock clock = Clock.system();
 
         // Mapped Diagnostic Context (MDC) logging
@@ -92,8 +95,8 @@ public class VitessConnectorTask extends BaseSourceTask<VitessOffsetContext> {
                     metadataProvider,
                     schemaNameAdjuster);
 
-            ChangeEventSourceCoordinator<VitessOffsetContext> coordinator = new ChangeEventSourceCoordinator<>(
-                    previousOffset,
+            ChangeEventSourceCoordinator<VitessPartition, VitessOffsetContext> coordinator = new ChangeEventSourceCoordinator<>(
+                    previousOffsets,
                     errorHandler,
                     VitessConnector.class,
                     connectorConfig,

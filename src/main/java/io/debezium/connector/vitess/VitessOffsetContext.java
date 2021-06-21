@@ -154,11 +154,6 @@ public class VitessOffsetContext implements OffsetContext {
         }
 
         @Override
-        public Map<String, ?> getPartition() {
-            return Collections.singletonMap(SERVER_PARTITION_KEY, connectorConfig.getLogicalName());
-        }
-
-        @Override
         public VitessOffsetContext load(Map<String, ?> offset) {
             final String vgtid = (String) offset.get(SourceInfo.VGTID);
             return new VitessOffsetContext(

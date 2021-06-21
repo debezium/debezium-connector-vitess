@@ -19,7 +19,7 @@ import io.debezium.schema.SchemaChangeEvent;
 import io.debezium.util.Clock;
 
 /** Always skip snapshot for now */
-public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEventSource<VitessOffsetContext> {
+public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEventSource<VitessPartition, VitessOffsetContext> {
 
     public VitessSnapshotChangeEventSource(
                                            RelationalDatabaseConnectorConfig connectorConfig,

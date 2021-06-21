@@ -19,7 +19,7 @@ import io.debezium.util.Clock;
  * Factory to create StreamingChangeEventSource and SnapshotChangeEventSource. A dummy
  * SnapshotChangeEventSource is created because snapshot is not supported for now.
  */
-public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<VitessOffsetContext> {
+public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<VitessPartition, VitessOffsetContext> {
 
     private final VitessConnectorConfig connectorConfig;
     private final ErrorHandler errorHandler;
@@ -44,14 +44,14 @@ public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<
     }
 
     @Override
-    public SnapshotChangeEventSource<VitessOffsetContext> getSnapshotChangeEventSource(SnapshotProgressListener snapshotProgressListener) {
+    public SnapshotChangeEventSource<VitessPartition, VitessOffsetContext> getSnapshotChangeEventSource(SnapshotProgressListener snapshotProgressListener) {
         // A dummy SnapshotChangeEventSource, snapshot is skipped.
         return new VitessSnapshotChangeEventSource(
                 connectorConfig, null, dispatcher, clock, null);
     }
 
     @Override
-    public StreamingChangeEventSource<VitessOffsetContext> getStreamingChangeEventSource() {
+    public StreamingChangeEventSource<VitessPartition, VitessOffsetContext> getStreamingChangeEventSource() {
         return new VitessStreamingChangeEventSource(
                 dispatcher,
                 errorHandler,

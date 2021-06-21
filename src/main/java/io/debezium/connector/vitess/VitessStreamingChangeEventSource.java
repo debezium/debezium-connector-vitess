@@ -26,7 +26,7 @@ import io.debezium.util.DelayStrategy;
  * io.debezium.pipeline.source.spi.ChangeEventSource}. It runs in the
  * change-event-source-coordinator thread only.
  */
-public class VitessStreamingChangeEventSource implements StreamingChangeEventSource<VitessOffsetContext> {
+public class VitessStreamingChangeEventSource implements StreamingChangeEventSource<VitessPartition, VitessOffsetContext> {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessStreamingChangeEventSource.class);
 
     private final EventDispatcher<TableId> dispatcher;
@@ -56,7 +56,7 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
     }
 
     @Override
-    public void execute(ChangeEventSourceContext context, VitessOffsetContext offsetContext) {
+    public void execute(ChangeEventSourceContext context, VitessPartition partition, VitessOffsetContext offsetContext) {
         if (offsetContext == null) {
             offsetContext = VitessOffsetContext.initialContext(connectorConfig, clock);
         }

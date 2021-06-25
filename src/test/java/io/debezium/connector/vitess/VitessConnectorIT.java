@@ -33,6 +33,8 @@ import org.slf4j.LoggerFactory;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
+import io.debezium.converters.CloudEventsConverterTest;
+import io.debezium.converters.CloudEventsMaker;
 import io.debezium.data.Envelope;
 import io.debezium.data.VerifyRecord;
 import io.debezium.doc.FixFor;
@@ -506,6 +508,34 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         stopConnector();
         assertConnectorNotRunning();
+    }
+
+    @Test
+    @FixFor("DBZ-3668")
+    public void shouldOutputRecordsInCloudEventsFormat() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        final Configuration config = TestHelper.defaultConfig().build();
+
+        start(VitessConnector.class, config);
+        assertConnectorIsRunning();
+
+        consumer = testConsumer(1);
+        executeAndWait("INSERT INTO no_pk_table (id,int_col) values (1001, 1)");
+
+        SourceRecord record = consumer.remove();
+        CloudEventsConverterTest.shouldConvertToCloudEventsInJson(record, false);
+        CloudEventsConverterTest.shouldConvertToCloudEventsInJsonWithDataAsAvro(record, false);
+        CloudEventsConverterTest.shouldConvertToCloudEventsInAvro(record, "vitess", TestHelper.TEST_SERVER, false);
+
+        consumer = testConsumer(1);
+        executeAndWait("INSERT INTO no_pk_table (id,int_col) values (1002, 2)");
+
+        record = consumer.remove();
+        CloudEventsConverterTest.shouldConvertToCloudEventsInJson(record, false, jsonNode -> {
+            assertThat(jsonNode.get(CloudEventsMaker.FieldName.ID).asText()).contains("vgtid:");
+        });
+        CloudEventsConverterTest.shouldConvertToCloudEventsInJsonWithDataAsAvro(record, false);
+        CloudEventsConverterTest.shouldConvertToCloudEventsInAvro(record, "vitess", TestHelper.TEST_SERVER, false);
     }
 
     private void startConnector() throws InterruptedException {

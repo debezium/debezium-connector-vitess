@@ -34,7 +34,7 @@ import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.converters.CloudEventsConverterTest;
-import io.debezium.converters.CloudEventsMaker;
+import io.debezium.converters.spi.CloudEventsMaker;
 import io.debezium.data.Envelope;
 import io.debezium.data.VerifyRecord;
 import io.debezium.doc.FixFor;

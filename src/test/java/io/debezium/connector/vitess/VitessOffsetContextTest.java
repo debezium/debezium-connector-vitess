@@ -49,7 +49,6 @@ public class VitessOffsetContextTest {
     public void shouldBeAbleToLoadFromOffset() {
         // verify outcome
         Assertions.assertThat(offsetContext).isNotNull();
-        assertThat(offsetContext.getPartition()).isNotNull();
         assertThat(offsetContext.getRestartVgtid()).isEqualTo(Vgtid.of(
                 Collect.arrayListOf(
                         new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),

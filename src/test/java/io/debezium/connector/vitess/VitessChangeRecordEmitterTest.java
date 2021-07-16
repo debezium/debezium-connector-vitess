@@ -54,6 +54,7 @@ public class VitessChangeRecordEmitterTest {
 
         // exercise SUT
         VitessChangeRecordEmitter emitter = new VitessChangeRecordEmitter(
+                initializePartition(),
                 null,
                 Clock.system(),
                 new VitessConnectorConfig(TestHelper.defaultConfig().build()),
@@ -80,6 +81,7 @@ public class VitessChangeRecordEmitterTest {
 
         // exercise SUT
         VitessChangeRecordEmitter emitter = new VitessChangeRecordEmitter(
+                initializePartition(),
                 null,
                 Clock.system(),
                 new VitessConnectorConfig(TestHelper.defaultConfig().build()),
@@ -106,6 +108,7 @@ public class VitessChangeRecordEmitterTest {
 
         // exercise SUT
         VitessChangeRecordEmitter emitter = new VitessChangeRecordEmitter(
+                initializePartition(),
                 null,
                 Clock.system(),
                 new VitessConnectorConfig(TestHelper.defaultConfig().build()),
@@ -125,6 +128,7 @@ public class VitessChangeRecordEmitterTest {
 
         // exercise SUT
         new VitessChangeRecordEmitter(
+                initializePartition(),
                 null,
                 Clock.system(),
                 new VitessConnectorConfig(TestHelper.defaultConfig().build()),
@@ -139,10 +143,15 @@ public class VitessChangeRecordEmitterTest {
 
         // exercise SUT
         new VitessChangeRecordEmitter(
+                initializePartition(),
                 null,
                 Clock.system(),
                 new VitessConnectorConfig(TestHelper.defaultConfig().build()),
                 schema,
                 message);
+    }
+
+    private VitessPartition initializePartition() {
+        return new VitessPartition("test");
     }
 }

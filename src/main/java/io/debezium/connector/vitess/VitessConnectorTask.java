@@ -6,7 +6,6 @@
 package io.debezium.connector.vitess;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.connect.source.SourceRecord;
@@ -24,6 +23,7 @@ import io.debezium.pipeline.DataChangeEvent;
 import io.debezium.pipeline.ErrorHandler;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.metrics.DefaultChangeEventSourceMetricsFactory;
+import io.debezium.pipeline.spi.Offsets;
 import io.debezium.relational.TableId;
 import io.debezium.schema.TopicSelector;
 import io.debezium.util.Clock;
@@ -54,9 +54,9 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
 
         schema = new VitessDatabaseSchema(connectorConfig, schemaNameAdjuster, topicSelector);
         VitessTaskContext taskContext = new VitessTaskContext(connectorConfig, schema);
-        Map<VitessPartition, VitessOffsetContext> previousOffsets = getPreviousOffsets(new VitessPartition.Provider(connectorConfig),
+        Offsets<VitessPartition, VitessOffsetContext> previousOffsets = getPreviousOffsets(new VitessPartition.Provider(connectorConfig),
                 new VitessOffsetContext.Loader(connectorConfig));
-        final VitessOffsetContext previousOffset = getTheOnlyOffset(previousOffsets);
+        final VitessOffsetContext previousOffset = previousOffsets.getTheOnlyOffset();
         final Clock clock = Clock.system();
 
         // Mapped Diagnostic Context (MDC) logging

@@ -36,43 +36,43 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     }
 
     @Override
-    protected Set<TableId> getAllTableIds(RelationalSnapshotContext<VitessOffsetContext> snapshotContext)
+    protected Set<TableId> getAllTableIds(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext)
             throws Exception {
         return null;
     }
 
     @Override
     protected void lockTablesForSchemaSnapshot(
-                                               ChangeEventSourceContext sourceContext, RelationalSnapshotContext<VitessOffsetContext> snapshotContext)
+                                               ChangeEventSourceContext sourceContext, RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext)
             throws Exception {
     }
 
     @Override
-    protected void determineSnapshotOffset(RelationalSnapshotContext<VitessOffsetContext> snapshotContext, VitessOffsetContext offsetContext)
+    protected void determineSnapshotOffset(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext, VitessOffsetContext offsetContext)
             throws Exception {
     }
 
     @Override
     protected void readTableStructure(ChangeEventSourceContext sourceContext,
-                                      RelationalSnapshotContext<VitessOffsetContext> snapshotContext,
+                                      RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext,
                                       VitessOffsetContext offsetContext)
             throws Exception {
     }
 
     @Override
-    protected void releaseSchemaSnapshotLocks(RelationalSnapshotContext<VitessOffsetContext> snapshotContext)
+    protected void releaseSchemaSnapshotLocks(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext)
             throws Exception {
     }
 
     @Override
-    protected SchemaChangeEvent getCreateTableEvent(
-                                                    RelationalSnapshotContext<VitessOffsetContext> snapshotContext, Table table)
+    protected SchemaChangeEvent getCreateTableEvent(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext,
+                                                    Table table)
             throws Exception {
         return null;
     }
 
     @Override
-    protected Optional<String> getSnapshotSelect(RelationalSnapshotContext<VitessOffsetContext> snapshotContext, TableId tableId) {
+    protected Optional<String> getSnapshotSelect(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext, TableId tableId) {
         return Optional.empty();
     }
 
@@ -84,12 +84,12 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     }
 
     @Override
-    protected SnapshotContext<VitessOffsetContext> prepare(ChangeEventSourceContext changeEventSourceContext)
+    protected SnapshotContext<VitessPartition, VitessOffsetContext> prepare(VitessPartition partition)
             throws Exception {
         return null;
     }
 
     @Override
-    protected void complete(SnapshotContext<VitessOffsetContext> snapshotContext) {
+    protected void complete(SnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext) {
     }
 }

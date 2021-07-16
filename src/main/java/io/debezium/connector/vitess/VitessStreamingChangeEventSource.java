@@ -64,7 +64,7 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
         try {
             AtomicReference<Throwable> error = new AtomicReference<>();
             replicationConnection.startStreaming(
-                    offsetContext.getRestartVgtid(), newReplicationMessageProcessor(offsetContext), error);
+                    offsetContext.getRestartVgtid(), newReplicationMessageProcessor(partition, offsetContext), error);
 
             while (context.isRunning() && error.get() == null) {
                 pauseNoMessage.sleepWhen(true);
@@ -88,18 +88,19 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
         }
     }
 
-    private ReplicationMessageProcessor newReplicationMessageProcessor(VitessOffsetContext offsetContext) {
+    private ReplicationMessageProcessor newReplicationMessageProcessor(VitessPartition partition,
+                                                                       VitessOffsetContext offsetContext) {
         return (message, newVgtid, isLastRowOfTransaction) -> {
             if (message.isTransactionalMessage()) {
                 // Tx BEGIN/END event
                 offsetContext.rotateVgtid(newVgtid, message.getCommitTime());
                 if (message.getOperation() == ReplicationMessage.Operation.BEGIN) {
                     // send to transaction topic
-                    dispatcher.dispatchTransactionStartedEvent(message.getTransactionId(), offsetContext);
+                    dispatcher.dispatchTransactionStartedEvent(partition, message.getTransactionId(), offsetContext);
                 }
                 else if (message.getOperation() == ReplicationMessage.Operation.COMMIT) {
                     // send to transaction topic
-                    dispatcher.dispatchTransactionCommittedEvent(offsetContext);
+                    dispatcher.dispatchTransactionCommittedEvent(partition, offsetContext);
                 }
                 return;
             }
@@ -120,8 +121,7 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
                 dispatcher.dispatchDataChangeEvent(
                         tableId,
                         new VitessChangeRecordEmitter(
-                                offsetContext, clock, connectorConfig, schema, message));
-
+                                partition, offsetContext, clock, connectorConfig, schema, message));
             }
         };
     }

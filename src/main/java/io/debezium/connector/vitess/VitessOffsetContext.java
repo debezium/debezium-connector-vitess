@@ -6,7 +6,6 @@
 package io.debezium.connector.vitess;
 
 import java.time.Instant;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -30,11 +29,9 @@ import io.debezium.util.Clock;
  */
 public class VitessOffsetContext implements OffsetContext {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessOffsetContext.class);
-    private static final String SERVER_PARTITION_KEY = "server";
 
     private final Schema sourceInfoSchema;
     private final SourceInfo sourceInfo;
-    private final Map<String, String> partition;
     private final TransactionContext transactionContext;
 
     public VitessOffsetContext(
@@ -42,7 +39,6 @@ public class VitessOffsetContext implements OffsetContext {
                                Vgtid initialVgtid,
                                Instant time,
                                TransactionContext transactionContext) {
-        this.partition = Collections.singletonMap(SERVER_PARTITION_KEY, connectorConfig.getLogicalName());
         this.sourceInfo = new SourceInfo(connectorConfig);
         this.sourceInfo.resetVgtid(initialVgtid, time);
         this.sourceInfoSchema = sourceInfo.schema();
@@ -71,11 +67,6 @@ public class VitessOffsetContext implements OffsetContext {
 
     public Vgtid getRestartVgtid() {
         return sourceInfo.getRestartVgtid();
-    }
-
-    @Override
-    public Map<String, ?> getPartition() {
-        return partition;
     }
 
     /**
@@ -140,8 +131,6 @@ public class VitessOffsetContext implements OffsetContext {
         return "VitessOffsetContext{"
                 + "sourceInfo="
                 + sourceInfo
-                + ", partition="
-                + partition
                 + '}';
     }
 

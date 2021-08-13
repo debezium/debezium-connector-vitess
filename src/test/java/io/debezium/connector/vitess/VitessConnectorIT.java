@@ -11,6 +11,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -23,6 +24,7 @@ import org.apache.kafka.common.config.Config;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.source.SourceRecord;
+import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -39,6 +41,7 @@ import io.debezium.data.Envelope;
 import io.debezium.data.VerifyRecord;
 import io.debezium.doc.FixFor;
 import io.debezium.embedded.EmbeddedEngine;
+import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.TableId;
 import io.debezium.util.Testing;
 
@@ -513,11 +516,14 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @Test
     @FixFor("DBZ-3668")
     public void shouldOutputRecordsInCloudEventsFormat() throws Exception {
+        final LogInterceptor logInterceptor = new LogInterceptor();
         TestHelper.executeDDL("vitess_create_tables.ddl");
-        final Configuration config = TestHelper.defaultConfig().build();
 
-        start(VitessConnector.class, config);
-        assertConnectorIsRunning();
+        startConnector();
+
+        // The inserts must happen only after GTID to stream from is obtained
+        Awaitility.await().atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                .until(() -> logInterceptor.containsMessage("Choose ShardGtid:"));
 
         consumer = testConsumer(1);
         executeAndWait("INSERT INTO no_pk_table (id,int_col) values (1001, 1)");

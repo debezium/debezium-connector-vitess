@@ -212,8 +212,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
     public static Vgtid defaultVgtid(VitessConnectorConfig config) {
         if (config.getShard() == null || config.getShard().isEmpty()) {
             // Replicate all shards of the given keyspace
-            LOGGER.info("Default VGTID is set to the current gtid of all shards from keyspace: {}", config.getKeyspace());
-            return Vgtid.of(
+            final Vgtid gtid = Vgtid.of(
                     Binlogdata.VGtid.newBuilder()
                             .addShardGtids(
                                     Binlogdata.ShardGtid.newBuilder()
@@ -221,6 +220,8 @@ public class VitessReplicationConnection implements ReplicationConnection {
                                             .setGtid(Vgtid.CURRENT_GTID)
                                             .build())
                             .build());
+            LOGGER.info("Default VGTID '{}' is set to the current gtid of all shards from keyspace: {}", gtid, config.getKeyspace());
+            return gtid;
         }
         else {
             try (VtctldConnection vtctldConnection = VtctldConnection.of(

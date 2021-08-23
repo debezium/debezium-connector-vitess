@@ -359,12 +359,15 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @Test
     @FixFor("DBZ-2578")
     public void shouldUseUniqueKeyAsRecordKey() throws Exception {
+        final LogInterceptor logInterceptor = new LogInterceptor();
         final boolean hasMultipleShards = true;
 
         TestHelper.executeDDL("vitess_create_tables.ddl", TestHelper.TEST_SHARDED_KEYSPACE);
         TestHelper.applyVSchema("vitess_vschema.json");
         startConnector(hasMultipleShards);
         assertConnectorIsRunning();
+
+        waitForShardedGtidAcquiring(logInterceptor);
 
         // Record key is the unique key if no primary key
         int expectedRecordsCount = 1;
@@ -521,9 +524,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         startConnector();
 
-        // The inserts must happen only after GTID to stream from is obtained
-        Awaitility.await().atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
-                .until(() -> logInterceptor.containsMessage("Choose ShardGtid:"));
+        waitForGtidAcquiring(logInterceptor);
 
         consumer = testConsumer(1);
         executeAndWait("INSERT INTO no_pk_table (id,int_col) values (1001, 1)");
@@ -542,6 +543,18 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         });
         CloudEventsConverterTest.shouldConvertToCloudEventsInJsonWithDataAsAvro(record, false);
         CloudEventsConverterTest.shouldConvertToCloudEventsInAvro(record, "vitess", TestHelper.TEST_SERVER, false);
+    }
+
+    private void waitForGtidAcquiring(final LogInterceptor logInterceptor) {
+        // The inserts must happen only after GTID to stream from is obtained
+        Awaitility.await().atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                .until(() -> logInterceptor.containsMessage("Choose ShardGtid:"));
+    }
+
+    private void waitForShardedGtidAcquiring(final LogInterceptor logInterceptor) {
+        // The inserts must happen only after GTID to stream from is obtained
+        Awaitility.await().atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                .until(() -> logInterceptor.containsMessage("Default VGTID '[{\"keyspace\":"));
     }
 
     private void startConnector() throws InterruptedException {

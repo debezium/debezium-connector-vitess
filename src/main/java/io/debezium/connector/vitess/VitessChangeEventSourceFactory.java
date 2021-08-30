@@ -47,7 +47,7 @@ public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<
     public SnapshotChangeEventSource<VitessPartition, VitessOffsetContext> getSnapshotChangeEventSource(SnapshotProgressListener snapshotProgressListener) {
         // A dummy SnapshotChangeEventSource, snapshot is skipped.
         return new VitessSnapshotChangeEventSource(
-                connectorConfig, null, dispatcher, clock, null);
+                connectorConfig, null, dispatcher, schema, clock, null);
     }
 
     @Override

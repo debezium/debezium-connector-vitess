@@ -58,6 +58,6 @@ public class MySQLConnection extends JdbcConnection {
      * @param config the configuration; may not be null
      */
     public MySQLConnection(Configuration config) {
-        super(config, FACTORY, null, MySQLConnection::addDefaults);
+        super(config, FACTORY, null, MySQLConnection::addDefaults, "`", "`");
     }
 }

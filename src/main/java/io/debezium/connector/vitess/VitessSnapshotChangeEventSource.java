@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.vitess;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -25,11 +26,13 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
                                            RelationalDatabaseConnectorConfig connectorConfig,
                                            JdbcConnection jdbcConnection,
                                            EventDispatcher<TableId> dispatcher,
+                                           VitessDatabaseSchema schema,
                                            Clock clock,
                                            SnapshotProgressListener snapshotProgressListener) {
         super(
                 connectorConfig,
                 jdbcConnection,
+                schema,
                 dispatcher,
                 clock,
                 snapshotProgressListener);
@@ -72,7 +75,7 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     }
 
     @Override
-    protected Optional<String> getSnapshotSelect(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext, TableId tableId) {
+    protected Optional<String> getSnapshotSelect(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext, TableId tableId, List<String> columns) {
         return Optional.empty();
     }
 

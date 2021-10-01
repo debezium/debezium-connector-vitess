@@ -43,7 +43,8 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
                         schemaNameAdjuster,
                         config.customConverterRegistry(),
                         config.getSourceInfoStructMaker().schema(),
-                        config.getSanitizeFieldNames()),
+                        config.getSanitizeFieldNames(),
+                        false),
                 false,
                 config.getKeyMapper());
     }

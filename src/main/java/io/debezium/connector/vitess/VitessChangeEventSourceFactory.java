@@ -23,7 +23,7 @@ public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<
 
     private final VitessConnectorConfig connectorConfig;
     private final ErrorHandler errorHandler;
-    private final EventDispatcher<TableId> dispatcher;
+    private final EventDispatcher<VitessPartition, TableId> dispatcher;
     private final Clock clock;
     private final VitessDatabaseSchema schema;
     private final ReplicationConnection replicationConnection;
@@ -31,7 +31,7 @@ public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<
     public VitessChangeEventSourceFactory(
                                           VitessConnectorConfig connectorConfig,
                                           ErrorHandler errorHandler,
-                                          EventDispatcher<TableId> dispatcher,
+                                          EventDispatcher<VitessPartition, TableId> dispatcher,
                                           Clock clock,
                                           VitessDatabaseSchema schema,
                                           ReplicationConnection replicationConnection) {
@@ -44,7 +44,7 @@ public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<
     }
 
     @Override
-    public SnapshotChangeEventSource<VitessPartition, VitessOffsetContext> getSnapshotChangeEventSource(SnapshotProgressListener snapshotProgressListener) {
+    public SnapshotChangeEventSource<VitessPartition, VitessOffsetContext> getSnapshotChangeEventSource(SnapshotProgressListener<VitessPartition> snapshotProgressListener) {
         // A dummy SnapshotChangeEventSource, snapshot is skipped.
         return new VitessSnapshotChangeEventSource(
                 connectorConfig, null, dispatcher, schema, clock, null);

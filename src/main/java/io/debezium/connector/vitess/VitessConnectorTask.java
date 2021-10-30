@@ -85,7 +85,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
             // for metrics
             final VitessEventMetadataProvider metadataProvider = new VitessEventMetadataProvider();
 
-            final EventDispatcher<TableId> dispatcher = new EventDispatcher<>(
+            final EventDispatcher<VitessPartition, TableId> dispatcher = new EventDispatcher<>(
                     connectorConfig,
                     topicSelector,
                     schema,
@@ -102,7 +102,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
                     connectorConfig,
                     new VitessChangeEventSourceFactory(
                             connectorConfig, errorHandler, dispatcher, clock, schema, replicationConnection),
-                    new DefaultChangeEventSourceMetricsFactory(),
+                    new DefaultChangeEventSourceMetricsFactory<>(),
                     dispatcher,
                     schema);
 

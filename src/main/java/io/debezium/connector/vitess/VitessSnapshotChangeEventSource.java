@@ -25,10 +25,10 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     public VitessSnapshotChangeEventSource(
                                            RelationalDatabaseConnectorConfig connectorConfig,
                                            JdbcConnection jdbcConnection,
-                                           EventDispatcher<TableId> dispatcher,
+                                           EventDispatcher<VitessPartition, TableId> dispatcher,
                                            VitessDatabaseSchema schema,
                                            Clock clock,
-                                           SnapshotProgressListener snapshotProgressListener) {
+                                           SnapshotProgressListener<VitessPartition> snapshotProgressListener) {
         super(
                 connectorConfig,
                 jdbcConnection,
@@ -80,7 +80,7 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     }
 
     @Override
-    protected SnapshottingTask getSnapshottingTask(VitessOffsetContext previousOffset) {
+    protected SnapshottingTask getSnapshottingTask(VitessPartition partition, VitessOffsetContext previousOffset) {
         boolean snapshotSchema = false;
         boolean snapshotData = false;
         return new SnapshottingTask(snapshotSchema, snapshotData);

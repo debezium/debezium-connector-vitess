@@ -29,7 +29,7 @@ import io.debezium.util.DelayStrategy;
 public class VitessStreamingChangeEventSource implements StreamingChangeEventSource<VitessPartition, VitessOffsetContext> {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessStreamingChangeEventSource.class);
 
-    private final EventDispatcher<TableId> dispatcher;
+    private final EventDispatcher<VitessPartition, TableId> dispatcher;
     private final ErrorHandler errorHandler;
     private final Clock clock;
     private final VitessDatabaseSchema schema;
@@ -38,7 +38,7 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
     private final DelayStrategy pauseNoMessage;
 
     public VitessStreamingChangeEventSource(
-                                            EventDispatcher<TableId> dispatcher,
+                                            EventDispatcher<VitessPartition, TableId> dispatcher,
                                             ErrorHandler errorHandler,
                                             Clock clock,
                                             VitessDatabaseSchema schema,
@@ -119,6 +119,7 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
                     offsetContext.resetVgtid(newVgtid, message.getCommitTime());
                 }
                 dispatcher.dispatchDataChangeEvent(
+                        partition,
                         tableId,
                         new VitessChangeRecordEmitter(
                                 partition, offsetContext, clock, connectorConfig, schema, message));

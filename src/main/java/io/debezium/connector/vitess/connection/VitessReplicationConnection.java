@@ -158,6 +158,9 @@ public class VitessReplicationConnection implements ReplicationConnection {
             }
         };
 
+        Vtgate.VStreamFlags vStreamFlags = Vtgate.VStreamFlags.newBuilder()
+                .setStopOnReshard(config.getStopOnReshard())
+                .build();
         // Providing a vgtid MySQL56/19eb2657-abc2-11ea-8ffc-0242ac11000a:1-61 here will make VStream to
         // start receiving row-changes from MySQL56/19eb2657-abc2-11ea-8ffc-0242ac11000a:1-62
         stub.vStream(
@@ -165,6 +168,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                         .setVgtid(vgtid.getRawVgtid())
                         .setTabletType(
                                 toTopodataTabletType(VtctldConnection.TabletType.valueOf(config.getTabletType())))
+                        .setFlags(vStreamFlags)
                         .build(),
                 responseObserver);
     }

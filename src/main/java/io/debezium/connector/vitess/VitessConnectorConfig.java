@@ -119,6 +119,15 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     "Tablet type used to get latest vgtid from Vtctld and get data-changes from Vtgate."
                             + " Value can be MASTER, REPLICA, and RDONLY.");
 
+    public static final Field STOP_ON_RESHARD_FLAG = Field.create(VITESS_CONFIG_GROUP_PREFIX + "stop_on_reshard")
+            .withDisplayName("Tablet type to get data-changes")
+            .withType(Type.BOOLEAN)
+            .withDefault(false)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withDescription("Control StopOnReshard VStream flag."
+                    + " If set true, the old VStream will be stopped after a reshard operation.");
+
     public static final Field INCLUDE_UNKNOWN_DATATYPES = Field.create("include.unknown.datatypes")
             .withDisplayName("Include unknown datatypes")
             .withType(Type.BOOLEAN)
@@ -144,7 +153,8 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     VTCTLD_PORT,
                     VTCTLD_USER,
                     VTCTLD_PASSWORD,
-                    TABLET_TYPE)
+                    TABLET_TYPE,
+                    STOP_ON_RESHARD_FLAG)
             .events(INCLUDE_UNKNOWN_DATATYPES)
             .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST, PROVIDE_TRANSACTION_METADATA)
             .create();
@@ -220,6 +230,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public String getTabletType() {
         return getConfig().getString(TABLET_TYPE);
+    }
+
+    public boolean getStopOnReshard() {
+        return getConfig().getBoolean(STOP_ON_RESHARD_FLAG);
     }
 
     public boolean includeUnknownDatatypes() {

@@ -78,6 +78,16 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                             + "E.p. \"0\" for an unsharded keyspace. "
                             + "Or \"-80\" for the -80 shard of the sharded keyspace.");
 
+    public static final Field GTID = Field.create(VITESS_CONFIG_GROUP_PREFIX + "gtid")
+            .withDisplayName("gtid")
+            .withType(Type.STRING)
+            .withWidth(Width.LONG)
+            .withDefault("")
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withDescription(
+                    "Single GTID from where to start reading from for a given shard."
+                            + " It has to be set together with vitess.shard");
+
     public static final Field VTCTLD_HOST = Field.create(VITESS_CONFIG_GROUP_PREFIX + "vtctld.host")
             .withDisplayName("VTGate server hostname")
             .withType(Type.STRING)
@@ -194,6 +204,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public String getShard() {
         return getConfig().getString(SHARD);
+    }
+
+    public String getGTID() {
+        return getConfig().getString(GTID);
     }
 
     public String getVtgateHost() {

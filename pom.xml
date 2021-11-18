@@ -146,6 +146,7 @@
         <dependency>
             <groupId>io.vitess</groupId>
             <artifactId>vitess-grpc-client</artifactId>
+            <version>12.0.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.code.findbugs</groupId>

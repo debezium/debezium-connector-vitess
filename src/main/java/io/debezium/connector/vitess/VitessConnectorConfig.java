@@ -82,6 +82,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDisplayName("gtid")
             .withType(Type.STRING)
             .withWidth(Width.LONG)
+            .withDefault("current")
             .withImportance(ConfigDef.Importance.HIGH)
             .withDescription(
                     "Single GTID from where to start reading from for a given shard."
@@ -129,7 +130,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                             + " Value can be MASTER, REPLICA, and RDONLY.");
 
     public static final Field STOP_ON_RESHARD_FLAG = Field.create(VITESS_CONFIG_GROUP_PREFIX + "stop_on_reshard")
-            .withDisplayName("Tablet type to get data-changes")
+            .withDisplayName("VStream flag stop_on_reshard")
             .withType(Type.BOOLEAN)
             .withDefault(false)
             .withWidth(Width.SHORT)

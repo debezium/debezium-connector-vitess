@@ -5,19 +5,23 @@
  */
 package io.debezium.connector.vitess.connection;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.fest.assertions.Assertions.assertThat;
 import static org.junit.Assert.fail;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
+import org.awaitility.Awaitility;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +35,8 @@ import io.debezium.util.Clock;
 import io.debezium.util.ElapsedTimeStrategy;
 import io.debezium.util.SchemaNameAdjuster;
 
+import binlogdata.Binlogdata;
+
 public class VitessReplicationConnectionIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessReplicationConnectionIT.class);
 
@@ -39,7 +45,7 @@ public class VitessReplicationConnectionIT {
             "DROP TABLE IF EXISTS t1;",
             "CREATE TABLE t1 (id BIGINT NOT NULL AUTO_INCREMENT, int_col INT, PRIMARY KEY (id));");
 
-    protected long pollTimeoutInMs = TimeUnit.SECONDS.toMillis(5);
+    protected long pollTimeoutInMs = SECONDS.toMillis(5);
 
     @Test
     public void shouldHaveVgtidInResponse() throws Exception {
@@ -53,28 +59,40 @@ public class VitessReplicationConnectionIT {
         TestHelper.execute(INSERT_STMT);
 
         AtomicReference<Throwable> error = new AtomicReference<>();
-        try (VtctldConnection vtctldConnection = VtctldConnection.of(
-                conf.getVtctldHost(), conf.getVtctldPort(), conf.getVtctldUsername(), conf.getVtctldPassword());
-                VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
-
-            Vgtid startingVgtid = vtctldConnection.latestVgtid(
-                    conf.getKeyspace(),
-                    conf.getShard(),
-                    VtctldConnection.TabletType.valueOf(conf.getTabletType()));
+        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
+            Vgtid startingVgtid = Vgtid.of(
+                    Binlogdata.VGtid.newBuilder()
+                            .addShardGtids(
+                                    Binlogdata.ShardGtid.newBuilder()
+                                            .setKeyspace(conf.getKeyspace())
+                                            .setShard(conf.getShard())
+                                            .setGtid("current")
+                                            .build())
+                            .build());
 
             BlockingQueue<MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
-            TestHelper.execute(String.format(INSERT_STMT));
+            AtomicBoolean started = new AtomicBoolean(false);
             connection.startStreaming(
                     startingVgtid,
                     (message, vgtid, isLastRowEventOfTransaction) -> {
+                        if (!started.get()) {
+                            started.set(true);
+                        }
                         consumedMessages.add(new MessageAndVgtid(message, vgtid));
                     },
                     error);
-
+            // Since we are using the "current" as the starting position, there is a race here
+            // if we execute INSERT_STMT before the vstream starts we will never receive the update
+            // therefore, we wait until the stream is setup and then do the insertion
+            Awaitility
+                    .await()
+                    .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                    .until(started::get);
             int expectedNumOfMessages = 3;
+            TestHelper.execute(INSERT_STMT);
             List<MessageAndVgtid> messages = await(
                     TestHelper.waitTimeForRecords(),
-                    TimeUnit.SECONDS,
+                    SECONDS,
                     expectedNumOfMessages,
                     () -> {
                         try {
@@ -146,7 +164,7 @@ public class VitessReplicationConnectionIT {
                             + messages.size());
         }
 
-        return messages.stream().collect(Collectors.toList());
+        return new ArrayList<>(messages);
     }
 
     private void accept(

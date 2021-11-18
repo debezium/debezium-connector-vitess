@@ -227,9 +227,9 @@ public class VitessReplicationConnection implements ReplicationConnection {
             LOGGER.info("Default VGTID '{}' is set to the current gtid of all shards from keyspace: {}", gtid, config.getKeyspace());
             return gtid;
         }
-        else if (!config.getGTID().isEmpty()) {
+        else if (config.getGtid() != null && !config.getGtid().isEmpty()) {
             // If both shard and gtid are set in config, construct Vgtid directly
-            String startingGtid = config.getGTID();
+            String startingGtid = config.getGtid();
             String shard = config.getShard();
             final Vgtid gtid = Vgtid.of(
                     Binlogdata.VGtid.newBuilder()
@@ -240,7 +240,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                                             .setGtid(startingGtid)
                                             .build())
                             .build());
-            LOGGER.info("VGTID '{}' is set to the gtid {} for keyspace: {} shard: {}", gtid, startingGtid, config.getKeyspace(), shard);
+            LOGGER.info("VGTID '{}' is set to the GTID {} for keyspace: {} shard: {}", gtid, startingGtid, config.getKeyspace(), shard);
             return gtid;
         }
         else {

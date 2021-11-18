@@ -82,7 +82,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDisplayName("gtid")
             .withType(Type.STRING)
             .withWidth(Width.LONG)
-            .withDefault("")
             .withImportance(ConfigDef.Importance.HIGH)
             .withDescription(
                     "Single GTID from where to start reading from for a given shard."
@@ -206,7 +205,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return getConfig().getString(SHARD);
     }
 
-    public String getGTID() {
+    public String getGtid() {
         return getConfig().getString(GTID);
     }
 

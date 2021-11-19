@@ -548,7 +548,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     private void waitForGtidAcquiring(final LogInterceptor logInterceptor) {
         // The inserts must happen only after GTID to stream from is obtained
         Awaitility.await().atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
-                .until(() -> logInterceptor.containsMessage("Choose ShardGtid:"));
+                .until(() -> logInterceptor.containsMessage("set to the GTID current for keyspace"));
     }
 
     private void waitForShardedGtidAcquiring(final LogInterceptor logInterceptor) {

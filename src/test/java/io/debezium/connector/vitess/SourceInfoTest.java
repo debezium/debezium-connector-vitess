@@ -48,8 +48,6 @@ public class SourceInfoTest {
                         .with(RelationalDatabaseConnectorConfig.SERVER_NAME, "server_foo")
                         .with(VitessConnectorConfig.KEYSPACE, AnonymousValue.getString())
                         .with(VitessConnectorConfig.SHARD, AnonymousValue.getString())
-                        .with(VitessConnectorConfig.VTCTLD_HOST, AnonymousValue.getString())
-                        .with(VitessConnectorConfig.VTCTLD_PORT, AnonymousValue.getInt())
                         .with(VitessConnectorConfig.VTGATE_HOST, AnonymousValue.getString())
                         .with(VitessConnectorConfig.VTGATE_PORT, AnonymousValue.getInt())
                         .build());

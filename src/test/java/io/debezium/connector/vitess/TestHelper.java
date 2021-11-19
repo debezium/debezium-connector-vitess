@@ -26,7 +26,7 @@ import com.google.protobuf.ByteString;
 import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageColumn;
-import io.debezium.connector.vitess.connection.VtctldConnection;
+import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.vitess.proto.Query;
 import io.vitess.proto.Query.Field;
@@ -67,10 +67,6 @@ public class TestHelper {
                 .with(VitessConnectorConfig.VTGATE_PORT, VTGATE_PORT)
                 .with(VitessConnectorConfig.VTGATE_USER, USERNAME)
                 .with(VitessConnectorConfig.VTGATE_PASSWORD, PASSWORD)
-                .with(VitessConnectorConfig.VTCTLD_HOST, VTCTLD_HOST)
-                .with(VitessConnectorConfig.VTCTLD_PORT, VTCTLD_PORT)
-                .with(VitessConnectorConfig.VTCTLD_USER, USERNAME)
-                .with(VitessConnectorConfig.VTCTLD_PASSWORD, PASSWORD)
                 .with(VitessConnectorConfig.POLL_INTERVAL_MS, 100);
         if (hasMultipleShards) {
             return builder.with(VitessConnectorConfig.KEYSPACE, TEST_SHARDED_KEYSPACE);
@@ -134,7 +130,7 @@ public class TestHelper {
 
     protected static Vgtid getCurrentVgtid() throws Exception {
         try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
-            return vtctldConnection.latestVgtid(TEST_UNSHARDED_KEYSPACE, TEST_SHARD, VtctldConnection.TabletType.MASTER);
+            return vtctldConnection.latestVgtid(TEST_UNSHARDED_KEYSPACE, TEST_SHARD, VitessTabletType.MASTER);
         }
         catch (Exception e) {
             throw new RuntimeException(e);

@@ -167,7 +167,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 Vtgate.VStreamRequest.newBuilder()
                         .setVgtid(vgtid.getRawVgtid())
                         .setTabletType(
-                                toTopodataTabletType(VtctldConnection.TabletType.valueOf(config.getTabletType())))
+                                toTopodataTabletType(VitessTabletType.valueOf(config.getTabletType())))
                         .setFlags(vStreamFlags)
                         .build(),
                 responseObserver);
@@ -227,37 +227,21 @@ public class VitessReplicationConnection implements ReplicationConnection {
             LOGGER.info("Default VGTID '{}' is set to the current gtid of all shards from keyspace: {}", gtid, config.getKeyspace());
             return gtid;
         }
-        else if (config.getGtid() != null && !config.getGtid().isEmpty()) {
-            // If both shard and gtid are set in config, construct Vgtid directly
-            String startingGtid = config.getGtid();
+        else {
+            String shardGtid = config.getGtid();
             String shard = config.getShard();
+            String keyspace = config.getKeyspace();
             final Vgtid gtid = Vgtid.of(
                     Binlogdata.VGtid.newBuilder()
                             .addShardGtids(
                                     Binlogdata.ShardGtid.newBuilder()
-                                            .setKeyspace(config.getKeyspace())
+                                            .setKeyspace(keyspace)
                                             .setShard(shard)
-                                            .setGtid(startingGtid)
+                                            .setGtid(shardGtid)
                                             .build())
                             .build());
-            LOGGER.info("VGTID '{}' is set to the GTID {} for keyspace: {} shard: {}", gtid, startingGtid, config.getKeyspace(), shard);
+            LOGGER.info("VGTID '{}' is set to the GTID {} for keyspace: {} shard: {}", gtid, shardGtid, config.getKeyspace(), shard);
             return gtid;
-        }
-        else {
-            try (VtctldConnection vtctldConnection = VtctldConnection.of(
-                    config.getVtctldHost(),
-                    config.getVtctldPort(),
-                    config.getVtctldUsername(),
-                    config.getVtctldPassword())) {
-                return vtctldConnection.latestVgtid(
-                        config.getKeyspace(),
-                        config.getShard(),
-                        VtctldConnection.TabletType.valueOf(config.getTabletType()));
-            }
-            catch (Exception e) {
-                LOGGER.error("Cannot get vgtid from VTCtld", e);
-                throw new RuntimeException(e);
-            }
         }
     }
 
@@ -269,7 +253,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
         return config.getVtgateUsername();
     }
 
-    private static Topodata.TabletType toTopodataTabletType(VtctldConnection.TabletType tabletType) {
+    private static Topodata.TabletType toTopodataTabletType(VitessTabletType tabletType) {
         switch (tabletType) {
             case MASTER:
                 return Topodata.TabletType.MASTER;

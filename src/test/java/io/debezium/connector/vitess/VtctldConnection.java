@@ -11,6 +11,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import io.debezium.connector.vitess.connection.VitessTabletType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +60,7 @@ public class VtctldConnection implements AutoCloseable {
      * @param tabletType
      * @return
      */
-    public Vgtid latestVgtid(String keyspace, String shard, VitessConnectionUtils.TabletType tabletType) {
+    public Vgtid latestVgtid(String keyspace, String shard, VitessTabletType tabletType) {
         String command = "ShardReplicationPositions";
         List<String> args = Arrays.asList(command, keyspace + ":" + shard);
 
@@ -97,7 +98,7 @@ public class VtctldConnection implements AutoCloseable {
         LOGGER.info("Vschema {} is applied. Result: {}", vschema, results);
     }
 
-    private String chooseShardGtid(List<String> results, VitessConnectionUtils.TabletType tabletType) {
+    private String chooseShardGtid(List<String> results, VitessTabletType tabletType) {
         int tabletTypeIdx = 0;
         switch (tabletType) {
             case MASTER:

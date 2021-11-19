@@ -167,7 +167,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 Vtgate.VStreamRequest.newBuilder()
                         .setVgtid(vgtid.getRawVgtid())
                         .setTabletType(
-                                toTopodataTabletType(VitessConnectionUtils.TabletType.valueOf(config.getTabletType())))
+                                toTopodataTabletType(VitessTabletType.valueOf(config.getTabletType())))
                         .setFlags(vStreamFlags)
                         .build(),
                 responseObserver);
@@ -253,7 +253,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
         return config.getVtgateUsername();
     }
 
-    private static Topodata.TabletType toTopodataTabletType(VitessConnectionUtils.TabletType tabletType) {
+    private static Topodata.TabletType toTopodataTabletType(VitessTabletType tabletType) {
         switch (tabletType) {
             case MASTER:
                 return Topodata.TabletType.MASTER;

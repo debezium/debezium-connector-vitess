@@ -101,8 +101,7 @@ public class VitessReplicationConnectionIT {
                     });
 
             // verify outcome
-            messages.stream()
-                    .forEach(m -> assertValidVgtid(m.getVgtid(), conf.getKeyspace(), conf.getShard()));
+            messages.forEach(m -> assertValidVgtid(m.getVgtid(), conf.getKeyspace(), conf.getShard()));
         }
         finally {
             if (error.get() != null) {

@@ -27,6 +27,7 @@ import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageColumn;
 import io.debezium.connector.vitess.connection.VitessConnectionUtils;
+import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.vitess.proto.Query;
 import io.vitess.proto.Query.Field;
@@ -130,7 +131,7 @@ public class TestHelper {
 
     protected static Vgtid getCurrentVgtid() throws Exception {
         try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
-            return vtctldConnection.latestVgtid(TEST_UNSHARDED_KEYSPACE, TEST_SHARD, VitessConnectionUtils.TabletType.MASTER);
+            return vtctldConnection.latestVgtid(TEST_UNSHARDED_KEYSPACE, TEST_SHARD, VitessTabletType.MASTER);
         }
         catch (Exception e) {
             throw new RuntimeException(e);

@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.vitess;
 
+import io.debezium.connector.vitess.connection.VitessTabletType;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
@@ -13,7 +14,6 @@ import io.debezium.config.ConfigDefinition;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.SourceInfoStructMaker;
-import io.debezium.connector.vitess.connection.VitessConnectionUtils;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
@@ -92,7 +92,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withType(Type.STRING)
             .withWidth(Width.SHORT)
             .withImportance(ConfigDef.Importance.HIGH)
-            .withDefault(VitessConnectionUtils.TabletType.MASTER.name())
+            .withDefault(VitessTabletType.MASTER.name())
             .withDescription(
                     "Tablet type used to get latest vgtid from Vtctld and get data-changes from Vtgate."
                             + " Value can be MASTER, REPLICA, and RDONLY.");

@@ -116,14 +116,14 @@ class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter {
     private int getPosition(String columnName, Table table, int maxPosition) {
         final Column tableColumn = table.columnWithName(columnName);
         if (tableColumn == null) {
-            logger.warn(
+            LOGGER.warn(
                     "Internal schema is out-of-sync with incoming decoder events; column {} will be omitted from the change event.",
                     columnName);
             return -1;
         }
         int position = tableColumn.position() - 1;
         if (position < 0 || position >= maxPosition) {
-            logger.warn(
+            LOGGER.warn(
                     "Internal schema is out-of-sync with incoming decoder events; column {} will be omitted from the change event.",
                     columnName);
             return -1;

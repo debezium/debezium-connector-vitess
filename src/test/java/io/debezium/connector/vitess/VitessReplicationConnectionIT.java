@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.debezium.connector.vitess.connection;
+package io.debezium.connector.vitess;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.fest.assertions.Assertions.assertThat;
@@ -26,11 +26,8 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.debezium.connector.vitess.TestHelper;
-import io.debezium.connector.vitess.Vgtid;
-import io.debezium.connector.vitess.VitessConnectorConfig;
-import io.debezium.connector.vitess.VitessDatabaseSchema;
-import io.debezium.connector.vitess.VitessTopicSelector;
+import io.debezium.connector.vitess.connection.ReplicationMessage;
+import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.util.Clock;
 import io.debezium.util.ElapsedTimeStrategy;
 import io.debezium.util.SchemaNameAdjuster;

@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.debezium.connector.vitess.connection;
+package io.debezium.connector.vitess;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.debezium.connector.vitess.Vgtid;
+import io.debezium.connector.vitess.connection.VitessConnectionUtils;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.vitess.client.grpc.StaticAuthCredentials;
@@ -26,19 +26,6 @@ import vtctlservice.VtctlGrpc;
 
 /** Use VTCtld to do Vitess admin operations */
 public class VtctldConnection implements AutoCloseable {
-
-    /** The types of vitess tablet. */
-    public enum TabletType {
-        /** Master mysql instance. */
-        MASTER,
-
-        /** Replica slave, can be promoted to master. */
-        REPLICA,
-
-        /** Read only slave, can not be promoted to master. */
-        RDONLY;
-    }
-
     private static final Logger LOGGER = LoggerFactory.getLogger(VtctldConnection.class);
 
     // Used to retrieve the shard gtid from Vtctld response
@@ -72,7 +59,7 @@ public class VtctldConnection implements AutoCloseable {
      * @param tabletType
      * @return
      */
-    public Vgtid latestVgtid(String keyspace, String shard, TabletType tabletType) {
+    public Vgtid latestVgtid(String keyspace, String shard, VitessConnectionUtils.TabletType tabletType) {
         String command = "ShardReplicationPositions";
         List<String> args = Arrays.asList(command, keyspace + ":" + shard);
 
@@ -110,7 +97,7 @@ public class VtctldConnection implements AutoCloseable {
         LOGGER.info("Vschema {} is applied. Result: {}", vschema, results);
     }
 
-    private String chooseShardGtid(List<String> results, TabletType tabletType) {
+    private String chooseShardGtid(List<String> results, VitessConnectionUtils.TabletType tabletType) {
         int tabletTypeIdx = 0;
         switch (tabletType) {
             case MASTER:

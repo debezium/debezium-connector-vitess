@@ -13,7 +13,7 @@ import io.debezium.config.ConfigDefinition;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.SourceInfoStructMaker;
-import io.debezium.connector.vitess.connection.VtctldConnection;
+import io.debezium.connector.vitess.connection.VitessConnectionUtils;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
@@ -26,7 +26,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     private static final String VITESS_CONFIG_GROUP_PREFIX = "vitess.";
     private static final int DEFAULT_VTGATE_PORT = 15_991;
-    private static final int DEFAULT_VTCTLD_PORT = 15_999;
 
     public static final Field VTGATE_HOST = Field.create(DATABASE_CONFIG_PREFIX + JdbcConfiguration.HOSTNAME)
             .withDisplayName("Vitess database hostname")
@@ -88,43 +87,12 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     "Single GTID from where to start reading from for a given shard."
                             + " It has to be set together with vitess.shard");
 
-    public static final Field VTCTLD_HOST = Field.create(VITESS_CONFIG_GROUP_PREFIX + "vtctld.host")
-            .withDisplayName("VTGate server hostname")
-            .withType(Type.STRING)
-            .withWidth(Width.MEDIUM)
-            .withImportance(ConfigDef.Importance.HIGH)
-            .withValidation(Field::isRequired)
-            .withDescription("VTCtld gRPC server host name. E.p. \"localhost\".");
-
-    public static final Field VTCTLD_PORT = Field.create(VITESS_CONFIG_GROUP_PREFIX + "vtctld.port")
-            .withDisplayName("VTGate server port")
-            .withType(Type.INT)
-            .withWidth(Width.SHORT)
-            .withDefault(DEFAULT_VTCTLD_PORT)
-            .withImportance(ConfigDef.Importance.HIGH)
-            .withValidation(Field::isInteger)
-            .withDescription("VTCtld gRPC server port. E.p. \"15999\".");
-
-    public static final Field VTCTLD_USER = Field.create(VITESS_CONFIG_GROUP_PREFIX + "vtctld.user")
-            .withDisplayName("VTCtld User")
-            .withType(Type.STRING)
-            .withWidth(Width.SHORT)
-            .withImportance(ConfigDef.Importance.HIGH)
-            .withDescription("Name of the user to be used when connecting the Vitess VTCtld gRPC server.");
-
-    public static final Field VTCTLD_PASSWORD = Field.create(VITESS_CONFIG_GROUP_PREFIX + "vtctld.password")
-            .withDisplayName("VTCtld Password")
-            .withType(Type.PASSWORD)
-            .withWidth(Width.SHORT)
-            .withImportance(ConfigDef.Importance.HIGH)
-            .withDescription("Password of the user to be used when connecting the Vitess VTCtld gRPC server.");
-
     public static final Field TABLET_TYPE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "tablet.type")
             .withDisplayName("Tablet type to get data-changes")
             .withType(Type.STRING)
             .withWidth(Width.SHORT)
             .withImportance(ConfigDef.Importance.HIGH)
-            .withDefault(VtctldConnection.TabletType.MASTER.name())
+            .withDefault(VitessConnectionUtils.TabletType.MASTER.name())
             .withDescription(
                     "Tablet type used to get latest vgtid from Vtctld and get data-changes from Vtgate."
                             + " Value can be MASTER, REPLICA, and RDONLY.");
@@ -155,14 +123,11 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .type(
                     KEYSPACE,
                     SHARD,
+                    GTID,
                     VTGATE_HOST,
                     VTGATE_PORT,
                     VTGATE_USER,
                     VTGATE_PASSWORD,
-                    VTCTLD_HOST,
-                    VTCTLD_PORT,
-                    VTCTLD_USER,
-                    VTCTLD_PASSWORD,
                     TABLET_TYPE,
                     STOP_ON_RESHARD_FLAG)
             .events(INCLUDE_UNKNOWN_DATATYPES)
@@ -224,22 +189,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public String getVtgatePassword() {
         return getConfig().getString(VTGATE_PASSWORD);
-    }
-
-    public String getVtctldHost() {
-        return getConfig().getString(VTCTLD_HOST);
-    }
-
-    public int getVtctldPort() {
-        return getConfig().getInteger(VTCTLD_PORT);
-    }
-
-    public String getVtctldUsername() {
-        return getConfig().getString(VTCTLD_USER);
-    }
-
-    public String getVtctldPassword() {
-        return getConfig().getString(VTCTLD_PASSWORD);
     }
 
     public String getTabletType() {

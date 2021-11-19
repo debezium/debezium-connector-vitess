@@ -5,16 +5,16 @@
  */
 package io.debezium.connector.vitess.connection;
 
-import io.debezium.annotation.Immutable;
-
-/** The types of vitess tablet. */
+/**
+ * The types of vitess tablet.
+ */
 public enum VitessTabletType {
-    /** Master mysql instance. */
+    // Master mysql instance.
     MASTER,
 
-    /** Replica slave, can be promoted to master. */
+    // Replica slave, can be promoted to master.
     REPLICA,
 
-    /** Read only slave, can not be promoted to master. */
+    // Read only slave, can not be promoted to master.
     RDONLY;
 }

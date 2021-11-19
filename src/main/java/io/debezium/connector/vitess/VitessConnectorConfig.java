@@ -5,7 +5,6 @@
  */
 package io.debezium.connector.vitess;
 
-import io.debezium.connector.vitess.connection.VitessTabletType;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
@@ -14,6 +13,7 @@ import io.debezium.config.ConfigDefinition;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.SourceInfoStructMaker;
+import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;

@@ -26,7 +26,6 @@ import com.google.protobuf.ByteString;
 import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageColumn;
-import io.debezium.connector.vitess.connection.VitessConnectionUtils;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.vitess.proto.Query;

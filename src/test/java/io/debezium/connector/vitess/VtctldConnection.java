@@ -11,11 +11,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import io.debezium.connector.vitess.connection.VitessTabletType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.debezium.connector.vitess.connection.VitessConnectionUtils;
+import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.vitess.client.grpc.StaticAuthCredentials;
@@ -25,7 +24,9 @@ import logutil.Logutil;
 import vtctldata.Vtctldata;
 import vtctlservice.VtctlGrpc;
 
-/** Use VTCtld to do Vitess admin operations */
+/**
+ * Use VTCtld to do Vitess admin operations
+ */
 public class VtctldConnection implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(VtctldConnection.class);
 
@@ -86,10 +87,8 @@ public class VtctldConnection implements AutoCloseable {
     /**
      * Apply vschema to the keyspace
      *
-     * @param vschema vschema in String
-     * @param keyspace
-     *
-     * Throws runtime exception if the gRPC call fails.
+     * @param vschema  vschema in String
+     * @param keyspace Throws runtime exception if the gRPC call fails.
      */
     public void applyVSchema(String vschema, String keyspace) {
         String command = "ApplyVSchema";
@@ -140,7 +139,9 @@ public class VtctldConnection implements AutoCloseable {
         return res;
     }
 
-    /** Close the gRPC connection */
+    /**
+     * Close the gRPC connection
+     */
     @Override
     public void close() throws Exception {
         LOGGER.info("Closing VTCtld connection");

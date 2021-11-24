@@ -6,6 +6,7 @@
 package io.debezium.connector.vitess;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -15,10 +16,10 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.Types;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import com.google.protobuf.ByteString;
@@ -28,6 +29,8 @@ import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageColumn;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.util.Clock;
+import io.debezium.util.ElapsedTimeStrategy;
 import io.vitess.proto.Query;
 import io.vitess.proto.Query.Field;
 
@@ -49,6 +52,11 @@ public class TestHelper {
     // Use the same username and password for vtgate and vtctld
     private static final String USERNAME = "vitess";
     private static final String PASSWORD = "vitess_password";
+
+    protected static final String INSERT_STMT = "INSERT INTO t1 (int_col) VALUES (1);";
+    protected static final List<String> SETUP_TABLES_STMT = Arrays.asList(
+            "DROP TABLE IF EXISTS t1;",
+            "CREATE TABLE t1 (id BIGINT NOT NULL AUTO_INCREMENT, int_col INT, PRIMARY KEY (id));");
 
     public static Configuration.Builder defaultConfig() {
         return defaultConfig(false);
@@ -122,6 +130,24 @@ public class TestHelper {
     protected static void applyVSchema(String vschemaFile) throws Exception {
         try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
             vtctldConnection.applyVSchema(readStringFromFile(vschemaFile), TEST_SHARDED_KEYSPACE);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    protected static String applySchema(String ddl, String keyspace) throws Exception {
+        try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
+            return vtctldConnection.applySchema(ddl, "online", keyspace);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    protected static boolean checkOnlineDDL(String keyspace, String id) throws Exception {
+        try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
+            return vtctldConnection.checkOnlineDDLCompleted(keyspace, id);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
@@ -280,6 +306,73 @@ public class TestHelper {
 
     public static List<Object> defaultJavaValues() {
         return defaultColumnValues().stream().map(x -> x.getJavaValue()).collect(Collectors.toList());
+    }
+
+    protected static List<MessageAndVgtid> awaitMessages(
+                                                         long timeout, TimeUnit unit, int expectedNumOfMessages, Supplier<MessageAndVgtid> supplier) {
+        final ElapsedTimeStrategy timer = ElapsedTimeStrategy.constant(Clock.SYSTEM, unit.toMillis(timeout));
+        timer.hasElapsed();
+
+        ConcurrentLinkedQueue<MessageAndVgtid> messages = new ConcurrentLinkedQueue<>();
+
+        while (!timer.hasElapsed()) {
+            final MessageAndVgtid r = supplier.get();
+            if (r != null) {
+                if (messages.size() >= expectedNumOfMessages) {
+                    fail("received more events than expected");
+                }
+                else {
+                    messages.add(r);
+                }
+                if (messages.size() == expectedNumOfMessages) {
+                    break;
+                }
+            }
+        }
+        if (messages.size() != expectedNumOfMessages) {
+            fail(
+                    "Consumer is still expecting "
+                            + (expectedNumOfMessages - messages.size())
+                            + " records, as it received only "
+                            + messages.size());
+        }
+
+        return new ArrayList<>(messages);
+    }
+
+    protected static MessageAndVgtid awaitOperation(
+                                                    long timeout, TimeUnit unit, String expectedOperation, Supplier<MessageAndVgtid> supplier) {
+        final ElapsedTimeStrategy timer = ElapsedTimeStrategy.constant(Clock.SYSTEM, unit.toMillis(timeout));
+        timer.hasElapsed();
+
+        while (!timer.hasElapsed()) {
+            final MessageAndVgtid r = supplier.get();
+            if (r != null) {
+                if (r.getMessage().getOperation().name() == expectedOperation) {
+                    return r;
+                }
+            }
+        }
+        fail("Consumer is still expecting events with operation " + expectedOperation);
+        return null;
+    }
+
+    protected static class MessageAndVgtid {
+        ReplicationMessage message;
+        Vgtid vgtid;
+
+        public MessageAndVgtid(ReplicationMessage message, Vgtid vgtid) {
+            this.message = message;
+            this.vgtid = vgtid;
+        }
+
+        public ReplicationMessage getMessage() {
+            return message;
+        }
+
+        public Vgtid getVgtid() {
+            return vgtid;
+        }
     }
 
     public static class ColumnValue {

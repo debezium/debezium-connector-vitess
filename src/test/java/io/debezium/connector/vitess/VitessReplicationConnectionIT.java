@@ -5,7 +5,6 @@
  */
 package io.debezium.connector.vitess;
 
-import static io.debezium.connector.vitess.TestHelper.*;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.fest.assertions.Assertions.assertThat;
 
@@ -40,8 +39,8 @@ public class VitessReplicationConnectionIT {
                 conf, SchemaNameAdjuster.create(), VitessTopicSelector.defaultSelector(conf));
 
         // exercise SUT
-        TestHelper.execute(SETUP_TABLES_STMT);
-        TestHelper.execute(INSERT_STMT);
+        TestHelper.execute(TestHelper.SETUP_TABLES_STMT);
+        TestHelper.execute(TestHelper.INSERT_STMT);
 
         AtomicReference<Throwable> error = new AtomicReference<>();
         try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
@@ -55,7 +54,7 @@ public class VitessReplicationConnectionIT {
                                             .build())
                             .build());
 
-            BlockingQueue<MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
+            BlockingQueue<TestHelper.MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
             AtomicBoolean started = new AtomicBoolean(false);
             connection.startStreaming(
                     startingVgtid,
@@ -63,7 +62,7 @@ public class VitessReplicationConnectionIT {
                         if (!started.get()) {
                             started.set(true);
                         }
-                        consumedMessages.add(new MessageAndVgtid(message, vgtid));
+                        consumedMessages.add(new TestHelper.MessageAndVgtid(message, vgtid));
                     },
                     error);
             // Since we are using the "current" as the starting position, there is a race here
@@ -75,8 +74,8 @@ public class VitessReplicationConnectionIT {
                     .until(started::get);
             consumedMessages.clear();
             int expectedNumOfMessages = 3;
-            TestHelper.execute(INSERT_STMT);
-            List<MessageAndVgtid> messages = TestHelper.awaitMessages(
+            TestHelper.execute(TestHelper.INSERT_STMT);
+            List<TestHelper.MessageAndVgtid> messages = TestHelper.awaitMessages(
                     TestHelper.waitTimeForRecords(),
                     SECONDS,
                     expectedNumOfMessages,

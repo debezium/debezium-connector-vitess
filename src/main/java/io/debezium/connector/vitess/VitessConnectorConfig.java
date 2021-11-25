@@ -131,7 +131,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     TABLET_TYPE,
                     STOP_ON_RESHARD_FLAG)
             .events(INCLUDE_UNKNOWN_DATATYPES)
-            .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST, PROVIDE_TRANSACTION_METADATA)
+            .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST)
             .create();
 
     /**

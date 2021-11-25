@@ -160,7 +160,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
-    @FixFor("")
+    @FixFor("DBZ-4353")
     public void shouldSchemaUpdatedAfterOnlineDdl() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         startConnector();

@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
+import io.debezium.doc.FixFor;
 import io.debezium.util.SchemaNameAdjuster;
 
 import binlogdata.Binlogdata;
@@ -38,7 +39,8 @@ public class VitessSchemaMigrationIT {
     }
 
     @Test
-    public void shouldReturnUpdatedSchemaWithOnlineDDL() throws Exception {
+    @FixFor("DBZ-4353")
+    public void shouldReturnUpdatedSchemaWithOnlineDdl() throws Exception {
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
                 conf, SchemaNameAdjuster.create(), VitessTopicSelector.defaultSelector(conf));
@@ -75,10 +77,8 @@ public class VitessSchemaMigrationIT {
             Awaitility
                     .await()
                     .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
-                    .until(() -> {
-                        Thread.sleep(1000);
-                        return TestHelper.checkOnlineDDL(TestHelper.TEST_UNSHARDED_KEYSPACE, ddlId);
-                    });
+                    .pollInterval(Duration.ofSeconds(1))
+                    .until(() -> TestHelper.checkOnlineDDL(TestHelper.TEST_UNSHARDED_KEYSPACE, ddlId));
             TestHelper.execute("UPDATE t1 SET name='abc' WHERE id=1");
             MessageAndVgtid message = TestHelper.awaitOperation(
                     TestHelper.waitTimeForRecords(),

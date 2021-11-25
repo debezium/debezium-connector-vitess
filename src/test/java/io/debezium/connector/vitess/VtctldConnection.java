@@ -105,7 +105,7 @@ public class VtctldConnection implements AutoCloseable {
         return results.get(0).trim();
     }
 
-    protected boolean checkOnlineDDLCompleted(String keyspace, String id) {
+    protected boolean checkOnlineDdlCompleted(String keyspace, String id) {
         List<String> args = Arrays.asList("OnlineDDL", keyspace, "show", id);
         List<String> results = execVtctl(args, vtctldHost, vtctldPort);
         AtomicBoolean isCompleted = new AtomicBoolean(false);

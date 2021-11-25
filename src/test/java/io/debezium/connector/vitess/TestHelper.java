@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.Types;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,8 +24,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import org.awaitility.Awaitility;
 
 import com.google.protobuf.ByteString;
 
@@ -33,8 +37,6 @@ import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageColumn;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
-import io.debezium.util.Clock;
-import io.debezium.util.ElapsedTimeStrategy;
 import io.vitess.proto.Query;
 import io.vitess.proto.Query.Field;
 
@@ -68,6 +70,7 @@ public class TestHelper {
 
     /**
      * Get the default configuration of the connector
+     *
      * @param hasMultipleShards whether the keyspace has multiple shards
      * @return Configuration builder
      */
@@ -95,8 +98,9 @@ public class TestHelper {
 
     /**
      * Executes a JDBC statement using the default jdbc config without autocommitting the connection
+     *
      * @param statements A list of SQL statements
-     * @param database Keyspace
+     * @param database   Keyspace
      */
     public static void execute(List<String> statements, String database) {
 
@@ -140,7 +144,7 @@ public class TestHelper {
         }
     }
 
-    protected static String applySchema(String ddl, String keyspace) throws Exception {
+    protected static String applySchema(String ddl, String keyspace) {
         try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
             return vtctldConnection.applySchema(ddl, "online", keyspace);
         }
@@ -149,9 +153,9 @@ public class TestHelper {
         }
     }
 
-    protected static boolean checkOnlineDDL(String keyspace, String id) throws Exception {
+    protected static boolean checkOnlineDDL(String keyspace, String id) {
         try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
-            return vtctldConnection.checkOnlineDDLCompleted(keyspace, id);
+            return vtctldConnection.checkOnlineDdlCompleted(keyspace, id);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
@@ -314,25 +318,23 @@ public class TestHelper {
 
     protected static List<MessageAndVgtid> awaitMessages(
                                                          long timeout, TimeUnit unit, int expectedNumOfMessages, Supplier<MessageAndVgtid> supplier) {
-        final ElapsedTimeStrategy timer = ElapsedTimeStrategy.constant(Clock.SYSTEM, unit.toMillis(timeout));
-        timer.hasElapsed();
-
         ConcurrentLinkedQueue<MessageAndVgtid> messages = new ConcurrentLinkedQueue<>();
-
-        while (!timer.hasElapsed()) {
-            final MessageAndVgtid r = supplier.get();
-            if (r != null) {
-                if (messages.size() >= expectedNumOfMessages) {
-                    fail("received more events than expected");
-                }
-                else {
-                    messages.add(r);
-                }
-                if (messages.size() == expectedNumOfMessages) {
-                    break;
-                }
-            }
-        }
+        Awaitility
+                .await()
+                .atMost(Duration.ofMillis(unit.toMillis(timeout)))
+                .until(() -> {
+                    final MessageAndVgtid r = supplier.get();
+                    if (r != null) {
+                        if (messages.size() >= expectedNumOfMessages) {
+                            fail("received more events than expected");
+                        }
+                        else {
+                            messages.add(r);
+                        }
+                        return messages.size() == expectedNumOfMessages;
+                    }
+                    return false;
+                });
         if (messages.size() != expectedNumOfMessages) {
             fail(
                     "Consumer is still expecting "
@@ -340,25 +342,24 @@ public class TestHelper {
                             + " records, as it received only "
                             + messages.size());
         }
-
         return new ArrayList<>(messages);
     }
 
     protected static MessageAndVgtid awaitOperation(
                                                     long timeout, TimeUnit unit, String expectedOperation, Supplier<MessageAndVgtid> supplier) {
-        final ElapsedTimeStrategy timer = ElapsedTimeStrategy.constant(Clock.SYSTEM, unit.toMillis(timeout));
-        timer.hasElapsed();
-
-        while (!timer.hasElapsed()) {
-            final MessageAndVgtid r = supplier.get();
-            if (r != null) {
-                if (r.getMessage().getOperation().name() == expectedOperation) {
-                    return r;
-                }
-            }
-        }
-        fail("Consumer is still expecting events with operation " + expectedOperation);
-        return null;
+        AtomicReference<MessageAndVgtid> result = new AtomicReference<>();
+        Awaitility
+                .await()
+                .atMost(Duration.ofMillis(unit.toMillis(timeout)))
+                .until(() -> {
+                    final MessageAndVgtid r = supplier.get();
+                    if (r != null && r.getMessage().getOperation().name().equals(expectedOperation)) {
+                        result.set(r);
+                        return true;
+                    }
+                    return false;
+                });
+        return result.get();
     }
 
     protected static class MessageAndVgtid {

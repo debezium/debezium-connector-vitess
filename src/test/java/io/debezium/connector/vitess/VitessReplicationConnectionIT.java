@@ -7,14 +7,18 @@ package io.debezium.connector.vitess;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.fest.assertions.Assertions.assertThat;
+import static org.junit.Assert.fail;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import org.awaitility.Awaitility;
 import org.junit.Before;
@@ -59,7 +63,7 @@ public class VitessReplicationConnectionIT {
                                             .build())
                             .build());
 
-            BlockingQueue<TestHelper.MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
+            BlockingQueue<MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
             AtomicBoolean started = new AtomicBoolean(false);
             connection.startStreaming(
                     startingVgtid,
@@ -67,7 +71,7 @@ public class VitessReplicationConnectionIT {
                         if (!started.get()) {
                             started.set(true);
                         }
-                        consumedMessages.add(new TestHelper.MessageAndVgtid(message, vgtid));
+                        consumedMessages.add(new MessageAndVgtid(message, vgtid));
                     },
                     error);
             // Since we are using the "current" as the starting position, there is a race here
@@ -80,7 +84,7 @@ public class VitessReplicationConnectionIT {
             consumedMessages.clear();
             int expectedNumOfMessages = 3;
             TestHelper.execute(TestHelper.INSERT_STMT);
-            List<TestHelper.MessageAndVgtid> messages = TestHelper.awaitMessages(
+            List<MessageAndVgtid> messages = awaitMessages(
                     TestHelper.waitTimeForRecords(),
                     SECONDS,
                     expectedNumOfMessages,
@@ -124,7 +128,7 @@ public class VitessReplicationConnectionIT {
                                             .build())
                             .build());
 
-            BlockingQueue<TestHelper.MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
+            BlockingQueue<MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
             AtomicBoolean started = new AtomicBoolean(false);
             connection.startStreaming(
                     startingVgtid,
@@ -132,7 +136,7 @@ public class VitessReplicationConnectionIT {
                         if (!started.get()) {
                             started.set(true);
                         }
-                        consumedMessages.add(new TestHelper.MessageAndVgtid(message, vgtid));
+                        consumedMessages.add(new MessageAndVgtid(message, vgtid));
                     },
                     error);
             Awaitility
@@ -148,7 +152,7 @@ public class VitessReplicationConnectionIT {
                     .pollInterval(Duration.ofSeconds(1))
                     .until(() -> TestHelper.checkOnlineDDL(TestHelper.TEST_UNSHARDED_KEYSPACE, ddlId));
             TestHelper.execute("UPDATE t1 SET name='abc' WHERE id=1");
-            TestHelper.MessageAndVgtid message = TestHelper.awaitOperation(
+            MessageAndVgtid message = awaitOperation(
                     TestHelper.waitTimeForRecords(),
                     SECONDS,
                     "UPDATE",
@@ -186,5 +190,69 @@ public class VitessReplicationConnectionIT {
         assertThat(vgtid.getShardGtids().iterator().next().getShard()).isEqualTo(expectedShard);
         String gtid = vgtid.getShardGtids().iterator().next().getGtid();
         assertThat(gtid.startsWith("MySQL") || gtid.startsWith("MariaDB")).isTrue();
+    }
+
+    private static List<MessageAndVgtid> awaitMessages(
+                                                       long timeout, TimeUnit unit, int expectedNumOfMessages, Supplier<MessageAndVgtid> supplier) {
+        ConcurrentLinkedQueue<MessageAndVgtid> messages = new ConcurrentLinkedQueue<>();
+        Awaitility
+                .await()
+                .atMost(Duration.ofMillis(unit.toMillis(timeout)))
+                .until(() -> {
+                    final MessageAndVgtid r = supplier.get();
+                    if (r != null) {
+                        if (messages.size() >= expectedNumOfMessages) {
+                            fail("received more events than expected");
+                        }
+                        else {
+                            messages.add(r);
+                        }
+                        return messages.size() == expectedNumOfMessages;
+                    }
+                    return false;
+                });
+        if (messages.size() != expectedNumOfMessages) {
+            fail(
+                    "Consumer is still expecting "
+                            + (expectedNumOfMessages - messages.size())
+                            + " records, as it received only "
+                            + messages.size());
+        }
+        return new ArrayList<>(messages);
+    }
+
+    private static MessageAndVgtid awaitOperation(
+                                                  long timeout, TimeUnit unit, String expectedOperation, Supplier<MessageAndVgtid> supplier) {
+        AtomicReference<MessageAndVgtid> result = new AtomicReference<>();
+        Awaitility
+                .await()
+                .atMost(Duration.ofMillis(unit.toMillis(timeout)))
+                .until(() -> {
+                    final MessageAndVgtid r = supplier.get();
+                    if (r != null && r.getMessage().getOperation().name().equals(expectedOperation)) {
+                        result.set(r);
+                        return true;
+                    }
+                    return false;
+                });
+        return result.get();
+    }
+
+    private static class MessageAndVgtid {
+        ReplicationMessage message;
+        Vgtid vgtid;
+
+        public MessageAndVgtid(ReplicationMessage message, Vgtid vgtid) {
+            this.message = message;
+            this.vgtid = vgtid;
+        }
+
+        public ReplicationMessage getMessage() {
+            return message;
+        }
+
+        public Vgtid getVgtid() {
+            return vgtid;
+        }
     }
 }

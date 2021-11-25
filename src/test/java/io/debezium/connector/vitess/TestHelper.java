@@ -6,7 +6,6 @@
 package io.debezium.connector.vitess;
 
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -16,19 +15,11 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.Types;
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
-import org.awaitility.Awaitility;
 
 import com.google.protobuf.ByteString;
 
@@ -314,70 +305,6 @@ public class TestHelper {
 
     public static List<Object> defaultJavaValues() {
         return defaultColumnValues().stream().map(x -> x.getJavaValue()).collect(Collectors.toList());
-    }
-
-    protected static List<MessageAndVgtid> awaitMessages(
-                                                         long timeout, TimeUnit unit, int expectedNumOfMessages, Supplier<MessageAndVgtid> supplier) {
-        ConcurrentLinkedQueue<MessageAndVgtid> messages = new ConcurrentLinkedQueue<>();
-        Awaitility
-                .await()
-                .atMost(Duration.ofMillis(unit.toMillis(timeout)))
-                .until(() -> {
-                    final MessageAndVgtid r = supplier.get();
-                    if (r != null) {
-                        if (messages.size() >= expectedNumOfMessages) {
-                            fail("received more events than expected");
-                        }
-                        else {
-                            messages.add(r);
-                        }
-                        return messages.size() == expectedNumOfMessages;
-                    }
-                    return false;
-                });
-        if (messages.size() != expectedNumOfMessages) {
-            fail(
-                    "Consumer is still expecting "
-                            + (expectedNumOfMessages - messages.size())
-                            + " records, as it received only "
-                            + messages.size());
-        }
-        return new ArrayList<>(messages);
-    }
-
-    protected static MessageAndVgtid awaitOperation(
-                                                    long timeout, TimeUnit unit, String expectedOperation, Supplier<MessageAndVgtid> supplier) {
-        AtomicReference<MessageAndVgtid> result = new AtomicReference<>();
-        Awaitility
-                .await()
-                .atMost(Duration.ofMillis(unit.toMillis(timeout)))
-                .until(() -> {
-                    final MessageAndVgtid r = supplier.get();
-                    if (r != null && r.getMessage().getOperation().name().equals(expectedOperation)) {
-                        result.set(r);
-                        return true;
-                    }
-                    return false;
-                });
-        return result.get();
-    }
-
-    protected static class MessageAndVgtid {
-        ReplicationMessage message;
-        Vgtid vgtid;
-
-        public MessageAndVgtid(ReplicationMessage message, Vgtid vgtid) {
-            this.message = message;
-            this.vgtid = vgtid;
-        }
-
-        public ReplicationMessage getMessage() {
-            return message;
-        }
-
-        public Vgtid getVgtid() {
-            return vgtid;
-        }
     }
 
     public static class ColumnValue {

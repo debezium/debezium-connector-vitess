@@ -144,7 +144,7 @@ public class TestHelper {
         }
     }
 
-    protected static String applySchema(String ddl, String keyspace) {
+    protected static String applyOnlineDdl(String ddl, String keyspace) {
         try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
             return vtctldConnection.applySchema(ddl, "online", keyspace);
         }

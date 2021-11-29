@@ -50,12 +50,18 @@ public class TestHelper {
     private static final String USERNAME = "vitess";
     private static final String PASSWORD = "vitess_password";
 
+    protected static final String INSERT_STMT = "INSERT INTO t1 (int_col) VALUES (1);";
+    protected static final List<String> SETUP_TABLES_STMT = Arrays.asList(
+            "DROP TABLE IF EXISTS t1;",
+            "CREATE TABLE t1 (id BIGINT NOT NULL AUTO_INCREMENT, int_col INT, PRIMARY KEY (id));");
+
     public static Configuration.Builder defaultConfig() {
         return defaultConfig(false);
     }
 
     /**
      * Get the default configuration of the connector
+     *
      * @param hasMultipleShards whether the keyspace has multiple shards
      * @return Configuration builder
      */
@@ -83,8 +89,9 @@ public class TestHelper {
 
     /**
      * Executes a JDBC statement using the default jdbc config without autocommitting the connection
+     *
      * @param statements A list of SQL statements
-     * @param database Keyspace
+     * @param database   Keyspace
      */
     public static void execute(List<String> statements, String database) {
 
@@ -122,6 +129,24 @@ public class TestHelper {
     protected static void applyVSchema(String vschemaFile) throws Exception {
         try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
             vtctldConnection.applyVSchema(readStringFromFile(vschemaFile), TEST_SHARDED_KEYSPACE);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    protected static String applyOnlineDdl(String ddl, String keyspace) {
+        try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
+            return vtctldConnection.applySchema(ddl, "online", keyspace);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    protected static boolean checkOnlineDDL(String keyspace, String id) {
+        try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
+            return vtctldConnection.checkOnlineDdlCompleted(keyspace, id);
         }
         catch (Exception e) {
             throw new RuntimeException(e);

@@ -59,6 +59,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @After
     public void after() {
         stopConnector();
+        assertConnectorNotRunning();
     }
 
     @Test
@@ -87,7 +88,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                     assertThat(success).isFalse();
                     assertThat(error).isNotNull();
                 });
-        assertConnectorNotRunning();
     }
 
     @Test
@@ -126,9 +126,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         consumer.expects(expectedRecordsCount);
         assertInsert(INSERT_TIME_TYPES_STMT, schemasAndValuesForTimeType(), TestHelper.PK_FIELD);
-
-        stopConnector();
-        assertConnectorNotRunning();
     }
 
     @Test
@@ -160,9 +157,47 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 .incrementOffset(numOfGtidsFromDdl + 1).getVgtid();
         String actualOffset = (String) sourceRecord2.sourceOffset().get(SourceInfo.VGTID);
         Assert.assertEquals(expectedOffset, actualOffset);
+    }
 
-        stopConnector();
-        assertConnectorNotRunning();
+    @Test
+    @FixFor("DBZ-4353")
+    public void shouldSchemaUpdatedAfterOnlineDdl() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector();
+        assertConnectorIsRunning();
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
+        // Add a column using online ddl and wait until it is finished
+        String ddlId = TestHelper.applyOnlineDdl("ALTER TABLE numeric_table ADD COLUMN foo INT", TestHelper.TEST_UNSHARDED_KEYSPACE);
+        Awaitility
+                .await()
+                .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                .pollInterval(Duration.ofSeconds(1))
+                .until(() -> TestHelper.checkOnlineDDL(TestHelper.TEST_UNSHARDED_KEYSPACE, ddlId));
+        // Do another insert with the new column and verify it is in the SourceRecord
+        List<SchemaAndValueField> expectedSchemaAndValuesByColumn = schemasAndValuesForNumericTypes();
+        String dml = "INSERT INTO numeric_table ("
+                + "tinyint_col,"
+                + "tinyint_unsigned_col,"
+                + "smallint_col,"
+                + "smallint_unsigned_col,"
+                + "mediumint_col,"
+                + "mediumint_unsigned_col,"
+                + "int_col,"
+                + "int_unsigned_col,"
+                + "bigint_col,"
+                + "bigint_unsigned_col,"
+                + "bigint_unsigned_overflow_col,"
+                + "float_col,"
+                + "double_col,"
+                + "decimal_col,"
+                + "boolean_col,"
+                + "foo)"
+                + " VALUES (1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true, 10);";
+        expectedSchemaAndValuesByColumn.add(
+                new SchemaAndValueField("foo", SchemaBuilder.OPTIONAL_INT32_SCHEMA, 10));
+        assertInsert(dml, expectedSchemaAndValuesByColumn, TestHelper.PK_FIELD);
     }
 
     @Test
@@ -197,9 +232,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
             assertSourceInfo(record, TestHelper.TEST_SERVER, table.schema(), table.table());
             assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
         }
-
-        stopConnector();
-        assertConnectorNotRunning();
     }
 
     @Test
@@ -246,9 +278,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
             assertSourceInfo(record, TestHelper.TEST_SERVER, table.schema(), table.table());
             assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
         }
-
-        stopConnector();
-        assertConnectorNotRunning();
     }
 
     @Test
@@ -305,9 +334,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         catch (Exception e) {
             throw new RuntimeException(e);
         }
-
-        stopConnector();
-        assertConnectorNotRunning();
         Testing.Print.enable();
     }
 
@@ -323,9 +349,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
         assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.TEST_SHARDED_KEYSPACE, TestHelper.PK_FIELD, hasMultipleShards);
-
-        stopConnector();
-        assertConnectorNotRunning();
     }
 
     @Test
@@ -351,9 +374,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertRecordInserted(record, expectedTopicName, "int_col");
         assertRecordOffset(record, hasMultipleShards);
         assertSourceInfo(record, TestHelper.TEST_SERVER, table.schema(), table.table());
-
-        stopConnector();
-        assertConnectorNotRunning();
     }
 
     @Test
@@ -379,9 +399,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         consumer.expects(expectedRecordsCount);
         assertInsert("INSERT INTO no_pk_multi_comp_unique_keys_table (int_col, int_col2, int_col3, int_col4, int_col5) VALUES (1, 2, 3, 4, 5);", null,
                 TestHelper.TEST_SHARDED_KEYSPACE, "int_col3", hasMultipleShards);
-
-        stopConnector();
-        assertConnectorNotRunning();
     }
 
     @Test
@@ -397,9 +414,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
         assertInsert("INSERT INTO no_pk_table (int_col) VALUES (1);", null, TestHelper.TEST_SHARDED_KEYSPACE, null, hasMultipleShards);
-
-        stopConnector();
-        assertConnectorNotRunning();
     }
 
     @Test
@@ -415,9 +429,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
         assertInsert("INSERT INTO pk_single_unique_key_table (int_col) VALUES (1);", null, TestHelper.TEST_SHARDED_KEYSPACE, TestHelper.PK_FIELD, hasMultipleShards);
-
-        stopConnector();
-        assertConnectorNotRunning();
     }
 
     @Test
@@ -444,8 +455,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         if (!latch.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS)) {
             fail("did not reach stop condition in time");
         }
-
-        assertConnectorNotRunning();
     }
 
     @Test
@@ -471,7 +480,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         if (!latch.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS)) {
             fail("did not reach stop condition in time");
         }
-        assertConnectorNotRunning();
     }
 
     @Test
@@ -489,9 +497,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         final List<SchemaAndValueField> fields = schemasAndValuesForNumericTypes();
         fields.add(new SchemaAndValueField("_foo_", SchemaBuilder.OPTIONAL_INT32_SCHEMA, 10));
         assertInsert(INSERT_NUMERIC_TYPES_STMT, fields, TestHelper.PK_FIELD);
-
-        stopConnector();
-        assertConnectorNotRunning();
     }
 
     @Test
@@ -511,9 +516,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         fields.add(new SchemaAndValueField("decimal_col2", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "12.3400"));
         fields.add(new SchemaAndValueField("decimal_col3", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "-12.3400"));
         assertInsert(INSERT_NUMERIC_TYPES_STMT, fields, TestHelper.PK_FIELD);
-
-        stopConnector();
-        assertConnectorNotRunning();
     }
 
     @Test

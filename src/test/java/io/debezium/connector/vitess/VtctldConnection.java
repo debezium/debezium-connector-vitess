@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,6 +96,25 @@ public class VtctldConnection implements AutoCloseable {
         List<String> args = Arrays.asList(command, "-" + VSCHEMA_FLAG + "=" + vschema, keyspace);
         List<String> results = execVtctl(args, vtctldHost, vtctldPort);
         LOGGER.info("Vschema {} is applied. Result: {}", vschema, results);
+    }
+
+    protected String applySchema(String sql, String strategy, String keyspace) {
+        List<String> args = Arrays.asList("ApplySchema", "-ddl_strategy=" + strategy, "-sql=" + sql, keyspace);
+        List<String> results = execVtctl(args, vtctldHost, vtctldPort);
+        LOGGER.info("Schema {} is applied. Result: {}", sql, results);
+        return results.get(0).trim();
+    }
+
+    protected boolean checkOnlineDdlCompleted(String keyspace, String id) {
+        List<String> args = Arrays.asList("OnlineDDL", keyspace, "show", id);
+        List<String> results = execVtctl(args, vtctldHost, vtctldPort);
+        AtomicBoolean isCompleted = new AtomicBoolean(false);
+        results.forEach(s -> {
+            if (s.trim().equals("complete")) {
+                isCompleted.set(true);
+            }
+        });
+        return isCompleted.get();
     }
 
     private String chooseShardGtid(List<String> results, VitessTabletType tabletType) {

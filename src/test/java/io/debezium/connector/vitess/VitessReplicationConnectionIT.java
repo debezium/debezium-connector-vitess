@@ -11,7 +11,6 @@ import static org.junit.Assert.fail;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -22,14 +21,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import org.awaitility.Awaitility;
+import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
-import io.debezium.util.Clock;
-import io.debezium.util.ElapsedTimeStrategy;
+import io.debezium.doc.FixFor;
 import io.debezium.util.SchemaNameAdjuster;
 
 import binlogdata.Binlogdata;
@@ -37,12 +36,13 @@ import binlogdata.Binlogdata;
 public class VitessReplicationConnectionIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessReplicationConnectionIT.class);
 
-    private static final String INSERT_STMT = "INSERT INTO t1 (int_col) VALUES (1);";
-    private static final List<String> SETUP_TABLES_STMT = Arrays.asList(
-            "DROP TABLE IF EXISTS t1;",
-            "CREATE TABLE t1 (id BIGINT NOT NULL AUTO_INCREMENT, int_col INT, PRIMARY KEY (id));");
-
     protected long pollTimeoutInMs = SECONDS.toMillis(5);
+
+    @Before
+    public void beforeEach() {
+        TestHelper.execute(TestHelper.SETUP_TABLES_STMT);
+        TestHelper.execute(TestHelper.INSERT_STMT);
+    }
 
     @Test
     public void shouldHaveVgtidInResponse() throws Exception {
@@ -50,10 +50,6 @@ public class VitessReplicationConnectionIT {
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
                 conf, SchemaNameAdjuster.create(), VitessTopicSelector.defaultSelector(conf));
-
-        // exercise SUT
-        TestHelper.execute(SETUP_TABLES_STMT);
-        TestHelper.execute(INSERT_STMT);
 
         AtomicReference<Throwable> error = new AtomicReference<>();
         try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
@@ -85,9 +81,10 @@ public class VitessReplicationConnectionIT {
                     .await()
                     .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
                     .until(started::get);
+            consumedMessages.clear();
             int expectedNumOfMessages = 3;
-            TestHelper.execute(INSERT_STMT);
-            List<MessageAndVgtid> messages = await(
+            TestHelper.execute(TestHelper.INSERT_STMT);
+            List<MessageAndVgtid> messages = awaitMessages(
                     TestHelper.waitTimeForRecords(),
                     SECONDS,
                     expectedNumOfMessages,
@@ -102,6 +99,83 @@ public class VitessReplicationConnectionIT {
 
             // verify outcome
             messages.forEach(m -> assertValidVgtid(m.getVgtid(), conf.getKeyspace(), conf.getShard()));
+            assertThat(messages.get(0).getMessage().getOperation().name()).isEqualTo("BEGIN");
+            assertThat(messages.get(1).getMessage().getOperation().name()).isEqualTo("INSERT");
+            assertThat(messages.get(2).getMessage().getOperation().name()).isEqualTo("COMMIT");
+        }
+        finally {
+            if (error.get() != null) {
+                LOGGER.error("Error during streaming", error.get());
+            }
+        }
+    }
+
+    @Test
+    @FixFor("DBZ-4353")
+    public void shouldReturnUpdatedSchemaWithOnlineDdl() throws Exception {
+        final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());
+        final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
+                conf, SchemaNameAdjuster.create(), VitessTopicSelector.defaultSelector(conf));
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
+            Vgtid startingVgtid = Vgtid.of(
+                    Binlogdata.VGtid.newBuilder()
+                            .addShardGtids(
+                                    Binlogdata.ShardGtid.newBuilder()
+                                            .setKeyspace(conf.getKeyspace())
+                                            .setShard(conf.getShard())
+                                            .setGtid("current")
+                                            .build())
+                            .build());
+
+            BlockingQueue<MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
+            AtomicBoolean started = new AtomicBoolean(false);
+            connection.startStreaming(
+                    startingVgtid,
+                    (message, vgtid, isLastRowEventOfTransaction) -> {
+                        if (!started.get()) {
+                            started.set(true);
+                        }
+                        consumedMessages.add(new MessageAndVgtid(message, vgtid));
+                    },
+                    error);
+            Awaitility
+                    .await()
+                    .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                    .until(started::get);
+            consumedMessages.clear();
+            // OnlineDDL is async, hence we issue the command and wait until it finishes
+            String ddlId = TestHelper.applyOnlineDdl("ALTER TABLE t1 ADD COLUMN name varchar(64)", TestHelper.TEST_UNSHARDED_KEYSPACE);
+            Awaitility
+                    .await()
+                    .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                    .pollInterval(Duration.ofSeconds(1))
+                    .until(() -> TestHelper.checkOnlineDDL(TestHelper.TEST_UNSHARDED_KEYSPACE, ddlId));
+            TestHelper.execute("UPDATE t1 SET name='abc' WHERE id=1");
+            MessageAndVgtid message = awaitOperation(
+                    TestHelper.waitTimeForRecords(),
+                    SECONDS,
+                    "UPDATE",
+                    () -> {
+                        try {
+                            return consumedMessages.poll(SECONDS.toMillis(5), TimeUnit.MILLISECONDS);
+                        }
+                        catch (InterruptedException e) {
+                            return null;
+                        }
+                    });
+            ReplicationMessage dml = message.getMessage();
+            assertThat(dml.getOperation().name()).isEqualTo("UPDATE");
+            // After the schema migration, both getOldTupleList and getNewTupleList has 3 fields
+            // the old one has null value whereas the new one has value set
+            assertThat(dml.getOldTupleList().get(0).getName()).isEqualTo("id");
+            assertThat(dml.getOldTupleList().get(1).getName()).isEqualTo("int_col");
+            assertThat(dml.getOldTupleList().get(2).getName()).isEqualTo("name");
+            assertThat(dml.getOldTupleList().get(2).getValue(false)).isNull();
+            assertThat(dml.getNewTupleList().get(0).getName()).isEqualTo("id");
+            assertThat(dml.getNewTupleList().get(1).getName()).isEqualTo("int_col");
+            assertThat(dml.getNewTupleList().get(2).getName()).isEqualTo("name");
+            assertThat(dml.getNewTupleList().get(2).getValue(false)).isEqualTo("abc");
         }
         finally {
             if (error.get() != null) {
@@ -116,6 +190,52 @@ public class VitessReplicationConnectionIT {
         assertThat(vgtid.getShardGtids().iterator().next().getShard()).isEqualTo(expectedShard);
         String gtid = vgtid.getShardGtids().iterator().next().getGtid();
         assertThat(gtid.startsWith("MySQL") || gtid.startsWith("MariaDB")).isTrue();
+    }
+
+    private static List<MessageAndVgtid> awaitMessages(
+                                                       long timeout, TimeUnit unit, int expectedNumOfMessages, Supplier<MessageAndVgtid> supplier) {
+        ConcurrentLinkedQueue<MessageAndVgtid> messages = new ConcurrentLinkedQueue<>();
+        Awaitility
+                .await()
+                .atMost(Duration.ofMillis(unit.toMillis(timeout)))
+                .until(() -> {
+                    final MessageAndVgtid r = supplier.get();
+                    if (r != null) {
+                        if (messages.size() >= expectedNumOfMessages) {
+                            fail("received more events than expected");
+                        }
+                        else {
+                            messages.add(r);
+                        }
+                        return messages.size() == expectedNumOfMessages;
+                    }
+                    return false;
+                });
+        if (messages.size() != expectedNumOfMessages) {
+            fail(
+                    "Consumer is still expecting "
+                            + (expectedNumOfMessages - messages.size())
+                            + " records, as it received only "
+                            + messages.size());
+        }
+        return new ArrayList<>(messages);
+    }
+
+    private static MessageAndVgtid awaitOperation(
+                                                  long timeout, TimeUnit unit, String expectedOperation, Supplier<MessageAndVgtid> supplier) {
+        AtomicReference<MessageAndVgtid> result = new AtomicReference<>();
+        Awaitility
+                .await()
+                .atMost(Duration.ofMillis(unit.toMillis(timeout)))
+                .until(() -> {
+                    final MessageAndVgtid r = supplier.get();
+                    if (r != null && r.getMessage().getOperation().name().equals(expectedOperation)) {
+                        result.set(r);
+                        return true;
+                    }
+                    return false;
+                });
+        return result.get();
     }
 
     private static class MessageAndVgtid {
@@ -133,45 +253,6 @@ public class VitessReplicationConnectionIT {
 
         public Vgtid getVgtid() {
             return vgtid;
-        }
-    }
-
-    protected List<MessageAndVgtid> await(
-                                          long timeout, TimeUnit unit, int expectedNumOfMessages, Supplier<MessageAndVgtid> supplier) {
-        final ElapsedTimeStrategy timer = ElapsedTimeStrategy.constant(Clock.SYSTEM, unit.toMillis(timeout));
-        timer.hasElapsed();
-
-        ConcurrentLinkedQueue<MessageAndVgtid> messages = new ConcurrentLinkedQueue<>();
-
-        while (!timer.hasElapsed()) {
-            final MessageAndVgtid r = supplier.get();
-            if (r != null) {
-                accept(r, expectedNumOfMessages, messages);
-                if (messages.size() == expectedNumOfMessages) {
-                    break;
-                }
-            }
-        }
-        if (messages.size() != expectedNumOfMessages) {
-            fail(
-                    "Consumer is still expecting "
-                            + (expectedNumOfMessages - messages.size())
-                            + " records, as it received only "
-                            + messages.size());
-        }
-
-        return new ArrayList<>(messages);
-    }
-
-    private void accept(
-                        MessageAndVgtid message,
-                        int expectedNumOfMessages,
-                        ConcurrentLinkedQueue<MessageAndVgtid> messages) {
-        if (messages.size() >= expectedNumOfMessages) {
-            fail("received more events than expected");
-        }
-        else {
-            messages.add(message);
         }
     }
 }

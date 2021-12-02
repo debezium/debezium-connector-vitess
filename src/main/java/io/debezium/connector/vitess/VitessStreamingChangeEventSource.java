@@ -71,7 +71,7 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
             }
             if (error.get() != null) {
                 LOGGER.error("Error during streaming", error.get());
-                throw new RuntimeException(error.get());
+                throw error.get();
             }
         }
         catch (Throwable e) {

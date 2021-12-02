@@ -5,6 +5,9 @@
  */
 package io.debezium.connector.vitess;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
@@ -106,6 +109,15 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDescription("Control StopOnReshard VStream flag."
                     + " If set true, the old VStream will be stopped after a reshard operation.");
 
+    public static final Field KEEPALIVE_INTERVAL_MS = Field.create(VITESS_CONFIG_GROUP_PREFIX + "keepalive.interval.ms")
+            .withDisplayName("VStream gRPC keepalive interval (ms)")
+            .withType(Type.LONG)
+            .withDefault(Long.MAX_VALUE)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription("Control the interval between periodic gPRC keepalive pings for VStream." +
+                    " Defaults to Long.MAX_VALUE (disabled).");
+
     public static final Field INCLUDE_UNKNOWN_DATATYPES = Field.create("include.unknown.datatypes")
             .withDisplayName("Include unknown datatypes")
             .withType(Type.BOOLEAN)
@@ -129,7 +141,8 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     VTGATE_USER,
                     VTGATE_PASSWORD,
                     TABLET_TYPE,
-                    STOP_ON_RESHARD_FLAG)
+                    STOP_ON_RESHARD_FLAG,
+                    KEEPALIVE_INTERVAL_MS)
             .events(INCLUDE_UNKNOWN_DATATYPES)
             .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST)
             .create();
@@ -197,6 +210,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public boolean getStopOnReshard() {
         return getConfig().getBoolean(STOP_ON_RESHARD_FLAG);
+    }
+
+    public Duration getKeepaliveInterval() {
+        return getConfig().getDuration(KEEPALIVE_INTERVAL_MS, ChronoUnit.MILLIS);
     }
 
     public boolean includeUnknownDatatypes() {

@@ -559,6 +559,13 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 .until(() -> logInterceptor.containsMessage("Default VGTID '[{\"keyspace\":"));
     }
 
+    private void waitForVStreamStarted(final LogInterceptor logInterceptor) {
+        // The inserts must happen only after VStream is started with some buffer time.
+        Awaitility.await().atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                .pollInterval(Duration.ofSeconds(1))
+                .until(() -> logInterceptor.containsMessage("Started VStream"));
+    }
+
     private void startConnector() throws InterruptedException {
         startConnector(false);
     }
@@ -576,9 +583,11 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig, boolean hasMultipleShards)
             throws InterruptedException {
         Configuration.Builder configBuilder = customConfig.apply(TestHelper.defaultConfig(hasMultipleShards));
+        final LogInterceptor logInterceptor = new LogInterceptor();
         start(VitessConnector.class, configBuilder.build());
         assertConnectorIsRunning();
         waitForStreamingRunning();
+        waitForVStreamStarted(logInterceptor);
     }
 
     private void waitForStreamingRunning() throws InterruptedException {

@@ -200,8 +200,9 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         return gtid.substring(0, idx) + seq;
     }
 
-    protected TestConsumer testConsumer(int expectedRecordsCount, String... topicPrefixes) {
-        return new TestConsumer(expectedRecordsCount, topicPrefixes);
+    protected TestConsumer testConsumer(int expectedRecordsCount, String... topicPrefixes) throws InterruptedException {
+        TestConsumer consumer = new TestConsumer(expectedRecordsCount, topicPrefixes);
+        return consumer;
     }
 
     /** Same as io.debezium.connector.postgresql.AbstractRecordsProducerTest.TestConsumer */

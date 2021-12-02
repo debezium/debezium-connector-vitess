@@ -171,6 +171,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                         .setFlags(vStreamFlags)
                         .build(),
                 responseObserver);
+        LOGGER.info("Started VStream");
     }
 
     private VitessGrpc.VitessStub newStub(ManagedChannel channel) {
@@ -194,6 +195,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
     private ManagedChannel newChannel(String vtgateHost, int vtgatePort) {
         ManagedChannel channel = ManagedChannelBuilder.forAddress(vtgateHost, vtgatePort)
                 .usePlaintext()
+                .keepAliveTime(config.getKeepaliveInterval().toMillis(), TimeUnit.MILLISECONDS)
                 .build();
         return channel;
     }

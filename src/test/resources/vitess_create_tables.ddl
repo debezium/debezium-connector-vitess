@@ -34,6 +34,8 @@ CREATE TABLE string_table
     text_col            TEXT,
     mediumtext_col      MEDIUMTEXT,
     longtext_col        LONGTEXT,
+    blob_col            BLOB,
+    mediumblob_col      MEDIUMBLOB,
     json_col            JSON,
     PRIMARY KEY (id)
 );

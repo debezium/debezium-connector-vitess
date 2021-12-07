@@ -78,8 +78,10 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
             + "text_col,"
             + "mediumtext_col,"
             + "longtext_col,"
+            + "blob_col,"
+            + "mediumblob_col,"
             + "json_col)"
-            + " VALUES ('a', 'bc', '상품 명1', 'リンゴ', 'd', 'ef', 'gh', 'ij', 'kl','mn', '{\"key1\": \"value1\", \"key2\": {\"key21\": \"value21\", \"key22\": \"value22\"}}');";
+            + " VALUES ('a', 'bc', '상품 명1', 'リンゴ', 'd', 'ef', 'gh', 'ij', 'kl','mn', 'op', 'qs', '{\"key1\": \"value1\", \"key2\": {\"key21\": \"value21\", \"key22\": \"value22\"}}');";
     protected static final String INSERT_ENUM_TYPE_STMT = "INSERT INTO enum_table (enum_col)" + " VALUES ('large');";
     protected static final String INSERT_SET_TYPE_STMT = "INSERT INTO set_table (set_col)" + " VALUES ('a,c');";
     protected static final String INSERT_TIME_TYPES_STMT = "INSERT INTO time_table ("
@@ -107,8 +109,8 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
                         new SchemaAndValueField("int_col", SchemaBuilder.OPTIONAL_INT32_SCHEMA, 1234),
                         new SchemaAndValueField("int_unsigned_col", SchemaBuilder.OPTIONAL_INT64_SCHEMA, 1234L),
                         new SchemaAndValueField("bigint_col", SchemaBuilder.OPTIONAL_INT64_SCHEMA, 12345L),
-                        new SchemaAndValueField("bigint_unsigned_col", SchemaBuilder.OPTIONAL_INT64_SCHEMA, 12345L),
-                        new SchemaAndValueField("bigint_unsigned_overflow_col", SchemaBuilder.OPTIONAL_INT64_SCHEMA, -1L),
+                        new SchemaAndValueField("bigint_unsigned_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "12345"),
+                        new SchemaAndValueField("bigint_unsigned_overflow_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "18446744073709551615"),
                         new SchemaAndValueField("float_col", SchemaBuilder.OPTIONAL_FLOAT64_SCHEMA, 1.5),
                         new SchemaAndValueField("double_col", SchemaBuilder.OPTIONAL_FLOAT64_SCHEMA, 2.5),
                         new SchemaAndValueField("decimal_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "12.3400"),
@@ -131,6 +133,8 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
                         new SchemaAndValueField("text_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "ij"),
                         new SchemaAndValueField("mediumtext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "kl"),
                         new SchemaAndValueField("longtext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "mn"),
+                        new SchemaAndValueField("blob_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "op"),
+                        new SchemaAndValueField("mediumblob_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "qs"),
                         new SchemaAndValueField("json_col", Json.builder().optional().build(),
                                 "{\"key1\":\"value1\",\"key2\":{\"key21\":\"value21\",\"key22\":\"value22\"}}")));
         return fields;

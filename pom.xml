@@ -173,10 +173,6 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-        </dependency>
         <!-- Building -->
         <dependency>
             <groupId>io.debezium</groupId>

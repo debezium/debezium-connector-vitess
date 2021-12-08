@@ -34,8 +34,9 @@ import org.junit.Assert;
 import org.junit.ComparisonFailure;
 import org.skyscreamer.jsonassert.JSONAssert;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.debezium.data.Json;
 import io.debezium.data.SchemaUtil;
@@ -90,7 +91,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
             + "year_col)"
             + " VALUES ('01:02:03', '2020-02-11', '2020-02-12 01:02:03', '2020-02-13 01:02:03', '2020')";
 
-    private static final Gson gson = new Gson();
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     protected List<SchemaAndValueField> schemasAndValuesForNumericTypes() {
         final List<SchemaAndValueField> fields = new ArrayList<>();
@@ -349,9 +350,14 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
 
         if (hasMultipleShards) {
             String shardGtidsInJson = offset.get(SourceInfo.VGTID).toString();
-            List<Vgtid.ShardGtid> shardGtids = gson.fromJson(shardGtidsInJson, new TypeToken<List<Vgtid.ShardGtid>>() {
-            }.getType());
-            assertThat(shardGtids.size() > 1).isTrue();
+            try {
+                List<Vgtid.ShardGtid> shardGtids = MAPPER.readValue(shardGtidsInJson, new TypeReference<List<Vgtid.ShardGtid>>() {
+                });
+                assertThat(shardGtids.size() > 1).isTrue();
+            }
+            catch (JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
         }
 
         if (expectedRecordOffset != null) {

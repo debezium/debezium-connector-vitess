@@ -54,9 +54,9 @@ public class VgtidTest {
 
         // verify outcome
         assertThat(vgtid.getRawVgtid()).isEqualTo(rawVgtid);
-        assertThat(vgtid.getShardGtids()).isEqualTo(Collect.arrayListOf(
+        assertThat(vgtid.getShardGtids()).containsExactly(
                 new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
-                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2)));
+                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2));
         assertThat(vgtid.toString()).isEqualTo(VGTID_JSON);
     }
 

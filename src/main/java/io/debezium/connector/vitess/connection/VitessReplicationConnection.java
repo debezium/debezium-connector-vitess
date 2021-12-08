@@ -68,9 +68,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
     @Override
     public void startStreaming(
                                Vgtid vgtid, ReplicationMessageProcessor processor, AtomicReference<Throwable> error) {
-        if (vgtid == null) {
-            Objects.requireNonNull(vgtid);
-        }
+        Objects.requireNonNull(vgtid);
 
         ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort());
         managedChannel.compareAndSet(null, channel);
@@ -97,7 +95,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                         if (vEvent.getType() == Binlogdata.VEventType.ROW) {
                             rowEventSeen++;
                         }
-                        boolean isLastRowEventOfTransaction = newVgtid != null && numOfRowEvents != 0 && rowEventSeen == numOfRowEvents ? true : false;
+                        boolean isLastRowEventOfTransaction = newVgtid != null && numOfRowEvents != 0 && rowEventSeen == numOfRowEvents;
                         messageDecoder.processMessage(response.getEvents(i), processor, newVgtid, isLastRowEventOfTransaction);
                     }
                 }

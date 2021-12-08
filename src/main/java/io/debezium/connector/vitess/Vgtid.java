@@ -5,23 +5,32 @@
  */
 package io.debezium.connector.vitess;
 
-import java.util.HashSet;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
 
 import binlogdata.Binlogdata;
 
-/** Vitess source position coordiates. */
+/** Vitess source position coordinates. */
 public class Vgtid {
     public static final String CURRENT_GTID = "current";
-    private static final Gson gson = new Gson();
+    public static final String KEYSPACE_KEY = "keyspace";
+    public static final String SHARD_KEY = "shard";
+    public static final String GTID_KEY = "gtid";
+
+    private static final Gson gson = new GsonBuilder().registerTypeAdapter(ShardGtid.class, new ShardGtidSerializer()).create();
 
     private final Binlogdata.VGtid rawVgtid;
-    private final Set<ShardGtid> shardGtids = new HashSet<>();
+    private final List<ShardGtid> shardGtids = new ArrayList<>();
 
     private Vgtid(Binlogdata.VGtid rawVgtid) {
         this.rawVgtid = rawVgtid;
@@ -63,7 +72,7 @@ public class Vgtid {
         return rawVgtid;
     }
 
-    public Set<ShardGtid> getShardGtids() {
+    public List<ShardGtid> getShardGtids() {
         return shardGtids;
     }
 
@@ -134,6 +143,20 @@ public class Vgtid {
         @Override
         public int hashCode() {
             return Objects.hash(keyspace, shard, gtid);
+        }
+    }
+
+    /**
+     * Ensure keys in JSON object are in expected order during serialization.
+     */
+    private static class ShardGtidSerializer implements JsonSerializer<ShardGtid> {
+        @Override
+        public JsonElement serialize(ShardGtid obj, Type type, JsonSerializationContext context) {
+            JsonObject json = new JsonObject();
+            json.add(KEYSPACE_KEY, context.serialize(obj.getKeyspace()));
+            json.add(SHARD_KEY, context.serialize(obj.getShard()));
+            json.add(GTID_KEY, context.serialize(obj.getGtid()));
+            return json;
         }
     }
 }

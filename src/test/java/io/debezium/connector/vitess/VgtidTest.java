@@ -54,7 +54,7 @@ public class VgtidTest {
 
         // verify outcome
         assertThat(vgtid.getRawVgtid()).isEqualTo(rawVgtid);
-        assertThat(vgtid.getShardGtids()).isEqualTo(Collect.unmodifiableSet(
+        assertThat(vgtid.getShardGtids()).isEqualTo(Collect.arrayListOf(
                 new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
                 new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2)));
         assertThat(vgtid.toString()).isEqualTo(VGTID_JSON);
@@ -85,7 +85,7 @@ public class VgtidTest {
                                 .build())
                         .build());
 
-        assertThat(vgtid.getShardGtids()).isEqualTo(Collect.unmodifiableSet(
+        assertThat(vgtid.getShardGtids()).isEqualTo(Collect.arrayListOf(
                 new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
                 new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2)));
 
@@ -94,11 +94,6 @@ public class VgtidTest {
 
     @Test
     public void shouldCreateFromShardGtidsInJson() {
-        // setup fixture
-        List<Vgtid.ShardGtid> shardGtids = Collect.arrayListOf(
-                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
-                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2));
-
         // exercise SUT
         Vgtid vgtid = Vgtid.of(VGTID_JSON);
 
@@ -117,10 +112,40 @@ public class VgtidTest {
                                 .build())
                         .build());
 
-        assertThat(vgtid.getShardGtids()).isEqualTo(Collect.unmodifiableSet(
+        assertThat(vgtid.getShardGtids()).isEqualTo(Collect.arrayListOf(
                 new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
                 new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2)));
 
         assertThat(vgtid.toString()).isEqualTo(VGTID_JSON);
+    }
+
+    @Test
+    public void shouldEqualsIfEqualityHolds() {
+        // setup fixture
+        Vgtid vgtid1 = Vgtid.of(VGTID_JSON);
+        Vgtid vgtid2 = Vgtid.of(VGTID_JSON);
+        Binlogdata.VGtid rawVgtid = Binlogdata.VGtid.newBuilder()
+                .addShardGtids(Binlogdata.ShardGtid.newBuilder()
+                        .setKeyspace(TEST_KEYSPACE)
+                        .setShard(TEST_SHARD)
+                        .setGtid(TEST_GTID)
+                        .build())
+                .addShardGtids(Binlogdata.ShardGtid.newBuilder()
+                        .setKeyspace(TEST_KEYSPACE)
+                        .setShard(TEST_SHARD2)
+                        .setGtid(TEST_GTID2)
+                        .build())
+                .build();
+        Vgtid vgtid3 = Vgtid.of(rawVgtid);
+        List<Vgtid.ShardGtid> shardGtids = Collect.arrayListOf(
+                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
+                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2));
+        Vgtid vgtid4 = Vgtid.of(shardGtids);
+        List<Vgtid> vgtids = Collect.arrayListOf(vgtid1, vgtid2, vgtid3, vgtid4);
+
+        // exercise SU
+        for (Vgtid vgtid : vgtids) {
+            assertThat(vgtids.stream().allMatch(vgtid::equals)).isTrue();
+        }
     }
 }

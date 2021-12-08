@@ -5,18 +5,16 @@
  */
 package io.debezium.connector.vitess;
 
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
-import com.google.gson.reflect.TypeToken;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import binlogdata.Binlogdata;
 
@@ -27,7 +25,7 @@ public class Vgtid {
     public static final String SHARD_KEY = "shard";
     public static final String GTID_KEY = "gtid";
 
-    private static final Gson gson = new GsonBuilder().registerTypeAdapter(ShardGtid.class, new ShardGtidSerializer()).create();
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final Binlogdata.VGtid rawVgtid;
     private final List<ShardGtid> shardGtids = new ArrayList<>();
@@ -55,9 +53,14 @@ public class Vgtid {
     }
 
     public static Vgtid of(String shardGtidsInJson) {
-        List<Vgtid.ShardGtid> shardGtids = gson.fromJson(shardGtidsInJson, new TypeToken<List<ShardGtid>>() {
-        }.getType());
-        return of(shardGtids);
+        try {
+            List<ShardGtid> shardGtids = MAPPER.readValue(shardGtidsInJson, new TypeReference<List<ShardGtid>>() {
+            });
+            return of(shardGtids);
+        }
+        catch (JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     public static Vgtid of(Binlogdata.VGtid rawVgtid) {
@@ -82,7 +85,12 @@ public class Vgtid {
 
     @Override
     public String toString() {
-        return gson.toJson(shardGtids);
+        try {
+            return MAPPER.writeValueAsString(shardGtids);
+        }
+        catch (JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Override
@@ -103,12 +111,14 @@ public class Vgtid {
         return Objects.hash(rawVgtid, shardGtids);
     }
 
+    @JsonPropertyOrder({ KEYSPACE_KEY, SHARD_KEY, GTID_KEY })
     public static class ShardGtid {
         private final String keyspace;
         private final String shard;
         private final String gtid;
 
-        public ShardGtid(String keyspace, String shard, String gtid) {
+        @JsonCreator
+        public ShardGtid(@JsonProperty(KEYSPACE_KEY) String keyspace, @JsonProperty(SHARD_KEY) String shard, @JsonProperty(GTID_KEY) String gtid) {
             this.keyspace = keyspace;
             this.shard = shard;
             this.gtid = gtid;
@@ -143,20 +153,6 @@ public class Vgtid {
         @Override
         public int hashCode() {
             return Objects.hash(keyspace, shard, gtid);
-        }
-    }
-
-    /**
-     * Ensure keys in JSON object are in expected order during serialization.
-     */
-    private static class ShardGtidSerializer implements JsonSerializer<ShardGtid> {
-        @Override
-        public JsonElement serialize(ShardGtid obj, Type type, JsonSerializationContext context) {
-            JsonObject json = new JsonObject();
-            json.add(KEYSPACE_KEY, context.serialize(obj.getKeyspace()));
-            json.add(SHARD_KEY, context.serialize(obj.getShard()));
-            json.add(GTID_KEY, context.serialize(obj.getGtid()));
-            return json;
         }
     }
 }

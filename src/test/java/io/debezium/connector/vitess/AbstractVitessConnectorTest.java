@@ -369,13 +369,12 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         }
     }
 
-    protected void assertSourceInfo(SourceRecord record, String name, String keyspace, String schema, String table) {
+    protected void assertSourceInfo(SourceRecord record, String name, String keyspace, String table) {
         assertTrue(record.value() instanceof Struct);
         Struct source = ((Struct) record.value()).getStruct("source");
         Assert.assertEquals(name, source.getString(SourceInfo.SERVER_NAME_KEY));
-        Assert.assertEquals(keyspace, source.getString(SourceInfo.DATABASE_NAME_KEY));
+        Assert.assertEquals("", source.getString(SourceInfo.DATABASE_NAME_KEY));
         Assert.assertEquals(keyspace, source.getString(SourceInfo.KEYSPACE_NAME_KEY));
-        Assert.assertEquals(schema, source.getString(SourceInfo.SCHEMA_NAME_KEY));
         Assert.assertEquals(table, source.getString(SourceInfo.TABLE_NAME_KEY));
         assertNotNull(source.getString(SourceInfo.VGTID_KEY));
     }

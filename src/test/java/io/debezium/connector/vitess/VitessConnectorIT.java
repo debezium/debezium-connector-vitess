@@ -229,7 +229,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 // last row event has the new vgtid
                 assertRecordOffset(record, RecordOffset.fromSourceInfo(record));
             }
-            assertSourceInfo(record, TestHelper.TEST_SERVER, TestHelper.TEST_UNSHARDED_KEYSPACE, table.schema(), table.table());
+            assertSourceInfo(record, TestHelper.TEST_SERVER, TestHelper.TEST_UNSHARDED_KEYSPACE, table.table());
             assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
         }
     }
@@ -275,7 +275,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 // last row event has the new vgtid
                 assertRecordOffset(record, RecordOffset.fromSourceInfo(record));
             }
-            assertSourceInfo(record, TestHelper.TEST_SERVER, TestHelper.TEST_UNSHARDED_KEYSPACE, table.schema(), table.table());
+            assertSourceInfo(record, TestHelper.TEST_SERVER, TestHelper.TEST_UNSHARDED_KEYSPACE, table.table());
             assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
         }
     }
@@ -373,7 +373,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertRecordInserted(record, expectedTopicName, TestHelper.PK_FIELD);
         assertRecordInserted(record, expectedTopicName, "int_col");
         assertRecordOffset(record, hasMultipleShards);
-        assertSourceInfo(record, TestHelper.TEST_SERVER, TestHelper.TEST_SHARDED_KEYSPACE, table.schema(), table.table());
+        assertSourceInfo(record, TestHelper.TEST_SERVER, TestHelper.TEST_SHARDED_KEYSPACE, table.table());
     }
 
     @Test
@@ -606,7 +606,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
      *
      * @param statement The insert sql statement
      * @param expectedSchemaAndValuesByColumn The expected column type and value
-     * @param database The database (a.k.a keyspace or schema) name
      * @param pkField The primary key column's name
      * @param hasMultipleShards whether the keyspace has multiple shards
      * @return The {@link SourceRecord} generated from the insert event
@@ -623,7 +622,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
             executeAndWait(statement, keyspace);
             SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(statement, keyspace), pkField);
             assertRecordOffset(record, hasMultipleShards);
-            assertSourceInfo(record, TestHelper.TEST_SERVER, keyspace, table.schema(), table.table());
+            assertSourceInfo(record, TestHelper.TEST_SERVER, keyspace, table.table());
             if (expectedSchemaAndValuesByColumn != null && !expectedSchemaAndValuesByColumn.isEmpty()) {
                 assertRecordSchemaAndValues(
                         expectedSchemaAndValuesByColumn, record, Envelope.FieldName.AFTER);

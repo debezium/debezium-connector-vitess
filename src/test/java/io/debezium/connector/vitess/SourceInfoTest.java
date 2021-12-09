@@ -46,7 +46,7 @@ public class SourceInfoTest {
         final VitessConnectorConfig connectorConfig = new VitessConnectorConfig(
                 Configuration.create()
                         .with(RelationalDatabaseConnectorConfig.SERVER_NAME, "server_foo")
-                        .with(VitessConnectorConfig.KEYSPACE, AnonymousValue.getString())
+                        .with(VitessConnectorConfig.KEYSPACE, TEST_KEYSPACE)
                         .with(VitessConnectorConfig.SHARD, AnonymousValue.getString())
                         .with(VitessConnectorConfig.VTGATE_HOST, AnonymousValue.getString())
                         .with(VitessConnectorConfig.VTGATE_PORT, AnonymousValue.getInt())
@@ -81,7 +81,7 @@ public class SourceInfoTest {
 
     @Test
     public void vgtidKeyspaceIsPresent() {
-        assertThat(source.struct().getString(SourceInfo.VGTID)).isEqualTo(VGTID_JSON);
+        assertThat(source.struct().getString(SourceInfo.VGTID_KEY)).isEqualTo(VGTID_JSON);
     }
 
     @Test
@@ -97,9 +97,14 @@ public class SourceInfoTest {
 
     @Test
     public void tableIdIsPresent() {
-        assertThat(source.struct().getString(SourceInfo.DATABASE_NAME_KEY)).isEqualTo("server_foo");
+        assertThat(source.struct().getString(SourceInfo.DATABASE_NAME_KEY)).isEqualTo(TEST_KEYSPACE);
         assertThat(source.struct().getString(SourceInfo.SCHEMA_NAME_KEY)).isEqualTo("s");
         assertThat(source.struct().getString(SourceInfo.TABLE_NAME_KEY)).isEqualTo("t");
+    }
+
+    @Test
+    public void keyspaceIsPresent() {
+        assertThat(source.struct().getString(SourceInfo.KEYSPACE_NAME_KEY)).isEqualTo(TEST_KEYSPACE);
     }
 
     @Test
@@ -113,6 +118,7 @@ public class SourceInfoTest {
                 .field("snapshot", AbstractSourceInfoStructMaker.SNAPSHOT_RECORD_SCHEMA)
                 .field("db", Schema.STRING_SCHEMA)
                 .field("sequence", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("keyspace", Schema.STRING_SCHEMA)
                 .field("schema", Schema.STRING_SCHEMA)
                 .field("table", Schema.STRING_SCHEMA)
                 .field("vgtid", Schema.STRING_SCHEMA)

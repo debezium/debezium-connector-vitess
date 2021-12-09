@@ -78,7 +78,7 @@ public class VitessOffsetContext implements OffsetContext {
     public Map<String, ?> getOffset() {
         Map<String, Object> result = new HashMap<>();
         if (sourceInfo.getRestartVgtid() != null) {
-            result.put(SourceInfo.VGTID, sourceInfo.getRestartVgtid().toString());
+            result.put(SourceInfo.VGTID_KEY, sourceInfo.getRestartVgtid().toString());
         }
         // put OFFSET_TRANSACTION_ID
         return transactionContext.store(result);
@@ -144,7 +144,7 @@ public class VitessOffsetContext implements OffsetContext {
 
         @Override
         public VitessOffsetContext load(Map<String, ?> offset) {
-            final String vgtid = (String) offset.get(SourceInfo.VGTID);
+            final String vgtid = (String) offset.get(SourceInfo.VGTID_KEY);
             return new VitessOffsetContext(
                     connectorConfig,
                     Vgtid.of(vgtid),

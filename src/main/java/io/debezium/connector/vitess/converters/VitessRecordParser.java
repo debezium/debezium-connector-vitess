@@ -11,6 +11,7 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.DataException;
 
+import io.debezium.connector.vitess.SourceInfo;
 import io.debezium.converters.spi.RecordParser;
 import io.debezium.data.Envelope;
 import io.debezium.util.Collect;
@@ -22,11 +23,9 @@ import io.debezium.util.Collect;
  */
 public class VitessRecordParser extends RecordParser {
 
-    static final String VGTID_KEY = "vgtid";
+    private static final Set<String> VITESS_SOURCE_FIELD = Collect.unmodifiableSet(SourceInfo.VGTID_KEY, SourceInfo.KEYSPACE_NAME_KEY);
 
-    static final Set<String> VITESS_SOURCE_FIELD = Collect.unmodifiableSet(VGTID_KEY);
-
-    VitessRecordParser(Schema schema, Struct record) {
+    public VitessRecordParser(Schema schema, Struct record) {
         super(schema, record, Envelope.FieldName.BEFORE, Envelope.FieldName.AFTER);
     }
 

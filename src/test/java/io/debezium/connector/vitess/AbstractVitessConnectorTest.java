@@ -175,7 +175,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         return tableIdFromInsertStmt(statement, TestHelper.TEST_UNSHARDED_KEYSPACE);
     }
 
-    protected static TableId tableIdFromInsertStmt(String statement, String database) {
+    protected static TableId tableIdFromInsertStmt(String statement, String keyspace) {
         Matcher matcher = INSERT_TABLE_MATCHING_PATTERN.matcher(statement);
         assertTrue(
                 "Extraction of table name from insert statement failed: " + statement, matcher.matches());
@@ -183,7 +183,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         TableId id = TableId.parse(matcher.group(1), false);
 
         if (id.schema() == null) {
-            id = new TableId(id.catalog(), database, id.table());
+            id = new TableId(id.catalog(), keyspace, id.table());
         }
 
         return id;
@@ -193,8 +193,8 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         return topicNameFromInsertStmt(statement, TestHelper.TEST_UNSHARDED_KEYSPACE);
     }
 
-    protected static String topicNameFromInsertStmt(String statement, String database) {
-        TableId table = tableIdFromInsertStmt(statement, database);
+    protected static String topicNameFromInsertStmt(String statement, String keyspace) {
+        TableId table = tableIdFromInsertStmt(statement, keyspace);
         String expectedTopicName = table.schema() + "." + table.table();
         return expectedTopicName;
     }
@@ -348,12 +348,12 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
      */
     protected void assertRecordOffset(SourceRecord record, RecordOffset expectedRecordOffset, boolean hasMultipleShards) {
         Map<String, ?> offset = record.sourceOffset();
-        assertNotNull(offset.get(SourceInfo.VGTID));
+        assertNotNull(offset.get(SourceInfo.VGTID_KEY));
         Object snapshot = offset.get(SourceInfo.SNAPSHOT_KEY);
         assertNull("Snapshot marker not expected, but found", snapshot);
 
         if (hasMultipleShards) {
-            String shardGtidsInJson = offset.get(SourceInfo.VGTID).toString();
+            String shardGtidsInJson = offset.get(SourceInfo.VGTID_KEY).toString();
             try {
                 List<Vgtid.ShardGtid> shardGtids = MAPPER.readValue(shardGtidsInJson, new TypeReference<List<Vgtid.ShardGtid>>() {
                 });
@@ -365,17 +365,19 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         }
 
         if (expectedRecordOffset != null) {
-            Assert.assertEquals(expectedRecordOffset.getVgtid(), offset.get(SourceInfo.VGTID));
+            Assert.assertEquals(expectedRecordOffset.getVgtid(), offset.get(SourceInfo.VGTID_KEY));
         }
     }
 
-    protected void assertSourceInfo(SourceRecord record, String db, String schema, String table) {
+    protected void assertSourceInfo(SourceRecord record, String name, String keyspace, String schema, String table) {
         assertTrue(record.value() instanceof Struct);
         Struct source = ((Struct) record.value()).getStruct("source");
-        Assert.assertEquals(db, source.getString(SourceInfo.DATABASE_NAME_KEY));
+        Assert.assertEquals(name, source.getString(SourceInfo.SERVER_NAME_KEY));
+        Assert.assertEquals(keyspace, source.getString(SourceInfo.DATABASE_NAME_KEY));
+        Assert.assertEquals(keyspace, source.getString(SourceInfo.KEYSPACE_NAME_KEY));
         Assert.assertEquals(schema, source.getString(SourceInfo.SCHEMA_NAME_KEY));
         Assert.assertEquals(table, source.getString(SourceInfo.TABLE_NAME_KEY));
-        assertNotNull(source.getString(SourceInfo.VGTID));
+        assertNotNull(source.getString(SourceInfo.VGTID_KEY));
     }
 
     protected void assertRecordSchemaAndValues(
@@ -418,7 +420,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         public static RecordOffset fromSourceInfo(SourceRecord record) {
             if (record.value() instanceof Struct) {
                 Struct source = ((Struct) record.value()).getStruct("source");
-                return new RecordOffset(source.getString(SourceInfo.VGTID));
+                return new RecordOffset(source.getString(SourceInfo.VGTID_KEY));
             }
             else {
                 throw new IllegalArgumentException("Record value is not a struct");
@@ -431,7 +433,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
          */
         protected void assertFor(SourceRecord record) {
             Map<String, ?> offset = record.sourceOffset();
-            Assert.assertEquals(vgtid, offset.get(SourceInfo.VGTID));
+            Assert.assertEquals(vgtid, offset.get(SourceInfo.VGTID_KEY));
         }
     }
 

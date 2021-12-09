@@ -41,6 +41,11 @@ public class SourceInfo extends BaseSourceInfo {
 
     @Override
     protected String database() {
+        // Override DATABASE_NAME_KEY to empty string and in favor of KEYSPACE_NAME_KEY
+        return "";
+    }
+
+    protected String keyspace() {
         return keyspace;
     }
 

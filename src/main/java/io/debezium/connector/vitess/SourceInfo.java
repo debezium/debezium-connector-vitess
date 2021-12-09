@@ -8,7 +8,6 @@ package io.debezium.connector.vitess;
 import java.time.Instant;
 
 import io.debezium.annotation.NotThreadSafe;
-import io.debezium.config.CommonConnectorConfig;
 import io.debezium.connector.common.BaseSourceInfo;
 import io.debezium.relational.TableId;
 
@@ -18,9 +17,10 @@ import io.debezium.relational.TableId;
  */
 @NotThreadSafe
 public class SourceInfo extends BaseSourceInfo {
-    public static final String VGTID = "vgtid";
+    public static final String VGTID_KEY = "vgtid";
+    public static final String KEYSPACE_NAME_KEY = "keyspace";
 
-    private final String dbServerName;
+    private final String keyspace;
 
     private Vgtid currentVgtid;
 
@@ -29,9 +29,9 @@ public class SourceInfo extends BaseSourceInfo {
     // kafka offset topic stores restartVgtid, it is the previous commited transaction vgtid
     private Vgtid restartVgtid;
 
-    public SourceInfo(CommonConnectorConfig config) {
+    public SourceInfo(VitessConnectorConfig config) {
         super(config);
-        this.dbServerName = config.getLogicalName();
+        this.keyspace = config.getKeyspace();
     }
 
     @Override
@@ -41,7 +41,7 @@ public class SourceInfo extends BaseSourceInfo {
 
     @Override
     protected String database() {
-        return dbServerName;
+        return keyspace;
     }
 
     public TableId getTableId() {

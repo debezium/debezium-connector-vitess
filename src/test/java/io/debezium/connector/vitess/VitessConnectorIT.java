@@ -155,7 +155,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         String expectedOffset = RecordOffset
                 .fromSourceInfo(sourceRecord)
                 .incrementOffset(numOfGtidsFromDdl + 1).getVgtid();
-        String actualOffset = (String) sourceRecord2.sourceOffset().get(SourceInfo.VGTID);
+        String actualOffset = (String) sourceRecord2.sourceOffset().get(SourceInfo.VGTID_KEY);
         Assert.assertEquals(expectedOffset, actualOffset);
     }
 
@@ -229,7 +229,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 // last row event has the new vgtid
                 assertRecordOffset(record, RecordOffset.fromSourceInfo(record));
             }
-            assertSourceInfo(record, TestHelper.TEST_SERVER, table.schema(), table.table());
+            assertSourceInfo(record, TestHelper.TEST_SERVER, TestHelper.TEST_UNSHARDED_KEYSPACE, table.schema(), table.table());
             assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
         }
     }
@@ -275,7 +275,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 // last row event has the new vgtid
                 assertRecordOffset(record, RecordOffset.fromSourceInfo(record));
             }
-            assertSourceInfo(record, TestHelper.TEST_SERVER, table.schema(), table.table());
+            assertSourceInfo(record, TestHelper.TEST_SERVER, TestHelper.TEST_UNSHARDED_KEYSPACE, table.schema(), table.table());
             assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
         }
     }
@@ -373,7 +373,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertRecordInserted(record, expectedTopicName, TestHelper.PK_FIELD);
         assertRecordInserted(record, expectedTopicName, "int_col");
         assertRecordOffset(record, hasMultipleShards);
-        assertSourceInfo(record, TestHelper.TEST_SERVER, table.schema(), table.table());
+        assertSourceInfo(record, TestHelper.TEST_SERVER, TestHelper.TEST_SHARDED_KEYSPACE, table.schema(), table.table());
     }
 
     @Test
@@ -614,16 +614,16 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     private SourceRecord assertInsert(
                                       String statement,
                                       List<SchemaAndValueField> expectedSchemaAndValuesByColumn,
-                                      String database,
+                                      String keyspace,
                                       String pkField,
                                       boolean hasMultipleShards) {
-        TableId table = tableIdFromInsertStmt(statement, database);
+        TableId table = tableIdFromInsertStmt(statement, keyspace);
 
         try {
-            executeAndWait(statement, database);
-            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(statement, database), pkField);
+            executeAndWait(statement, keyspace);
+            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(statement, keyspace), pkField);
             assertRecordOffset(record, hasMultipleShards);
-            assertSourceInfo(record, TestHelper.TEST_SERVER, table.schema(), table.table());
+            assertSourceInfo(record, TestHelper.TEST_SERVER, keyspace, table.schema(), table.table());
             if (expectedSchemaAndValuesByColumn != null && !expectedSchemaAndValuesByColumn.isEmpty()) {
                 assertRecordSchemaAndValues(
                         expectedSchemaAndValuesByColumn, record, Envelope.FieldName.AFTER);

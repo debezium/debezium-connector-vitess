@@ -44,8 +44,8 @@ public class VitessEventMetadataProvider implements EventMetadataProvider {
         }
 
         return Collect.hashMapOf(
-                SourceInfo.VGTID,
-                sourceInfo.getString(SourceInfo.VGTID));
+                SourceInfo.VGTID_KEY,
+                sourceInfo.getString(SourceInfo.VGTID_KEY));
     }
 
     @Override
@@ -58,7 +58,7 @@ public class VitessEventMetadataProvider implements EventMetadataProvider {
 
         final Struct sourceInfo = value.getStruct(Envelope.FieldName.SOURCE);
         // Use the entire VGTID as transaction id
-        return sourceInfo.getString(SourceInfo.VGTID);
+        return sourceInfo.getString(SourceInfo.VGTID_KEY);
     }
 
 }

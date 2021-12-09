@@ -6,6 +6,7 @@
 package io.debezium.connector.vitess.converters;
 
 import io.debezium.connector.AbstractSourceInfo;
+import io.debezium.connector.vitess.SourceInfo;
 import io.debezium.converters.spi.CloudEventsMaker;
 import io.debezium.converters.spi.RecordParser;
 import io.debezium.converters.spi.SerializerType;
@@ -24,6 +25,6 @@ public class VitessCloudEventsMaker extends CloudEventsMaker {
     @Override
     public String ceId() {
         return "name:" + recordParser.getMetadata(AbstractSourceInfo.SERVER_NAME_KEY)
-                + ";vgtid:" + recordParser.getMetadata(VitessRecordParser.VGTID_KEY);
+                + ";vgtid:" + recordParser.getMetadata(SourceInfo.VGTID_KEY);
     }
 }

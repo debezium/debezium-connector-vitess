@@ -42,7 +42,7 @@ public class VitessOffsetContextTest {
         loader = new VitessOffsetContext.Loader(
                 new VitessConnectorConfig(TestHelper.defaultConfig().build()));
 
-        offsetContext = (VitessOffsetContext) loader.load(Collect.hashMapOf(SourceInfo.VGTID, VGTID_JSON));
+        offsetContext = (VitessOffsetContext) loader.load(Collect.hashMapOf(SourceInfo.VGTID_KEY, VGTID_JSON));
     }
 
     @Test
@@ -78,7 +78,7 @@ public class VitessOffsetContextTest {
     public void shouldBeAbleToConvertToOffset() {
         Map<String, ?> offset = offsetContext.getOffset();
         assertThat(offset).isNotNull();
-        assertThat(offset.get(SourceInfo.VGTID)).isEqualTo(VGTID_JSON);
+        assertThat(offset.get(SourceInfo.VGTID_KEY)).isEqualTo(VGTID_JSON);
     }
 
     @Test

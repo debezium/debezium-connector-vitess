@@ -34,9 +34,7 @@ public class VitessSourceInfoStructMaker extends AbstractSourceInfoStructMaker<S
     @Override
     public Struct struct(SourceInfo sourceInfo) {
         final Struct res = super.commonStruct(sourceInfo)
-                .put(SourceInfo.KEYSPACE_NAME_KEY, sourceInfo.database())
-                // Override DATABASE_NAME_KEY to empty string and in favor of KEYSPACE_NAME_KEY
-                .put(SourceInfo.DATABASE_NAME_KEY, "")
+                .put(SourceInfo.KEYSPACE_NAME_KEY, sourceInfo.keyspace())
                 .put(SourceInfo.TABLE_NAME_KEY, sourceInfo.getTableId().table())
                 .put(SourceInfo.VGTID_KEY, sourceInfo.getCurrentVgtid().toString());
         return res;

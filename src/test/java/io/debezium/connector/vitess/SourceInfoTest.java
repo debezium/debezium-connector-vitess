@@ -106,7 +106,7 @@ public class SourceInfoTest {
     }
 
     @Test
-    public void keyspaceAndTableArePresent() {
+    public void keyspaceIsPresent() {
         assertThat(source.struct().getString(SourceInfo.KEYSPACE_NAME_KEY)).isEqualTo(TEST_KEYSPACE);
     }
 

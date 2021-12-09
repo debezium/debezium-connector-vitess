@@ -96,14 +96,17 @@ public class SourceInfoTest {
     }
 
     @Test
-    public void tableIdIsPresent() {
-        assertThat(source.struct().getString(SourceInfo.DATABASE_NAME_KEY)).isEqualTo(TEST_KEYSPACE);
-        assertThat(source.struct().getString(SourceInfo.SCHEMA_NAME_KEY)).isEqualTo("s");
+    public void databaseIsEmpty() {
+        assertThat(source.struct().getString(SourceInfo.DATABASE_NAME_KEY)).isEmpty();
+    }
+
+    @Test
+    public void tableIsPresent() {
         assertThat(source.struct().getString(SourceInfo.TABLE_NAME_KEY)).isEqualTo("t");
     }
 
     @Test
-    public void keyspaceIsPresent() {
+    public void keyspaceAndTableArePresent() {
         assertThat(source.struct().getString(SourceInfo.KEYSPACE_NAME_KEY)).isEqualTo(TEST_KEYSPACE);
     }
 
@@ -119,7 +122,6 @@ public class SourceInfoTest {
                 .field("db", Schema.STRING_SCHEMA)
                 .field("sequence", Schema.OPTIONAL_STRING_SCHEMA)
                 .field("keyspace", Schema.STRING_SCHEMA)
-                .field("schema", Schema.STRING_SCHEMA)
                 .field("table", Schema.STRING_SCHEMA)
                 .field("vgtid", Schema.STRING_SCHEMA)
                 .build();

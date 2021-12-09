@@ -41,8 +41,6 @@ public class VitessSourceInfoStructMakerTest {
 
         assertThat(structMaker.schema().field(SourceInfo.KEYSPACE_NAME_KEY).schema())
                 .isEqualTo(Schema.STRING_SCHEMA);
-        assertThat(structMaker.schema().field(SourceInfo.SCHEMA_NAME_KEY).schema())
-                .isEqualTo(Schema.STRING_SCHEMA);
         assertThat(structMaker.schema().field(SourceInfo.TABLE_NAME_KEY).schema())
                 .isEqualTo(Schema.STRING_SCHEMA);
         assertThat(structMaker.schema().field(SourceInfo.VGTID_KEY).schema())
@@ -74,7 +72,6 @@ public class VitessSourceInfoStructMakerTest {
 
         // verify outcome
         assertThat(struct.getString(SourceInfo.KEYSPACE_NAME_KEY)).isEqualTo(TestHelper.TEST_UNSHARDED_KEYSPACE);
-        assertThat(struct.getString(SourceInfo.SCHEMA_NAME_KEY)).isEqualTo(schemaName);
         assertThat(struct.getString(SourceInfo.TABLE_NAME_KEY)).isEqualTo(tableName);
         assertThat(struct.getString(SourceInfo.VGTID_KEY)).isEqualTo(VGTID_JSON);
     }

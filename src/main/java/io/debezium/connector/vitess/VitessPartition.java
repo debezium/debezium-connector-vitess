@@ -14,17 +14,28 @@ import io.debezium.pipeline.spi.Partition;
 import io.debezium.util.Collect;
 
 public class VitessPartition implements Partition {
-    private static final String SERVER_PARTITION_KEY = "server";
+    private static final String SERVER_KEY = "server";
+    private static final String SHARD_KEY = "shard";
 
     private final String serverName;
+    private final String shard;
 
     public VitessPartition(String serverName) {
         this.serverName = serverName;
+        this.shard = null;
+    }
+
+    public VitessPartition(String serverName, String shard) {
+        this.serverName = serverName;
+        this.shard = shard;
     }
 
     @Override
     public Map<String, String> getSourcePartition() {
-        return Collect.hashMapOf(SERVER_PARTITION_KEY, serverName);
+        if (shard == null) {
+            return Collect.hashMapOf(SERVER_KEY, serverName);
+        }
+        return Collect.hashMapOf(SERVER_KEY, serverName, SHARD_KEY, shard);
     }
 
     @Override
@@ -36,12 +47,15 @@ public class VitessPartition implements Partition {
             return false;
         }
         final VitessPartition other = (VitessPartition) obj;
-        return Objects.equals(serverName, other.serverName);
+        return Objects.equals(serverName, other.serverName) && Objects.equals(shard, other.shard);
     }
 
     @Override
     public int hashCode() {
-        return serverName.hashCode();
+        if (shard == null) {
+            return serverName.hashCode();
+        }
+        return Objects.hash(serverName, shard);
     }
 
     static class Provider implements Partition.Provider<VitessPartition> {
@@ -53,7 +67,8 @@ public class VitessPartition implements Partition {
 
         @Override
         public Set<VitessPartition> getPartitions() {
-            return Collections.singleton(new VitessPartition(connectorConfig.getLogicalName()));
+            String shard = connectorConfig.getShard();
+            return Collections.singleton(new VitessPartition(connectorConfig.getLogicalName(), shard));
         }
     }
 }

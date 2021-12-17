@@ -32,6 +32,22 @@
         <vitess.vtctld.grpc.port>15999</vitess.vtctld.grpc.port>
     </properties>
 
+    <repositories>
+        <repository>
+            <id>oss</id>
+            <name>OSS Sonatype Nexus</name>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+            <releases>
+                <enabled>true</enabled>
+                <updatePolicy>never</updatePolicy>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>never</updatePolicy>
+            </snapshots>
+        </repository>
+    </repositories>
+
     <!-- Managing versions here to ensure the right ones are applied during releases -->
     <dependencyManagement>
         <dependencies>

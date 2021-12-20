@@ -44,6 +44,11 @@ public class VitessPartition implements Partition {
         return serverName.hashCode();
     }
 
+    @Override
+    public String toString() {
+        return "VitessPartition [sourcePartition=" + getSourcePartition() + "]";
+    }
+
     static class Provider implements Partition.Provider<VitessPartition> {
         private final VitessConnectorConfig connectorConfig;
 

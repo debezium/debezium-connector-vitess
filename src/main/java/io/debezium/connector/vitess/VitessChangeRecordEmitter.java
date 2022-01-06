@@ -54,7 +54,7 @@ class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter {
     }
 
     @Override
-    protected Envelope.Operation getOperation() {
+    public Envelope.Operation getOperation() {
         switch (message.getOperation()) {
             case INSERT:
                 return Envelope.Operation.CREATE;

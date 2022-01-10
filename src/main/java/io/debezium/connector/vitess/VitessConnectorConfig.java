@@ -7,10 +7,15 @@ package io.debezium.connector.vitess;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.debezium.config.ConfigDefinition;
 import io.debezium.config.Configuration;
@@ -26,6 +31,8 @@ import io.debezium.relational.RelationalDatabaseConnectorConfig;
  * configurations from Debezium.
  */
 public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(VitessConnectorConfig.class);
 
     private static final String VITESS_CONFIG_GROUP_PREFIX = "vitess.";
     private static final int DEFAULT_VTGATE_PORT = 15_991;
@@ -118,6 +125,14 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDescription("Control the interval between periodic gPRC keepalive pings for VStream." +
                     " Defaults to Long.MAX_VALUE (disabled).");
 
+    public static final Field GRPC_HEADERS = Field.create(VITESS_CONFIG_GROUP_PREFIX + "grpc.headers")
+            .withDisplayName("VStream gRPC headers")
+            .withType(Type.STRING)
+            .withWidth(Width.LONG)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription("Specify a comma-separated list of gRPC headers." +
+                    " Defaults to empty");
+
     public static final Field INCLUDE_UNKNOWN_DATATYPES = Field.create("include.unknown.datatypes")
             .withDisplayName("Include unknown datatypes")
             .withType(Type.BOOLEAN)
@@ -142,7 +157,8 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     VTGATE_PASSWORD,
                     TABLET_TYPE,
                     STOP_ON_RESHARD_FLAG,
-                    KEEPALIVE_INTERVAL_MS)
+                    KEEPALIVE_INTERVAL_MS,
+                    GRPC_HEADERS)
             .events(INCLUDE_UNKNOWN_DATATYPES)
             .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST)
             .create();
@@ -214,6 +230,28 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public Duration getKeepaliveInterval() {
         return getConfig().getDuration(KEEPALIVE_INTERVAL_MS, ChronoUnit.MILLIS);
+    }
+
+    public Map<String, String> getGrpcHeaders() {
+        String grpcHeaders = getConfig().getString(GRPC_HEADERS);
+
+        if (grpcHeaders == null) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, String> grpcHeadersMap = new HashMap<>();
+
+        for (String header : grpcHeaders.split(",")) {
+            String[] keyAndValue = header.split(":");
+            if (keyAndValue.length == 2) {
+                grpcHeadersMap.put(keyAndValue[0], keyAndValue[1]);
+            }
+            else {
+                LOGGER.warn("The following gRPC header is invalid: {}", header);
+            }
+        }
+
+        return Collections.unmodifiableMap(grpcHeadersMap);
     }
 
     public boolean includeUnknownDatatypes() {

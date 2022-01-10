@@ -7,6 +7,7 @@ package io.debezium.connector.vitess.connection;
 
 import java.util.Collections;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -19,9 +20,11 @@ import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.Metadata;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.AbstractStub;
+import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 import io.vitess.client.Proto;
 import io.vitess.client.grpc.StaticAuthCredentials;
@@ -74,6 +77,17 @@ public class VitessReplicationConnection implements ReplicationConnection {
         managedChannel.compareAndSet(null, channel);
 
         VitessGrpc.VitessStub stub = newStub(channel);
+
+        Map<String, String> grpcHeaders = config.getGrpcHeaders();
+        if (!grpcHeaders.isEmpty()) {
+            LOGGER.info("Setting VStream gRPC headers: {}", grpcHeaders);
+            Metadata metadata = new Metadata();
+            for (Map.Entry<String, String> entry : grpcHeaders.entrySet()) {
+                metadata.put(Metadata.Key.of(entry.getKey(), Metadata.ASCII_STRING_MARSHALLER), entry.getValue());
+            }
+            stub = MetadataUtils.attachHeaders(stub, metadata);
+        }
+
         StreamObserver<Vtgate.VStreamResponse> responseObserver = new StreamObserver<Vtgate.VStreamResponse>() {
 
             @Override

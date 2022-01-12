@@ -5,8 +5,6 @@
  */
 package io.debezium.connector.vitess;
 
-import static io.grpc.Status.Code.UNAVAILABLE;
-
 import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.pipeline.ErrorHandler;
 import io.grpc.StatusRuntimeException;
@@ -20,7 +18,16 @@ public class VitessErrorHandler extends ErrorHandler {
     protected boolean isRetriable(Throwable throwable) {
         if (throwable instanceof StatusRuntimeException) {
             final StatusRuntimeException exception = (StatusRuntimeException) throwable;
-            return exception.getStatus().getCode().equals(UNAVAILABLE);
+            switch (exception.getStatus().getCode()) {
+                case UNAVAILABLE:
+                    return true;
+                case UNKNOWN:
+                    String description = exception.getStatus().getDescription();
+                    // Stream timeout error due to idle VStream.
+                    if (description != null && description.equals("stream timeout")) {
+                        return true;
+                    }
+            }
         }
         return false;
     }

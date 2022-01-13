@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
+import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.converters.CloudEventsConverterTest;
 import io.debezium.converters.spi.CloudEventsMaker;
 import io.debezium.data.Envelope;
@@ -379,7 +380,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @Test
     @FixFor("DBZ-2578")
     public void shouldUseUniqueKeyAsRecordKey() throws Exception {
-        final LogInterceptor logInterceptor = new LogInterceptor();
+        final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
         final boolean hasMultipleShards = true;
 
         TestHelper.executeDDL("vitess_create_tables.ddl", TestHelper.TEST_SHARDED_KEYSPACE);
@@ -521,7 +522,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @Test
     @FixFor("DBZ-3668")
     public void shouldOutputRecordsInCloudEventsFormat() throws Exception {
-        final LogInterceptor logInterceptor = new LogInterceptor();
+        final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
         TestHelper.executeDDL("vitess_create_tables.ddl");
 
         startConnector();
@@ -583,7 +584,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig, boolean hasMultipleShards)
             throws InterruptedException {
         Configuration.Builder configBuilder = customConfig.apply(TestHelper.defaultConfig(hasMultipleShards));
-        final LogInterceptor logInterceptor = new LogInterceptor();
+        final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
         start(VitessConnector.class, configBuilder.build());
         assertConnectorIsRunning();
         waitForStreamingRunning();

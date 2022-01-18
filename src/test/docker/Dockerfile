@@ -1,10 +1,11 @@
 # Use a temporary layer for the build stage.
-FROM vitess/base:v12.0.0 AS base
+FROM vitess/base:v12.0.3 AS base
 
-FROM vitess/lite:v12.0.0
+FROM vitess/lite:v12.0.3
 
 USER root
 
+RUN apt-key adv --keyserver pgp.mit.edu --recv-keys 3A79BD29
 RUN apt-get update
 RUN apt-get install -y sudo curl vim jq
 

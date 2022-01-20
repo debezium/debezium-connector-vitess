@@ -5,7 +5,7 @@ FROM vitess/lite:v12.0.3
 
 USER root
 
-RUN apt-key adv --keyserver pgp.mit.edu --recv-keys 3A79BD29
+RUN apt-key adv --no-tty --recv-keys --keyserver keyserver.ubuntu.com 467B942D3A79BD29
 RUN apt-get update
 RUN apt-get install -y sudo curl vim jq
 

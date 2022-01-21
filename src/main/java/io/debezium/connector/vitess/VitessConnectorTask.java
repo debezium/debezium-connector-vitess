@@ -80,7 +80,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
                     .build();
 
             // saves the exception in the ChangeEventQueue, later task poll() would throw the exception
-            errorHandler = new VitessErrorHandler(connectorConfig.getLogicalName(), queue);
+            errorHandler = new VitessErrorHandler(connectorConfig, queue);
 
             // for metrics
             final VitessEventMetadataProvider metadataProvider = new VitessEventMetadataProvider();

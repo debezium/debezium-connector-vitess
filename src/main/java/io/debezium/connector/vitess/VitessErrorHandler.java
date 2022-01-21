@@ -10,8 +10,8 @@ import io.debezium.pipeline.ErrorHandler;
 import io.grpc.StatusRuntimeException;
 
 public class VitessErrorHandler extends ErrorHandler {
-    public VitessErrorHandler(String logicalName, ChangeEventQueue<?> queue) {
-        super(VitessConnector.class, logicalName, queue);
+    public VitessErrorHandler(VitessConnectorConfig connectorConfig, ChangeEventQueue<?> queue) {
+        super(VitessConnector.class, connectorConfig, queue);
     }
 
     @Override

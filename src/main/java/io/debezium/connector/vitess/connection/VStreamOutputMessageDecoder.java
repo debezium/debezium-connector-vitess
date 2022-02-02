@@ -7,17 +7,17 @@ package io.debezium.connector.vitess.connection;
 
 import static io.debezium.connector.vitess.connection.ReplicationMessage.Column;
 
-import java.nio.charset.StandardCharsets;
 import java.sql.Types;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.protobuf.ByteString;
 
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
@@ -286,7 +286,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                             table));
         }
 
-        String rawValues = row.getValues().toStringUtf8();
+        ByteString rawValues = row.getValues();
         int rawValueIndex = 0;
         List<Column> columns = new ArrayList<>(numberOfColumns);
         for (short i = 0; i < numberOfColumns; i++) {
@@ -298,7 +298,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             final int rawValueLength = (int) row.getLengths(i);
             final String rawValue = rawValueLength == -1
                     ? null
-                    : new String(Arrays.copyOfRange(rawValues.getBytes(StandardCharsets.UTF_8), rawValueIndex, rawValueIndex + rawValueLength));
+                    : rawValues.substring(rawValueIndex, rawValueIndex + rawValueLength).toStringUtf8();
             if (rawValueLength != -1) {
                 // no update to rawValueIndex when no value in the rawValue
                 rawValueIndex += rawValueLength;

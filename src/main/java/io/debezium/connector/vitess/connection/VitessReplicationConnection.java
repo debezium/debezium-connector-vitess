@@ -93,10 +93,10 @@ public class VitessReplicationConnection implements ReplicationConnection {
             @Override
             public void onNext(Vtgate.VStreamResponse response) {
 
-                LOGGER.debug("Received {} vEvents in the VStreamResponse:",
+                LOGGER.debug("Received {} VEvents in the VStreamResponse:",
                         response.getEventsCount());
                 for (VEvent vEvent : response.getEventsList()) {
-                    LOGGER.debug("vEvent: {}", vEvent);
+                    LOGGER.debug("VEvent: {}", vEvent);
                 }
 
                 Vgtid newVgtid = getVgtid(response);

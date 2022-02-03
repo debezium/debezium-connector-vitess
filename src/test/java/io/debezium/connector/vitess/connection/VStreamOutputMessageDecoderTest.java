@@ -14,9 +14,12 @@ import org.slf4j.LoggerFactory;
 
 import io.debezium.connector.vitess.AnonymousValue;
 import io.debezium.connector.vitess.TestHelper;
+import io.debezium.connector.vitess.Vgtid;
+import io.debezium.connector.vitess.VgtidTest;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.debezium.connector.vitess.VitessTopicSelector;
+import io.debezium.doc.FixFor;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.util.SchemaNameAdjuster;
@@ -48,6 +51,34 @@ public class VStreamOutputMessageDecoderTest {
                 .setType(Binlogdata.VEventType.BEGIN)
                 .setTimestamp(AnonymousValue.getLong())
                 .build();
+        Vgtid newVgtid = Vgtid.of(VgtidTest.VGTID_JSON);
+
+        // exercise SUT
+        final boolean[] processed = { false };
+        decoder.processMessage(
+                event,
+                (message, vgtid, isLastRowEventOfTransaction) -> {
+                    // verify outcome
+                    assertThat(message).isNotNull();
+                    assertThat(message).isInstanceOf(TransactionalMessage.class);
+                    assertThat(message.getOperation()).isEqualTo(ReplicationMessage.Operation.BEGIN);
+                    assertThat(message.getTransactionId()).isEqualTo(newVgtid.toString());
+                    assertThat(vgtid).isEqualTo(newVgtid);
+                    processed[0] = true;
+                },
+                newVgtid,
+                false);
+        assertThat(processed[0]).isTrue();
+    }
+
+    @Test
+    @FixFor("DBZ-4667")
+    public void shouldNotProcessBeginEventIfNoVgtid() throws Exception {
+        // setup fixture
+        Binlogdata.VEvent event = Binlogdata.VEvent.newBuilder()
+                .setType(Binlogdata.VEventType.BEGIN)
+                .setTimestamp(AnonymousValue.getLong())
+                .build();
 
         // exercise SUT
         final boolean[] processed = { false };
@@ -62,11 +93,40 @@ public class VStreamOutputMessageDecoderTest {
                 },
                 null,
                 false);
-        assertThat(processed[0]).isTrue();
+        assertThat(processed[0]).isFalse();
     }
 
     @Test
     public void shouldProcessCommitEvent() throws Exception {
+        // setup fixture
+        Binlogdata.VEvent event = Binlogdata.VEvent.newBuilder()
+                .setType(Binlogdata.VEventType.COMMIT)
+                .setTimestamp(AnonymousValue.getLong())
+                .build();
+        Vgtid newVgtid = Vgtid.of(VgtidTest.VGTID_JSON);
+        decoder.setTransactionId(newVgtid.toString());
+
+        // exercise SUT
+        final boolean[] processed = { false };
+        decoder.processMessage(
+                event,
+                (message, vgtid, isLastRowEventOfTransaction) -> {
+                    // verify outcome
+                    assertThat(message).isNotNull();
+                    assertThat(message).isInstanceOf(TransactionalMessage.class);
+                    assertThat(message.getOperation()).isEqualTo(ReplicationMessage.Operation.COMMIT);
+                    assertThat(message.getTransactionId()).isEqualTo(newVgtid.toString());
+                    assertThat(vgtid).isEqualTo(newVgtid);
+                    processed[0] = true;
+                },
+                newVgtid,
+                false);
+        assertThat(processed[0]).isTrue();
+    }
+
+    @Test
+    @FixFor("DBZ-4667")
+    public void shouldNotProcessCommitEventIfNoVgtid() throws Exception {
         // setup fixture
         Binlogdata.VEvent event = Binlogdata.VEvent.newBuilder()
                 .setType(Binlogdata.VEventType.COMMIT)
@@ -86,7 +146,7 @@ public class VStreamOutputMessageDecoderTest {
                 },
                 null,
                 false);
-        assertThat(processed[0]).isTrue();
+        assertThat(processed[0]).isFalse();
     }
 
     @Test

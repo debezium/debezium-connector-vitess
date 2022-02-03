@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.protobuf.ByteString;
 
+import io.debezium.annotation.VisibleForTesting;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.debezium.connector.vitess.VitessType;
@@ -77,7 +78,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             case VERSION:
                 break;
             default:
-                LOGGER.warn("vEventType {} skipped, not proccess.", vEventType);
+                LOGGER.warn("VEventType {} skipped, not processing.", vEventType);
         }
     }
 
@@ -110,6 +111,11 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         if (newVgtid != null) {
             this.transactionId = newVgtid.toString();
         }
+        // Transaction ID must not be null in TransactionalMessage.
+        if (this.transactionId == null) {
+            LOGGER.info("Skip processing BEGIN because no VGTID was received");
+            return;
+        }
         LOGGER.trace("Commit timestamp of begin transaction: {}", commitTimestamp);
         processor.process(
                 new TransactionalMessage(Operation.BEGIN, transactionId, commitTimestamp), newVgtid, false);
@@ -119,6 +125,11 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                                      Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)
             throws InterruptedException {
         Instant commitTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
+        // Transaction ID must not be null in TransactionalMessage.
+        if (this.transactionId == null) {
+            LOGGER.info("Skip processing COMMIT because no VGTID was received");
+            return;
+        }
         LOGGER.trace("Commit timestamp of commit transaction: {}", commitTimestamp);
         processor.process(
                 new TransactionalMessage(Operation.COMMIT, transactionId, commitTimestamp), newVgtid, false);
@@ -130,7 +141,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         String[] schemaTableTuple = rowEvent.getTableName().split("\\.");
         if (schemaTableTuple.length != 2) {
             LOGGER.error(
-                    "Handling ROW vEvent. schemaTableTuple should have schema name and table name but has size {}. {} is skipped.",
+                    "Handling ROW VEvent. schemaTableTuple should have schema name and table name but has size {}. {} is skipped.",
                     schemaTableTuple.length,
                     rowEvent);
         }
@@ -317,12 +328,12 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             String[] schemaTableTuple = fieldEvent.getTableName().split("\\.");
             if (schemaTableTuple.length != 2) {
                 LOGGER.error(
-                        "Handling FIELD vEvent. schemaTableTuple should have schema name and table name but has size {}. {} is skipped",
+                        "Handling FIELD VEvent. schemaTableTuple should have schema name and table name but has size {}. {} is skipped",
                         schemaTableTuple.length,
                         vEvent);
             }
             else {
-                LOGGER.debug("Handling FIELD vEvent: {}", fieldEvent);
+                LOGGER.debug("Handling FIELD VEvent: {}", fieldEvent);
                 String schemaName = schemaTableTuple[0];
                 String tableName = schemaTableTuple[1];
                 int columnCount = fieldEvent.getFieldsCount();
@@ -333,7 +344,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                     String columnName = validateColumnName(field.getName(), schemaName, tableName);
                     VitessType vitessType = VitessType.resolve(field);
                     if (vitessType.getJdbcId() == Types.OTHER) {
-                        LOGGER.error("Cannot resolve JDBC type from vstream field {}", field);
+                        LOGGER.error("Cannot resolve JDBC type from VStream field {}", field);
                     }
 
                     KeyMetaData keyMetaData = KeyMetaData.NONE;
@@ -399,6 +410,11 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         }
 
         return tableEditor.create();
+    }
+
+    @VisibleForTesting
+    void setTransactionId(String transactionId) {
+        this.transactionId = transactionId;
     }
 
     private static String validateColumnName(String columnName, String schemaName, String tableName) {

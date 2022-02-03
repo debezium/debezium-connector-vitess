@@ -21,7 +21,7 @@ public class VgtidTest {
     private static final String TEST_GTID = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-1513";
     private static final String TEST_SHARD2 = "80-";
     private static final String TEST_GTID2 = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000b:1-1513";
-    private static final String VGTID_JSON = String.format(
+    public static final String VGTID_JSON = String.format(
             "[" +
                     "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}," +
                     "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}" +

@@ -13,7 +13,7 @@ import io.debezium.connector.vitess.VitessType;
 public class ReplicationMessageColumnValueResolver {
 
     public static Object resolveValue(
-                                      VitessType vitessType, ReplicationMessage.ColumnValue value, boolean includeUnknownDatatypes) {
+                                      VitessType vitessType, ReplicationMessage.ColumnValue<byte[]> value, boolean includeUnknownDatatypes) {
         if (value.isNull()) {
             return null;
         }
@@ -25,6 +25,9 @@ public class ReplicationMessageColumnValueResolver {
                 return value.asInteger();
             case Types.BIGINT:
                 return value.asLong();
+            case Types.BLOB:
+            case Types.BINARY:
+                return value.asBytes();
             case Types.VARCHAR:
                 return value.asString();
             case Types.FLOAT:

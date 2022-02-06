@@ -95,13 +95,15 @@ public class VitessType {
             case "UINT32":
             case "INT64":
                 return new VitessType(type, Types.BIGINT);
-            case "UINT64":
+            case "BLOB":
+                return new VitessType(type, Types.BLOB);
             case "VARBINARY":
             case "BINARY":
+                return new VitessType(type, Types.BINARY);
+            case "UINT64":
             case "VARCHAR":
             case "CHAR":
             case "TEXT":
-            case "BLOB":
             case "JSON":
             case "DECIMAL":
             case "TIME":

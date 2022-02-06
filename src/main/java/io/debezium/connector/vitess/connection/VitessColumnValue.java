@@ -5,23 +5,25 @@
  */
 package io.debezium.connector.vitess.connection;
 
+import java.nio.charset.StandardCharsets;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.debezium.connector.vitess.VitessType;
 
-/** A convenient wrapper that wraps the raw string value and converts it to Java value. */
-public class VitessColumnValue implements ReplicationMessage.ColumnValue<String> {
+/** A convenient wrapper that wraps the raw bytes value and converts it to Java value. */
+public class VitessColumnValue implements ReplicationMessage.ColumnValue<byte[]> {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessColumnValue.class);
 
-    private final String value;
+    private final byte[] value;
 
-    public VitessColumnValue(String value) {
+    public VitessColumnValue(byte[] value) {
         this.value = value;
     }
 
     @Override
-    public String getRawValue() {
+    public byte[] getRawValue() {
         return value;
     }
 
@@ -31,33 +33,38 @@ public class VitessColumnValue implements ReplicationMessage.ColumnValue<String>
     }
 
     @Override
-    public String asString() {
+    public byte[] asBytes() {
         return value;
     }
 
     @Override
+    public String asString() {
+        return new String(value, StandardCharsets.UTF_8);
+    }
+
+    @Override
     public Integer asInteger() {
-        return Integer.valueOf(value);
+        return Integer.valueOf(asString());
     }
 
     @Override
     public Short asShort() {
-        return Short.valueOf(value);
+        return Short.valueOf(asString());
     }
 
     @Override
     public Long asLong() {
-        return Long.valueOf(value);
+        return Long.valueOf(asString());
     }
 
     @Override
     public Float asFloat() {
-        return Float.valueOf(value);
+        return Float.valueOf(asString());
     }
 
     @Override
     public Double asDouble() {
-        return Double.valueOf(value);
+        return Double.valueOf(asString());
     }
 
     @Override

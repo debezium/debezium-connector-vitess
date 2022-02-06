@@ -13,8 +13,10 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -37,6 +39,7 @@ import org.skyscreamer.jsonassert.JSONAssert;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.io.BaseEncoding;
 
 import io.debezium.data.Json;
 import io.debezium.data.SchemaUtil;
@@ -73,16 +76,18 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
             + "varchar_col,"
             + "varchar_ko_col,"
             + "varchar_ja_col,"
-            + "binary_col,"
-            + "varbinary_col,"
             + "tinytext_col,"
             + "text_col,"
             + "mediumtext_col,"
             + "longtext_col,"
-            + "blob_col,"
-            + "mediumblob_col,"
             + "json_col)"
-            + " VALUES ('a', 'bc', '상품 명1', 'リンゴ', 'd', 'ef', 'gh', 'ij', 'kl','mn', 'op', 'qs', '{\"key1\": \"value1\", \"key2\": {\"key21\": \"value21\", \"key22\": \"value22\"}}');";
+            + " VALUES ('a', 'bc', '상품 명1', 'リンゴ', 'gh', 'ij', 'kl', 'mn', '{\"key1\": \"value1\", \"key2\": {\"key21\": \"value21\", \"key22\": \"value22\"}}');";
+    protected static final String INSERT_BYTES_TYPES_STMT = "INSERT INTO string_table ("
+            + "binary_col,"
+            + "varbinary_col,"
+            + "blob_col,"
+            + "mediumblob_col)"
+            + " VALUES ('d', 'ef', 'op', 'qs');";
     protected static final String INSERT_ENUM_TYPE_STMT = "INSERT INTO enum_table (enum_col)" + " VALUES ('large');";
     protected static final String INSERT_SET_TYPE_STMT = "INSERT INTO set_table (set_col)" + " VALUES ('a,c');";
     protected static final String INSERT_TIME_TYPES_STMT = "INSERT INTO time_table ("
@@ -128,16 +133,45 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
                         new SchemaAndValueField("varchar_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "bc"),
                         new SchemaAndValueField("varchar_ko_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "상품 명1"),
                         new SchemaAndValueField("varchar_ja_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "リンゴ"),
-                        new SchemaAndValueField("binary_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "d\0"),
-                        new SchemaAndValueField("varbinary_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "ef"),
                         new SchemaAndValueField("tinytext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "gh"),
                         new SchemaAndValueField("text_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "ij"),
                         new SchemaAndValueField("mediumtext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "kl"),
                         new SchemaAndValueField("longtext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "mn"),
-                        new SchemaAndValueField("blob_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "op"),
-                        new SchemaAndValueField("mediumblob_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "qs"),
                         new SchemaAndValueField("json_col", Json.builder().optional().build(),
                                 "{\"key1\":\"value1\",\"key2\":{\"key21\":\"value21\",\"key22\":\"value22\"}}")));
+        return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForBytesTypesAsBytes() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField("binary_col", SchemaBuilder.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap("d\0".getBytes())),
+                        new SchemaAndValueField("varbinary_col", SchemaBuilder.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap("ef".getBytes())),
+                        new SchemaAndValueField("blob_col", SchemaBuilder.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap("op".getBytes())),
+                        new SchemaAndValueField("mediumblob_col", SchemaBuilder.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap("qs".getBytes()))));
+        return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForBytesTypesAsBase64String() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField("binary_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, Base64.getEncoder().encodeToString("d\0".getBytes())),
+                        new SchemaAndValueField("varbinary_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, Base64.getEncoder().encodeToString("ef".getBytes())),
+                        new SchemaAndValueField("blob_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, Base64.getEncoder().encodeToString("op".getBytes())),
+                        new SchemaAndValueField("mediumblob_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, Base64.getEncoder().encodeToString("qs".getBytes()))));
+        return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForBytesTypesAsHexString() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField("binary_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, BaseEncoding.base16().lowerCase().encode("d\0".getBytes())),
+                        new SchemaAndValueField("varbinary_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, BaseEncoding.base16().lowerCase().encode("ef".getBytes())),
+                        new SchemaAndValueField("blob_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, BaseEncoding.base16().lowerCase().encode("op".getBytes())),
+                        new SchemaAndValueField("mediumblob_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, BaseEncoding.base16().lowerCase().encode("qs".getBytes()))));
         return fields;
     }
 

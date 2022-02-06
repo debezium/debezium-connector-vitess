@@ -120,6 +120,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertInsert(INSERT_STRING_TYPES_STMT, schemasAndValuesForStringTypes(), TestHelper.PK_FIELD);
 
         consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_BYTES_TYPES_STMT, schemasAndValuesForBytesTypesAsBytes(), TestHelper.PK_FIELD);
+
+        consumer.expects(expectedRecordsCount);
         assertInsert(INSERT_ENUM_TYPE_STMT, schemasAndValuesForEnumType(), TestHelper.PK_FIELD);
 
         consumer.expects(expectedRecordsCount);
@@ -127,6 +130,45 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         consumer.expects(expectedRecordsCount);
         assertInsert(INSERT_TIME_TYPES_STMT, schemasAndValuesForTimeType(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void shouldReceiveBytesAsBytes() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(config -> config.with(CommonConnectorConfig.BINARY_HANDLING_MODE, CommonConnectorConfig.BinaryHandlingMode.BYTES), false);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_BYTES_TYPES_STMT, schemasAndValuesForBytesTypesAsBytes(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void shouldReceiveBytesAsBase64String() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(config -> config.with(VitessConnectorConfig.BINARY_HANDLING_MODE, VitessConnectorConfig.BinaryHandlingMode.BASE64), false);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_BYTES_TYPES_STMT, schemasAndValuesForBytesTypesAsBase64String(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void shouldReceiveBytesAsHexString() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(config -> config.with(VitessConnectorConfig.BINARY_HANDLING_MODE, VitessConnectorConfig.BinaryHandlingMode.HEX), false);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_BYTES_TYPES_STMT, schemasAndValuesForBytesTypesAsHexString(), TestHelper.PK_FIELD);
     }
 
     @Test

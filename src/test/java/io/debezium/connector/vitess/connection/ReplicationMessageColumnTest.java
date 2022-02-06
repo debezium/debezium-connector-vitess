@@ -22,7 +22,7 @@ public class ReplicationMessageColumnTest {
                 AnonymousValue.getString(),
                 new VitessType(AnonymousValue.getString(), Types.INTEGER),
                 true,
-                "10");
+                "10".getBytes());
         Object columnValue = column.getValue(false);
         assertThat(columnValue).isEqualTo(10);
     }
@@ -33,7 +33,7 @@ public class ReplicationMessageColumnTest {
                 AnonymousValue.getString(),
                 new VitessType(AnonymousValue.getString(), Types.INTEGER),
                 true,
-                "10.1");
+                "10.1".getBytes());
         column.getValue(false);
     }
 }

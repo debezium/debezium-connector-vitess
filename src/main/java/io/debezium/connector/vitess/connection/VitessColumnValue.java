@@ -37,6 +37,14 @@ public class VitessColumnValue implements ReplicationMessage.ColumnValue<byte[]>
         return value;
     }
 
+    /**
+     * Convert raw bytes value to string using UTF-8 encoding.
+     *
+     * This is *enforced* for VARCHAR and CHAR types, and is *required* for other non-bytes types (numeric,
+     * timestamp, etc.). For bytes (BLOB, BINARY, etc.) types, the asBytes() should be used.
+     *
+     * @return the UTF-8 string
+     */
     @Override
     public String asString() {
         return new String(value, StandardCharsets.UTF_8);

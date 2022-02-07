@@ -39,6 +39,7 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
                                 config.getDecimalMode(),
                                 config.getTemporalPrecisionMode(),
                                 ZoneOffset.UTC,
+                                config.binaryHandlingMode(),
                                 config.includeUnknownDatatypes()),
                         schemaNameAdjuster,
                         config.customConverterRegistry(),

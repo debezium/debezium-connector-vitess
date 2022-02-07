@@ -307,9 +307,9 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             final boolean optional = column.isOptional();
 
             final int rawValueLength = (int) row.getLengths(i);
-            final String rawValue = rawValueLength == -1
+            final byte[] rawValue = rawValueLength == -1
                     ? null
-                    : rawValues.substring(rawValueIndex, rawValueIndex + rawValueLength).toStringUtf8();
+                    : rawValues.substring(rawValueIndex, rawValueIndex + rawValueLength).toByteArray();
             if (rawValueLength != -1) {
                 // no update to rawValueIndex when no value in the rawValue
                 rawValueIndex += rawValueLength;

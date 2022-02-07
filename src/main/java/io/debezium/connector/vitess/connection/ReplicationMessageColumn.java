@@ -7,6 +7,8 @@ package io.debezium.connector.vitess.connection;
 
 import static io.debezium.connector.vitess.connection.ReplicationMessage.Column;
 
+import java.nio.charset.StandardCharsets;
+
 import io.debezium.connector.vitess.VitessType;
 
 /** Logical represenation of both column type and value. */
@@ -15,10 +17,10 @@ public class ReplicationMessageColumn implements Column {
     private final String columnName;
     private final VitessType type;
     private final boolean optional;
-    private final String rawValue;
+    private final byte[] rawValue;
 
     public ReplicationMessageColumn(
-                                    String columnName, VitessType type, boolean optional, String rawValue) {
+                                    String columnName, VitessType type, boolean optional, byte[] rawValue) {
         this.columnName = columnName;
         this.type = type;
         this.optional = optional;
@@ -48,12 +50,12 @@ public class ReplicationMessageColumn implements Column {
                 type, columnValue, includeUnknownDatatypes);
     }
 
-    public String getRawValue() {
+    public byte[] getRawValue() {
         return rawValue;
     }
 
     @Override
     public String toString() {
-        return columnName + "=" + rawValue;
+        return columnName + "=" + new String(rawValue, StandardCharsets.UTF_8);
     }
 }

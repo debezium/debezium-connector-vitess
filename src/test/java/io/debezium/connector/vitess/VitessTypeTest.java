@@ -23,11 +23,13 @@ public class VitessTypeTest {
         assertThat(VitessType.resolve(asField(Query.Type.INT24)).getJdbcId()).isEqualTo(Types.INTEGER);
         assertThat(VitessType.resolve(asField(Query.Type.INT32)).getJdbcId()).isEqualTo(Types.INTEGER);
         assertThat(VitessType.resolve(asField(Query.Type.INT64)).getJdbcId()).isEqualTo(Types.BIGINT);
+        assertThat(VitessType.resolve(asField(Query.Type.UINT64)).getJdbcId()).isEqualTo(Types.VARCHAR);
         assertThat(VitessType.resolve(asField(Query.Type.FLOAT32)).getJdbcId()).isEqualTo(Types.FLOAT);
         assertThat(VitessType.resolve(asField(Query.Type.FLOAT64)).getJdbcId()).isEqualTo(Types.DOUBLE);
         assertThat(VitessType.resolve(asField(Query.Type.VARBINARY)).getJdbcId())
-                .isEqualTo(Types.VARCHAR);
-        assertThat(VitessType.resolve(asField(Query.Type.BINARY)).getJdbcId()).isEqualTo(Types.VARCHAR);
+                .isEqualTo(Types.BINARY);
+        assertThat(VitessType.resolve(asField(Query.Type.BINARY)).getJdbcId()).isEqualTo(Types.BINARY);
+        assertThat(VitessType.resolve(asField(Query.Type.BLOB)).getJdbcId()).isEqualTo(Types.BLOB);
         assertThat(VitessType.resolve(asField(Query.Type.VARCHAR)).getJdbcId()).isEqualTo(Types.VARCHAR);
         assertThat(VitessType.resolve(asField(Query.Type.CHAR)).getJdbcId()).isEqualTo(Types.VARCHAR);
         assertThat(VitessType.resolve(asField(Query.Type.TEXT)).getJdbcId()).isEqualTo(Types.VARCHAR);

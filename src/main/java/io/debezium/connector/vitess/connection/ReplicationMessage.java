@@ -48,6 +48,8 @@ public interface ReplicationMessage {
 
         boolean isNull();
 
+        byte[] asBytes();
+
         String asString();
 
         Integer asInteger();

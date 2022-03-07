@@ -15,6 +15,8 @@ import io.debezium.jdbc.JdbcConnection;
  */
 public class MySQLConnection extends JdbcConnection {
 
+    protected static ConnectionFactory FACTORY = JdbcConnection.patternBasedFactory("jdbc:mysql://${hostname}:${port}/${dbname}");
+
     /**
      * Obtain a connection instance to the named test database. Use the default database (a.k.a keyspace).
      *
@@ -41,23 +43,22 @@ public class MySQLConnection extends JdbcConnection {
                         .build());
     }
 
-    protected static void addDefaults(Configuration.Builder builder) {
-        builder
+    private static JdbcConfiguration addDefaultSettings(JdbcConfiguration config) {
+        return JdbcConfiguration.adapt(config.edit()
                 .withDefault(JdbcConfiguration.DATABASE, TestHelper.TEST_UNSHARDED_KEYSPACE)
                 .withDefault(JdbcConfiguration.HOSTNAME, "localhost")
                 .withDefault(JdbcConfiguration.PORT, 15306)
                 .withDefault(JdbcConfiguration.USER, "")
-                .withDefault(JdbcConfiguration.PASSWORD, "");
+                .withDefault(JdbcConfiguration.PASSWORD, "")
+                .build());
     }
-
-    protected static ConnectionFactory FACTORY = JdbcConnection.patternBasedFactory("jdbc:mysql://${hostname}:${port}/${dbname}");
 
     /**
      * Create a new instance with the given configuration and connection factory.
      *
      * @param config the configuration; may not be null
      */
-    public MySQLConnection(Configuration config) {
-        super(config, FACTORY, null, MySQLConnection::addDefaults, "`", "`");
+    public MySQLConnection(JdbcConfiguration config) {
+        super(addDefaultSettings(config), FACTORY, null, "`", "`");
     }
 }

@@ -99,6 +99,12 @@ public class VitessReplicationConnection implements ReplicationConnection {
                     LOGGER.debug("VEvent: {}", vEvent);
                 }
 
+                // If we receive an empty transaction, there is nothing we can stream out
+                // to the downstream. Therefore, skip them directly here instead.
+                if (isEmptyTransaction(response)) {
+                    return;
+                }
+
                 Vgtid newVgtid = getVgtid(response);
                 int numOfRowEvents = getNumOfRowEvents(response);
 
@@ -167,6 +173,15 @@ public class VitessReplicationConnection implements ReplicationConnection {
                     }
                 }
                 return num;
+            }
+
+            // If we write to an internal database in Vitess for operation purpose
+            // Vitess will stream out an empty event with [BEGIN, VGTID, COMMIT].
+            private boolean isEmptyTransaction(Vtgate.VStreamResponse response) {
+                return response.getEventsCount() == 3 &&
+                        response.getEvents(0).getType() == Binlogdata.VEventType.BEGIN &&
+                        response.getEvents(1).getType() == Binlogdata.VEventType.VGTID &&
+                        response.getEvents(2).getType() == Binlogdata.VEventType.COMMIT;
             }
         };
 

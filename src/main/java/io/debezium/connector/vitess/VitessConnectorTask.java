@@ -50,7 +50,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
 
         final VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
         final TopicSelector<TableId> topicSelector = VitessTopicSelector.defaultSelector(connectorConfig);
-        final SchemaNameAdjuster schemaNameAdjuster = SchemaNameAdjuster.create();
+        final SchemaNameAdjuster schemaNameAdjuster = connectorConfig.schemaNameAdjustmentMode().createAdjuster();
 
         schema = new VitessDatabaseSchema(connectorConfig, schemaNameAdjuster, topicSelector);
         VitessTaskContext taskContext = new VitessTaskContext(connectorConfig, schema);

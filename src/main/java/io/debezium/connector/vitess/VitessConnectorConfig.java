@@ -159,7 +159,8 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     STOP_ON_RESHARD_FLAG,
                     KEEPALIVE_INTERVAL_MS,
                     GRPC_HEADERS,
-                    BINARY_HANDLING_MODE)
+                    BINARY_HANDLING_MODE,
+                    SCHEMA_NAME_ADJUSTMENT_MODE)
             .events(INCLUDE_UNKNOWN_DATATYPES)
             .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST)
             .create();

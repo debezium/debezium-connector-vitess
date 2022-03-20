@@ -133,6 +133,14 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDescription("Specify a comma-separated list of gRPC headers." +
                     " Defaults to empty");
 
+    public static final Field GRPC_MAX_INBOUND_MESSAGE_SIZE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "grpc.max_inbound_message_size")
+            .withDisplayName("VStream gRPC maxInboundMessageSize")
+            .withType(Type.INT)
+            .withWidth(Width.SHORT)
+            .withDefault(0)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription("Specify the maximum message size allowed to be received on the channel.");
+
     public static final Field INCLUDE_UNKNOWN_DATATYPES = Field.create("include.unknown.datatypes")
             .withDisplayName("Include unknown datatypes")
             .withType(Type.BOOLEAN)
@@ -159,6 +167,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     STOP_ON_RESHARD_FLAG,
                     KEEPALIVE_INTERVAL_MS,
                     GRPC_HEADERS,
+                    GRPC_MAX_INBOUND_MESSAGE_SIZE,
                     BINARY_HANDLING_MODE)
             .events(INCLUDE_UNKNOWN_DATATYPES)
             .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST)
@@ -253,6 +262,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         }
 
         return Collections.unmodifiableMap(grpcHeadersMap);
+    }
+
+    public int getGrpcMaxInboundMessageSize() {
+        return getConfig().getInteger(GRPC_MAX_INBOUND_MESSAGE_SIZE);
     }
 
     public boolean includeUnknownDatatypes() {

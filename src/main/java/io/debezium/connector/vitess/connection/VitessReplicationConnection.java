@@ -59,7 +59,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
      * @throws StatusRuntimeException if the connection is not valid, or SQL statement can not be successfully exected
      */
     public void execute(String sqlStatement) {
-        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort());
+        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize());
         managedChannel.compareAndSet(null, channel);
 
         Vtgate.ExecuteRequest request = Vtgate.ExecuteRequest.newBuilder()
@@ -73,7 +73,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                                Vgtid vgtid, ReplicationMessageProcessor processor, AtomicReference<Throwable> error) {
         Objects.requireNonNull(vgtid);
 
-        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort());
+        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize());
         managedChannel.compareAndSet(null, channel);
 
         VitessGrpc.VitessStub stub = newStub(channel);
@@ -204,12 +204,14 @@ public class VitessReplicationConnection implements ReplicationConnection {
         return stub;
     }
 
-    private ManagedChannel newChannel(String vtgateHost, int vtgatePort) {
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(vtgateHost, vtgatePort)
+    private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize) {
+        ManagedChannelBuilder channelBuilder = ManagedChannelBuilder.forAddress(vtgateHost, vtgatePort)
                 .usePlaintext()
-                .keepAliveTime(config.getKeepaliveInterval().toMillis(), TimeUnit.MILLISECONDS)
-                .build();
-        return channel;
+                .keepAliveTime(config.getKeepaliveInterval().toMillis(), TimeUnit.MILLISECONDS);
+        if (maxInboundMessageSize != 0) {
+            channelBuilder.maxInboundMessageSize(maxInboundMessageSize);
+        }
+        return channelBuilder.build();
     }
 
     /** Close the gRPC connection to VStream */

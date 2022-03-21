@@ -205,13 +205,12 @@ public class VitessReplicationConnection implements ReplicationConnection {
     }
 
     private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize) {
-        ManagedChannelBuilder channelBuilder = ManagedChannelBuilder.forAddress(vtgateHost, vtgatePort)
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(vtgateHost, vtgatePort)
                 .usePlaintext()
-                .keepAliveTime(config.getKeepaliveInterval().toMillis(), TimeUnit.MILLISECONDS);
-        if (maxInboundMessageSize != 0) {
-            channelBuilder.maxInboundMessageSize(maxInboundMessageSize);
-        }
-        return channelBuilder.build();
+                .maxInboundMessageSize(maxInboundMessageSize)
+                .keepAliveTime(config.getKeepaliveInterval().toMillis(), TimeUnit.MILLISECONDS)
+                .build();
+        return channel;
     }
 
     /** Close the gRPC connection to VStream */

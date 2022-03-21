@@ -137,8 +137,9 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDisplayName("VStream gRPC maxInboundMessageSize")
             .withType(Type.INT)
             .withWidth(Width.SHORT)
-            .withDefault(0)
+            .withDefault(4_194_304)
             .withImportance(ConfigDef.Importance.MEDIUM)
+            .withValidation(Field::isInteger)
             .withDescription("Specify the maximum message size in bytes allowed to be received on the channel.");
 
     public static final Field INCLUDE_UNKNOWN_DATATYPES = Field.create("include.unknown.datatypes")

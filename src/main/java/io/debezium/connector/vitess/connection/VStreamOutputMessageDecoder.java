@@ -78,7 +78,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             case VERSION:
                 break;
             default:
-                LOGGER.warn("VEventType {} skipped, not processing.", vEventType);
+                LOGGER.info("VEventType {} skipped, not processing.", vEventType);
         }
     }
 
@@ -107,10 +107,9 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     private void handleBeginMessage(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)
             throws InterruptedException {
         this.commitTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
-        // Use the entire VGTID as transaction id
-        if (newVgtid != null) {
-            this.transactionId = newVgtid.toString();
-        }
+        // Use the entire VGTID as transaction id.
+        // If newVgtid is null, reset transactionId to null.
+        this.transactionId = newVgtid == null ? null : newVgtid.toString();
         // Transaction ID must not be null in TransactionalMessage.
         if (this.transactionId == null) {
             LOGGER.info("Skip processing BEGIN because no VGTID was received");
@@ -133,6 +132,8 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         LOGGER.trace("Commit timestamp of commit transaction: {}", commitTimestamp);
         processor.process(
                 new TransactionalMessage(Operation.COMMIT, transactionId, commitTimestamp), newVgtid, false);
+        // Reset the transaction ID after COMMIT.
+        this.transactionId = null;
     }
 
     private void decodeRows(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid, boolean isLastRowEventOfTransaction)
@@ -415,6 +416,11 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     @VisibleForTesting
     void setTransactionId(String transactionId) {
         this.transactionId = transactionId;
+    }
+
+    @VisibleForTesting
+    String getTransactionId() {
+        return this.transactionId;
     }
 
     private static String validateColumnName(String columnName, String schemaName, String tableName) {

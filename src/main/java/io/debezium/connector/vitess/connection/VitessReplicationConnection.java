@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,9 +146,10 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 }
                 if (vgtids.size() == 0) {
                     // The VStreamResponse that contains an VERSION vEvent does not have VGTID.
-                    // We do not update lastReceivedVgtid in this case.
                     // It can also be null if the 1st grpc response does not have vgtid upon restart
-                    LOGGER.trace("No vgtid found in response {}...", response.toString().substring(0, Math.min(100, response.toString().length())));
+                    LOGGER.warn("No vgtid found in response of event types: {}",
+                            response.getEventsList().stream().map(VEvent::getType).map(Objects::toString).collect(Collectors.joining(", ")));
+                    LOGGER.debug("No vgtid found in response {}...", response.toString().substring(0, Math.min(100, response.toString().length())));
                     LOGGER.debug("Full response is {}", response);
                     return null;
                 }

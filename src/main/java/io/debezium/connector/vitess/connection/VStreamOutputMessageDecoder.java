@@ -108,8 +108,9 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             throws InterruptedException {
         this.commitTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
         // Use the entire VGTID as transaction id.
-        // If newVgtid is null, reset transactionId to null.
-        this.transactionId = newVgtid == null ? null : newVgtid.toString();
+        if (newVgtid != null) {
+            this.transactionId = newVgtid.toString();
+        }
         // Transaction ID must not be null in TransactionalMessage.
         if (this.transactionId == null) {
             LOGGER.info("Skip processing BEGIN because no VGTID was received");
@@ -132,8 +133,6 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         LOGGER.trace("Commit timestamp of commit transaction: {}", commitTimestamp);
         processor.process(
                 new TransactionalMessage(Operation.COMMIT, transactionId, commitTimestamp), newVgtid, false);
-        // Reset the transaction ID after COMMIT.
-        this.transactionId = null;
     }
 
     private void decodeRows(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid, boolean isLastRowEventOfTransaction)

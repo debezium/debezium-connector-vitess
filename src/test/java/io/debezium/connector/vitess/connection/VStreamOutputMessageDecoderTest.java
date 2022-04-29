@@ -69,7 +69,6 @@ public class VStreamOutputMessageDecoderTest {
                 newVgtid,
                 false);
         assertThat(processed[0]).isTrue();
-        assertThat(decoder.getTransactionId()).isEqualTo(newVgtid.toString());
     }
 
     @Test
@@ -83,7 +82,6 @@ public class VStreamOutputMessageDecoderTest {
 
         // exercise SUT
         final boolean[] processed = { false };
-        decoder.setTransactionId("dummy");
         decoder.processMessage(
                 event,
                 (message, vgtid, isLastRowEventOfTransaction) -> {
@@ -96,7 +94,6 @@ public class VStreamOutputMessageDecoderTest {
                 null,
                 false);
         assertThat(processed[0]).isFalse();
-        assertThat(decoder.getTransactionId()).isNull();
     }
 
     @Test
@@ -125,7 +122,6 @@ public class VStreamOutputMessageDecoderTest {
                 newVgtid,
                 false);
         assertThat(processed[0]).isTrue();
-        assertThat(decoder.getTransactionId()).isNull();
     }
 
     @Test

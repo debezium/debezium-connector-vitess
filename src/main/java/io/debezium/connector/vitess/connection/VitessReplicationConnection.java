@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.DebeziumException;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
@@ -111,25 +112,38 @@ public class VitessReplicationConnection implements ReplicationConnection {
                             break;
                         case VGTID:
                             // We always use the latest VGTID if any.
+                            if (newVgtid != null) {
+                                LOGGER.warn("Received more than one VGTID events and the previous one is {}. Using the latest: {}",
+                                        newVgtid.toString(),
+                                        event.getVgtid().toString());
+                            }
                             newVgtid = Vgtid.of(event.getVgtid());
                             break;
                         case BEGIN:
                             // We should only see BEGIN before seeing COMMIT.
                             if (commitEventSeen) {
-                                LOGGER.error("Receive BEGIN event after receiving COMMIT event");
+                                String msg = "Received BEGIN event after receiving COMMIT event";
+                                setError(msg);
+                                return;
                             }
                             if (beginEventSeen) {
-                                LOGGER.error("Received duplicate BEGIN events");
+                                String msg = "Received duplicate BEGIN events";
+                                setError(msg);
+                                return;
                             }
                             beginEventSeen = true;
                             break;
                         case COMMIT:
                             // We should only see COMMIT after seeing BEGIN.
                             if (!beginEventSeen) {
-                                LOGGER.error("Receive COMMIT event before receiving BEGIN event");
+                                String msg = "Received COMMIT event before receiving BEGIN event";
+                                setError(msg);
+                                return;
                             }
                             if (commitEventSeen) {
-                                LOGGER.error("Received duplicate COMMIT events");
+                                String msg = "Received duplicate COMMIT events";
+                                setError(msg);
+                                return;
                             }
                             commitEventSeen = true;
                             break;
@@ -150,15 +164,17 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 // We only proceed when we receive a complete transaction after seeing both BEGIN and COMMIT events,
                 // OR if sendNow flag is true (meaning we should process buffered events immediately).
                 if ((!beginEventSeen || !commitEventSeen) && !sendNow) {
+                    LOGGER.info("Received partial transaction: number of responses so far is {}", numResponses);
                     return;
                 }
-
                 if (numResponses > 1) {
                     LOGGER.info("Processing multi-response transaction: number of responses is {}", numResponses);
                 }
                 if (newVgtid == null) {
-                    LOGGER.warn("No vgtid found in event types: {}",
+                    LOGGER.warn("Skipping because no vgtid is found in buffered event types: {}",
                             bufferedEvents.stream().map(VEvent::getType).map(Objects::toString).collect(Collectors.joining(", ")));
+                    reset();
+                    return;
                 }
 
                 // Send the buffered events that belong to the same transaction.
@@ -205,6 +221,17 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 commitEventSeen = false;
                 numOfRowEvents = 0;
                 numResponses = 0;
+            }
+
+            /**
+             * Create and set an error for error handler and reset.
+             */
+            private void setError(String msg) {
+                msg += String.format(". Buffered event types: %s",
+                        bufferedEvents.stream().map(VEvent::getType).map(Objects::toString).collect(Collectors.joining(", ")));
+                LOGGER.error(msg);
+                error.compareAndSet(null, new DebeziumException(msg));
+                reset();
             }
         };
 

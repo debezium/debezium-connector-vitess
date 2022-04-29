@@ -417,11 +417,6 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         this.transactionId = transactionId;
     }
 
-    @VisibleForTesting
-    String getTransactionId() {
-        return this.transactionId;
-    }
-
     private static String validateColumnName(String columnName, String schemaName, String tableName) {
         int length = columnName.length();
         if (length == 0) {

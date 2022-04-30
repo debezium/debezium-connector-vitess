@@ -5,16 +5,19 @@
  */
 package io.debezium.connector.vitess.connection;
 
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.DebeziumException;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
@@ -89,28 +92,101 @@ public class VitessReplicationConnection implements ReplicationConnection {
         }
 
         StreamObserver<Vtgate.VStreamResponse> responseObserver = new StreamObserver<Vtgate.VStreamResponse>() {
+            private List<VEvent> bufferedEvents = new ArrayList<>();
+            private Vgtid newVgtid;
+            private boolean beginEventSeen;
+            private boolean commitEventSeen;
+            private int numOfRowEvents;
+            private int numResponses;
 
             @Override
             public void onNext(Vtgate.VStreamResponse response) {
-
                 LOGGER.debug("Received {} VEvents in the VStreamResponse:",
                         response.getEventsCount());
-                for (VEvent vEvent : response.getEventsList()) {
-                    LOGGER.debug("VEvent: {}", vEvent);
+                boolean sendNow = false;
+                for (VEvent event : response.getEventsList()) {
+                    LOGGER.debug("VEvent: {}", event);
+                    switch (event.getType()) {
+                        case ROW:
+                            numOfRowEvents++;
+                            break;
+                        case VGTID:
+                            // We always use the latest VGTID if any.
+                            if (newVgtid != null) {
+                                LOGGER.warn("Received more than one VGTID events and the previous one is {}. Using the latest: {}",
+                                        newVgtid.toString(),
+                                        event.getVgtid().toString());
+                            }
+                            newVgtid = Vgtid.of(event.getVgtid());
+                            break;
+                        case BEGIN:
+                            // We should only see BEGIN before seeing COMMIT.
+                            if (commitEventSeen) {
+                                String msg = "Received BEGIN event after receiving COMMIT event";
+                                setError(msg);
+                                return;
+                            }
+                            if (beginEventSeen) {
+                                String msg = "Received duplicate BEGIN events";
+                                setError(msg);
+                                return;
+                            }
+                            beginEventSeen = true;
+                            break;
+                        case COMMIT:
+                            // We should only see COMMIT after seeing BEGIN.
+                            if (!beginEventSeen) {
+                                String msg = "Received COMMIT event before receiving BEGIN event";
+                                setError(msg);
+                                return;
+                            }
+                            if (commitEventSeen) {
+                                String msg = "Received duplicate COMMIT events";
+                                setError(msg);
+                                return;
+                            }
+                            commitEventSeen = true;
+                            break;
+                        case DDL:
+                        case OTHER:
+                            // If receiving DDL and OTHER, process them immediately to rotate vgtid in offset.
+                            // For example, the response can be:
+                            // [VGTID, DDL]. This is an DDL event.
+                            // [VGTID, OTHER]. This is the first response if "current" is used as starting gtid.
+                            sendNow = true;
+                            break;
+                    }
+                    bufferedEvents.add(event);
                 }
 
-                Vgtid newVgtid = getVgtid(response);
-                int numOfRowEvents = getNumOfRowEvents(response);
+                numResponses++;
 
+                // We only proceed when we receive a complete transaction after seeing both BEGIN and COMMIT events,
+                // OR if sendNow flag is true (meaning we should process buffered events immediately).
+                if ((!beginEventSeen || !commitEventSeen) && !sendNow) {
+                    LOGGER.info("Received partial transaction: number of responses so far is {}", numResponses);
+                    return;
+                }
+                if (numResponses > 1) {
+                    LOGGER.info("Processing multi-response transaction: number of responses is {}", numResponses);
+                }
+                if (newVgtid == null) {
+                    LOGGER.warn("Skipping because no vgtid is found in buffered event types: {}",
+                            bufferedEvents.stream().map(VEvent::getType).map(Objects::toString).collect(Collectors.joining(", ")));
+                    reset();
+                    return;
+                }
+
+                // Send the buffered events that belong to the same transaction.
                 try {
                     int rowEventSeen = 0;
-                    for (int i = 0; i < response.getEventsCount(); i++) {
-                        Binlogdata.VEvent vEvent = response.getEvents(i);
-                        if (vEvent.getType() == Binlogdata.VEventType.ROW) {
+                    for (int i = 0; i < bufferedEvents.size(); i++) {
+                        Binlogdata.VEvent event = bufferedEvents.get(i);
+                        if (event.getType() == Binlogdata.VEventType.ROW) {
                             rowEventSeen++;
                         }
                         boolean isLastRowEventOfTransaction = newVgtid != null && numOfRowEvents != 0 && rowEventSeen == numOfRowEvents;
-                        messageDecoder.processMessage(response.getEvents(i), processor, newVgtid, isLastRowEventOfTransaction);
+                        messageDecoder.processMessage(bufferedEvents.get(i), processor, newVgtid, isLastRowEventOfTransaction);
                     }
                 }
                 catch (InterruptedException e) {
@@ -119,6 +195,9 @@ public class VitessReplicationConnection implements ReplicationConnection {
                     error.compareAndSet(null, e);
                     Thread.currentThread().interrupt();
                 }
+                finally {
+                    reset();
+                }
             }
 
             @Override
@@ -126,47 +205,33 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 LOGGER.info("VStream streaming onError. Status: " + Status.fromThrowable(t), t);
                 // Only propagate the first error
                 error.compareAndSet(null, t);
+                reset();
             }
 
             @Override
             public void onCompleted() {
                 LOGGER.info("VStream streaming completed.");
+                reset();
             }
 
-            // We assume there is at most one vgtid event for response.
-            // Even in case of resharding, there is only one vgtid event that contains multiple shard
-            // gtids.
-            private Vgtid getVgtid(Vtgate.VStreamResponse response) {
-                LinkedList<Vgtid> vgtids = new LinkedList<>();
-                for (VEvent vEvent : response.getEventsList()) {
-                    if (vEvent.getType() == Binlogdata.VEventType.VGTID) {
-                        vgtids.addLast(Vgtid.of(vEvent.getVgtid()));
-                    }
-                }
-                if (vgtids.size() == 0) {
-                    // The VStreamResponse that contains an VERSION vEvent does not have VGTID.
-                    // We do not update lastReceivedVgtid in this case.
-                    // It can also be null if the 1st grpc response does not have vgtid upon restart
-                    LOGGER.trace("No vgtid found in response {}...", response.toString().substring(0, Math.min(100, response.toString().length())));
-                    LOGGER.debug("Full response is {}", response);
-                    return null;
-                }
-                if (vgtids.size() > 1) {
-                    LOGGER.error(
-                            "Should only have 1 vgtid per VStreamResponse, but found {}. Use the last vgtid {}.",
-                            vgtids.size(), vgtids.getLast());
-                }
-                return vgtids.getLast();
+            private void reset() {
+                bufferedEvents.clear();
+                newVgtid = null;
+                beginEventSeen = false;
+                commitEventSeen = false;
+                numOfRowEvents = 0;
+                numResponses = 0;
             }
 
-            private int getNumOfRowEvents(Vtgate.VStreamResponse response) {
-                int num = 0;
-                for (VEvent vEvent : response.getEventsList()) {
-                    if (vEvent.getType() == Binlogdata.VEventType.ROW) {
-                        num++;
-                    }
-                }
-                return num;
+            /**
+             * Create and set an error for error handler and reset.
+             */
+            private void setError(String msg) {
+                msg += String.format(". Buffered event types: %s",
+                        bufferedEvents.stream().map(VEvent::getType).map(Objects::toString).collect(Collectors.joining(", ")));
+                LOGGER.error(msg);
+                error.compareAndSet(null, new DebeziumException(msg));
+                reset();
             }
         };
 

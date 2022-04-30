@@ -78,7 +78,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             case VERSION:
                 break;
             default:
-                LOGGER.warn("VEventType {} skipped, not processing.", vEventType);
+                LOGGER.info("VEventType {} skipped, not processing.", vEventType);
         }
     }
 
@@ -107,7 +107,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     private void handleBeginMessage(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)
             throws InterruptedException {
         this.commitTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
-        // Use the entire VGTID as transaction id
+        // Use the entire VGTID as transaction id.
         if (newVgtid != null) {
             this.transactionId = newVgtid.toString();
         }

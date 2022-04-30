@@ -23,6 +23,7 @@ import java.util.stream.IntStream;
 import org.apache.kafka.common.config.Config;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.data.SchemaBuilder;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.awaitility.Awaitility;
 import org.junit.After;
@@ -316,7 +317,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
             }
             else {
                 // last row event has the new vgtid
-                assertRecordOffset(record, RecordOffset.fromSourceInfo(record));
+                String newVgtid = RecordOffset.fromSourceInfo(record).getVgtid();
+                assertThat(newVgtid).isNotNull();
+                assertThat(newVgtid).isNotEqualTo(baseVgtid.toString());
             }
             assertSourceInfo(record, TestHelper.TEST_SERVER, TestHelper.TEST_UNSHARDED_KEYSPACE, table.table());
             assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
@@ -331,10 +334,10 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertConnectorIsRunning();
 
         Vgtid baseVgtid = TestHelper.getCurrentVgtid();
-        // Insert 1000 rows
+        // Insert 10000 rows to make sure we will get multiple gRPC responses.
         // We should get multiple gRPC responses:
         // The first response contains BEGIN and ROW events; The last response contains ROW, VGTID and COMMIT events.
-        int expectedRecordsCount = 1000;
+        int expectedRecordsCount = 10000;
         consumer = testConsumer(expectedRecordsCount);
         String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
         StringBuilder insertRows = new StringBuilder().append("INSERT INTO numeric_table ("
@@ -370,9 +373,97 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 }
                 else {
                     // last row event has the new vgtid
-                    assertRecordOffset(actualRecord, RecordOffset.fromSourceInfo(actualRecord));
+                    String newVgtid = RecordOffset.fromSourceInfo(actualRecord).getVgtid();
+                    assertThat(newVgtid).isNotNull();
+                    assertThat(newVgtid).isNotEqualTo(baseVgtid.toString());
                 }
             }
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        Testing.Print.enable();
+    }
+
+    @Test
+    @FixFor("DBZ-5063")
+    public void shouldUseSameTransactionIdWhenMultiGrpcResponses() throws Exception {
+        Testing.Print.disable();
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(config -> config.with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true), false);
+        assertConnectorIsRunning();
+
+        Vgtid baseVgtid = TestHelper.getCurrentVgtid();
+        // Insert 10000 rows to make sure we will get multiple gRPC responses.
+        // The first response contains BEGIN and ROW events; The last response contains ROW, VGTID and COMMIT events.
+        int expectedRecordsCount1 = 10000;
+        // Insert 2 rows which can fit in a single gRPC response.
+        int expectedRecordsCount2 = 2;
+        // Expect expectedRecordsCount1 + expectedRecordsCount2 + 4 transaction metadata.
+        consumer = testConsumer(expectedRecordsCount1 + expectedRecordsCount2 + 4);
+
+        String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
+        String insertQuery = "INSERT INTO numeric_table ("
+                + "tinyint_col,"
+                + "tinyint_unsigned_col,"
+                + "smallint_col,"
+                + "smallint_unsigned_col,"
+                + "mediumint_col,"
+                + "mediumint_unsigned_col,"
+                + "int_col,"
+                + "int_unsigned_col,"
+                + "bigint_col,"
+                + "bigint_unsigned_col,"
+                + "bigint_unsigned_overflow_col,"
+                + "float_col,"
+                + "double_col,"
+                + "decimal_col,"
+                + "boolean_col)"
+                + " VALUES " + rowValue;
+        // Prepare first transaction.
+        StringBuilder insertRows1 = new StringBuilder().append(insertQuery);
+        for (int i = 1; i < expectedRecordsCount1; i++) {
+            insertRows1.append(", ").append(rowValue);
+        }
+        // Prepare second transaction.
+        StringBuilder insertRows2 = new StringBuilder().append(insertQuery);
+        for (int i = 1; i < expectedRecordsCount2; i++) {
+            insertRows2.append(", ").append(rowValue);
+        }
+
+        String insertRowsStatement1 = insertRows1.toString();
+        String insertRowsStatement2 = insertRows2.toString();
+        try {
+            // exercise SUT
+            TestHelper.execute(insertRowsStatement1);
+            executeAndWait(insertRowsStatement2);
+            // First transaction.
+            String expectedTxId1 = assertRecordBegin();
+            for (int i = 1; i <= expectedRecordsCount1; i++) {
+                SourceRecord record = assertRecordInserted(TestHelper.TEST_UNSHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
+                final Struct txn = ((Struct) record.value()).getStruct("transaction");
+                String txId = txn.getString("id");
+                assertThat(txId).isNotNull();
+                assertThat(txId).isEqualTo(expectedTxId1);
+                Vgtid actualVgtid = Vgtid.of(txId);
+                // The current vgtid is not the previous vgtid.
+                assertThat(actualVgtid).isNotEqualTo(baseVgtid);
+            }
+            assertRecordEnd(expectedTxId1, expectedRecordsCount1);
+
+            // Second transaction.
+            String expectedTxId2 = assertRecordBegin();
+            for (int i = 1; i <= expectedRecordsCount2; i++) {
+                SourceRecord record = assertRecordInserted(TestHelper.TEST_UNSHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
+                final Struct txn = ((Struct) record.value()).getStruct("transaction");
+                String txId = txn.getString("id");
+                assertThat(txId).isNotNull();
+                assertThat(txId).isEqualTo(expectedTxId2);
+                Vgtid actualVgtid = Vgtid.of(txId);
+                // The current vgtid is not the previous vgtid.
+                assertThat(actualVgtid).isNotEqualTo(Vgtid.of(expectedTxId1));
+            }
+            assertRecordEnd(expectedTxId2, expectedRecordsCount2);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
@@ -715,6 +806,34 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     private SourceRecord assertRecordUpdated(SourceRecord updatedRecord) {
         VerifyRecord.isValidUpdate(updatedRecord);
         return updatedRecord;
+    }
+
+    /**
+     * Assert that the connector receives a valid BEGIN event.
+     *
+     * @return The transaction id
+     */
+    private String assertRecordBegin() {
+        assertFalse("records not generated", consumer.isEmpty());
+        SourceRecord record = consumer.remove();
+        final Struct end = (Struct) record.value();
+        assertThat(end.getString("status")).isEqualTo("BEGIN");
+        return end.getString("id");
+    }
+
+    /**
+     * Assert that the connector receives a valid END event.
+     *
+     * @param expectedTxId The expected transaction id
+     * @param expectedEventCount The expected event count
+     */
+    private void assertRecordEnd(String expectedTxId, long expectedEventCount) {
+        assertFalse("records not generated", consumer.isEmpty());
+        SourceRecord record = consumer.remove();
+        final Struct end = (Struct) record.value();
+        assertThat(end.getString("status")).isEqualTo("END");
+        assertThat(end.getString("id")).isEqualTo(expectedTxId);
+        assertThat(end.getInt64("event_count")).isEqualTo(expectedEventCount);
     }
 
     private void executeAndWait(String statement) throws Exception {

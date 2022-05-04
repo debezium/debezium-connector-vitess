@@ -18,10 +18,11 @@ import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VgtidTest;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
-import io.debezium.connector.vitess.VitessTopicSelector;
 import io.debezium.doc.FixFor;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
+import io.debezium.schema.DefaultTopicNamingStrategy;
+import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.util.SchemaNameAdjuster;
 import io.vitess.proto.Query;
 
@@ -40,7 +41,7 @@ public class VStreamOutputMessageDecoderTest {
         schema = new VitessDatabaseSchema(
                 connectorConfig,
                 SchemaNameAdjuster.create(),
-                VitessTopicSelector.defaultSelector(connectorConfig));
+                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig));
         decoder = new VStreamOutputMessageDecoder(schema);
     }
 

@@ -18,6 +18,8 @@ import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.connector.vitess.connection.VStreamOutputReplicationMessage;
 import io.debezium.data.Envelope;
 import io.debezium.relational.TableId;
+import io.debezium.schema.DefaultTopicNamingStrategy;
+import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.util.Clock;
 import io.debezium.util.SchemaNameAdjuster;
 
@@ -34,7 +36,7 @@ public class VitessChangeRecordEmitterTest {
         schema = new VitessDatabaseSchema(
                 connectorConfig,
                 SchemaNameAdjuster.create(),
-                VitessTopicSelector.defaultSelector(connectorConfig));
+                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig));
         decoder = new VStreamOutputMessageDecoder(schema);
         // initialize schema by FIELD event
         decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);

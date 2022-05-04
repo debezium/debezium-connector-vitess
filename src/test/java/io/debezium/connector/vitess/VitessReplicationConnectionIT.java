@@ -29,6 +29,8 @@ import org.slf4j.LoggerFactory;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.doc.FixFor;
+import io.debezium.schema.DefaultTopicNamingStrategy;
+import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.util.SchemaNameAdjuster;
 
 import binlogdata.Binlogdata;
@@ -49,7 +51,7 @@ public class VitessReplicationConnectionIT {
         // setup fixture
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
-                conf, SchemaNameAdjuster.create(), VitessTopicSelector.defaultSelector(conf));
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
 
         AtomicReference<Throwable> error = new AtomicReference<>();
         try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
@@ -115,7 +117,7 @@ public class VitessReplicationConnectionIT {
     public void shouldReturnUpdatedSchemaWithOnlineDdl() throws Exception {
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
-                conf, SchemaNameAdjuster.create(), VitessTopicSelector.defaultSelector(conf));
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
         AtomicReference<Throwable> error = new AtomicReference<>();
         try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
             Vgtid startingVgtid = Vgtid.of(

@@ -15,7 +15,7 @@ import io.debezium.relational.RelationalDatabaseSchema;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.relational.TableSchemaBuilder;
-import io.debezium.schema.TopicSelector;
+import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.util.SchemaNameAdjuster;
 
 /**
@@ -28,10 +28,10 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
     public VitessDatabaseSchema(
                                 VitessConnectorConfig config,
                                 SchemaNameAdjuster schemaNameAdjuster,
-                                TopicSelector<TableId> topicSelector) {
+                                TopicNamingStrategy<TableId> topicNamingStrategy) {
         super(
                 config,
-                topicSelector,
+                topicNamingStrategy,
                 new Filters(config).tableFilter(),
                 config.getColumnFilter(),
                 new TableSchemaBuilder(

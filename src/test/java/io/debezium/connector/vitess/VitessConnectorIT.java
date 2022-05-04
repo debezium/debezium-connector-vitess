@@ -867,7 +867,12 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertThat(key.importance).isEqualTo(expected.importance());
         assertThat(key.documentation).isEqualTo(expected.description());
         assertThat(key.type).isEqualTo(expected.type());
-        assertThat(key.defaultValue).isEqualTo(expected.defaultValue());
+        if (expected.equals(CommonConnectorConfig.TOPIC_NAMING_STRATEGY)) {
+            assertThat(((Class<?>) key.defaultValue).getName()).isEqualTo((String) expected.defaultValue());
+        }
+        else {
+            assertThat(key.defaultValue).isEqualTo(expected.defaultValue());
+        }
         assertThat(key.dependents).isEqualTo(expected.dependents());
         assertThat(key.width).isNotNull();
         assertThat(key.group).isNotNull();

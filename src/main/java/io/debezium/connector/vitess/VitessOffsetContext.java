@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+import io.debezium.connector.SnapshotRecord;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -100,7 +101,7 @@ public class VitessOffsetContext implements OffsetContext {
     }
 
     @Override
-    public void markLastSnapshotRecord() {
+    public void markSnapshotRecord(SnapshotRecord record) {
     }
 
     @Override

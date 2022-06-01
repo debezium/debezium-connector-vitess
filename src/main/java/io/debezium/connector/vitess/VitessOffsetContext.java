@@ -28,11 +28,10 @@ import io.debezium.util.Clock;
  * update the offset by calling the APIs provided by this class, every time we process a new
  * ReplicationMessage.
  */
-public class VitessOffsetContext extends CommonOffsetContext {
+public class VitessOffsetContext extends CommonOffsetContext<SourceInfo> {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessOffsetContext.class);
 
     private final Schema sourceInfoSchema;
-    private final SourceInfo sourceInfo;
     private final TransactionContext transactionContext;
 
     public VitessOffsetContext(
@@ -40,7 +39,7 @@ public class VitessOffsetContext extends CommonOffsetContext {
                                Vgtid initialVgtid,
                                Instant time,
                                TransactionContext transactionContext) {
-        this.sourceInfo = new SourceInfo(connectorConfig);
+        super(new SourceInfo(connectorConfig));
         this.sourceInfo.resetVgtid(initialVgtid, time);
         this.sourceInfoSchema = sourceInfo.schema();
         this.transactionContext = transactionContext;
@@ -68,11 +67,6 @@ public class VitessOffsetContext extends CommonOffsetContext {
 
     public Vgtid getRestartVgtid() {
         return sourceInfo.getRestartVgtid();
-    }
-
-    @Override
-    public SourceInfo getSourceInfoObject() {
-        return sourceInfo;
     }
 
     /**

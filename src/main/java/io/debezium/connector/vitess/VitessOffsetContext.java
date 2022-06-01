@@ -9,14 +9,14 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
-import io.debezium.connector.SnapshotRecord;
 import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.connector.SnapshotRecord;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
+import io.debezium.pipeline.CommonOffsetContext;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.debezium.relational.TableId;
@@ -28,7 +28,7 @@ import io.debezium.util.Clock;
  * update the offset by calling the APIs provided by this class, every time we process a new
  * ReplicationMessage.
  */
-public class VitessOffsetContext implements OffsetContext {
+public class VitessOffsetContext extends CommonOffsetContext {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessOffsetContext.class);
 
     private final Schema sourceInfoSchema;
@@ -70,6 +70,11 @@ public class VitessOffsetContext implements OffsetContext {
         return sourceInfo.getRestartVgtid();
     }
 
+    @Override
+    public SourceInfo getSourceInfoObject() {
+        return sourceInfo;
+    }
+
     /**
      * Calculate and return the offset that will be used to create the {@link SourceRecord}.
      *
@@ -88,11 +93,6 @@ public class VitessOffsetContext implements OffsetContext {
     @Override
     public Schema getSourceInfoSchema() {
         return sourceInfoSchema;
-    }
-
-    @Override
-    public Struct getSourceInfo() {
-        return sourceInfo.struct();
     }
 
     @Override

@@ -96,11 +96,11 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
                 offsetContext.rotateVgtid(newVgtid, message.getCommitTime());
                 if (message.getOperation() == ReplicationMessage.Operation.BEGIN) {
                     // send to transaction topic
-                    dispatcher.dispatchTransactionStartedEvent(partition, message.getTransactionId(), offsetContext);
+                    dispatcher.dispatchTransactionStartedEvent(partition, message.getTransactionId(), offsetContext, message.getCommitTime());
                 }
                 else if (message.getOperation() == ReplicationMessage.Operation.COMMIT) {
                     // send to transaction topic
-                    dispatcher.dispatchTransactionCommittedEvent(partition, offsetContext);
+                    dispatcher.dispatchTransactionCommittedEvent(partition, offsetContext, message.getCommitTime());
                 }
                 return;
             }

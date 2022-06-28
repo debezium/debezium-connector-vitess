@@ -50,7 +50,7 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
         this.schema = schema;
         this.connectorConfig = connectorConfig;
         this.replicationConnection = replicationConnection;
-        this.pauseNoMessage = DelayStrategy.constant(connectorConfig.getPollInterval().toMillis());
+        this.pauseNoMessage = DelayStrategy.constant(connectorConfig.getPollInterval());
 
         LOGGER.info("VitessStreamingChangeEventSource is created");
     }

@@ -189,6 +189,11 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>com.googlecode.json-simple</groupId>
+            <artifactId>json-simple</artifactId>
+            <version>1.1.1</version>
+        </dependency>
         <!-- Building -->
         <dependency>
             <groupId>io.debezium</groupId>
@@ -311,7 +316,7 @@
                                     <color>yellow</color>
                                 </log>
                                 <wait>
-                                    <time>120000</time> <!-- 120 seconds max -->
+                                    <time>240000</time> <!-- 240 seconds max -->
                                     <log>vtgate is up</log>
                                 </wait>
                             </run>

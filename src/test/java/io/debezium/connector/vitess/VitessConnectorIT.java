@@ -11,6 +11,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -95,6 +96,18 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @Test
     public void shouldValidateMinimalConfiguration() {
         Configuration config = TestHelper.defaultConfig().build();
+        Config validateConfig = new VitessConnector().validate(config.asMap());
+        validateConfig
+                .configValues()
+                .forEach(
+                        configValue -> assertTrue(
+                                "Unexpected error for: " + configValue.name(),
+                                configValue.errorMessages().isEmpty()));
+    }
+
+    @Test
+    public void shouldValidateMinimalConfigurationPasswordFile() {
+        Configuration config = TestHelper.defaultConfig(false, true).build();
         Config validateConfig = new VitessConnector().validate(config.asMap());
         validateConfig
                 .configValues()
@@ -617,6 +630,77 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    public void shouldTaskFailIfUsernameInPasswordFileInvalid() throws InterruptedException {
+        URL pwdFile = TestHelper.class.getClassLoader().getResource("invalid_vitess_password_file.json");
+        Configuration.Builder configBuilder = TestHelper
+                .defaultConfig()
+                .with(VitessConnectorConfig.VTGATE_AUTH_FILE, pwdFile.getFile());
+
+        CountDownLatch latch = new CountDownLatch(1);
+        EmbeddedEngine.CompletionCallback completionCallback = (success, message, error) -> {
+            if (error != null) {
+                latch.countDown();
+            }
+            else {
+                fail("A controlled exception was expected....");
+            }
+        };
+
+        start(VitessConnector.class, configBuilder.build(), completionCallback);
+
+        if (!latch.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS)) {
+            fail("did not reach stop condition in time");
+        }
+    }
+
+    @Test
+    public void shouldTaskFailIfEmptyPasswordFile() throws InterruptedException {
+        URL pwdFile = TestHelper.class.getClassLoader().getResource("empty_vitess_password_file.json");
+        Configuration.Builder configBuilder = TestHelper
+                .defaultConfig(false, true)
+                .with(VitessConnectorConfig.VTGATE_AUTH_FILE, pwdFile.getFile());
+
+        CountDownLatch latch = new CountDownLatch(1);
+        EmbeddedEngine.CompletionCallback completionCallback = (success, message, error) -> {
+            if (error != null) {
+                latch.countDown();
+            }
+            else {
+                fail("A controlled exception was expected....");
+            }
+        };
+
+        start(VitessConnector.class, configBuilder.build(), completionCallback);
+
+        if (!latch.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS)) {
+            fail("did not reach stop condition in time");
+        }
+    }
+
+    @Test
+    public void shouldTaskFailIfPasswordFileNonExistent() throws InterruptedException {
+        Configuration.Builder configBuilder = TestHelper
+                .defaultConfig(false, true)
+                .with(VitessConnectorConfig.VTGATE_AUTH_FILE, "non_existent_password_file");
+
+        CountDownLatch latch = new CountDownLatch(1);
+        EmbeddedEngine.CompletionCallback completionCallback = (success, message, error) -> {
+            if (error != null) {
+                latch.countDown();
+            }
+            else {
+                fail("A controlled exception was expected....");
+            }
+        };
+
+        start(VitessConnector.class, configBuilder.build(), completionCallback);
+
+        if (!latch.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS)) {
+            fail("did not reach stop condition in time");
+        }
+    }
+
+    @Test
     @FixFor("DBZ-2851")
     public void shouldSanitizeFieldNames() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
@@ -716,7 +800,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
     private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig, boolean hasMultipleShards)
             throws InterruptedException {
-        Configuration.Builder configBuilder = customConfig.apply(TestHelper.defaultConfig(hasMultipleShards));
+        Configuration.Builder configBuilder = customConfig.apply(TestHelper.defaultConfig(hasMultipleShards, false));
         final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
         start(VitessConnector.class, configBuilder.build());
         assertConnectorIsRunning();

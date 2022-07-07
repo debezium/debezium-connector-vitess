@@ -5,6 +5,8 @@
  */
 package io.debezium.connector.vitess;
 
+import java.io.FileReader;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
@@ -14,6 +16,9 @@ import java.util.Map;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,6 +72,14 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withWidth(Width.SHORT)
             .withImportance(ConfigDef.Importance.HIGH)
             .withDescription("Password of the user to be used when connecting the Vitess VTGate gRPC server.");
+
+    public static final Field VTGATE_AUTH_FILE = Field.create(DATABASE_CONFIG_PREFIX + "auth_file")
+            .withDisplayName("Client Auth File")
+            .withType(Type.STRING)
+            .withWidth(Width.LONG)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withDescription("Client auth file to be used when connecting to the VTGate server. " +
+                    "Sample: https://github.com/vitessio/vitess/blob/main/examples/local/grpc_static_client_auth.json");
 
     public static final Field KEYSPACE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "keyspace")
             .withDisplayName("Keyspace")
@@ -164,6 +177,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     VTGATE_PORT,
                     VTGATE_USER,
                     VTGATE_PASSWORD,
+                    VTGATE_AUTH_FILE,
                     TABLET_TYPE,
                     STOP_ON_RESHARD_FLAG,
                     KEEPALIVE_INTERVAL_MS,
@@ -183,6 +197,9 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     public static ConfigDef configDef() {
         return CONFIG_DEFINITION.configDef();
     }
+
+    private String _username;
+    private String _password;
 
     public VitessConnectorConfig(Configuration config) {
         super(config, config.getString(SERVER_NAME), null, x -> x.schema() + "." + x.table(), -1, ColumnFilterMode.CATALOG);
@@ -224,12 +241,52 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return getConfig().getInteger(VTGATE_PORT);
     }
 
+    private void checkVtgateAuthFile() {
+        if (_username != null || _password != null) {
+            return;
+        }
+        String authFile = getVtgateAuthFile();
+        if (authFile != null && !authFile.isEmpty()) {
+            JSONParser parser = new JSONParser();
+            try {
+                Object obj = parser.parse(new FileReader(authFile));
+                JSONObject jsonObject = (JSONObject) obj;
+                _username = (String) jsonObject.get("Username");
+                if (_username == null) {
+                    // fallback to lowercase name
+                    _username = (String) jsonObject.get("username");
+                }
+                _password = (String) jsonObject.get("Password");
+                if (_password == null) {
+                    // fallback to lowercase name
+                    _password = (String) jsonObject.get("password");
+                }
+                LOGGER.info("Reading username: {} from file: {}", _username, authFile);
+                if (_username == null || _password == null) {
+                    LOGGER.warn("Either username or password is null in file: {}", authFile);
+                }
+            }
+            catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+            catch (ParseException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
     public String getVtgateUsername() {
-        return getConfig().getString(VTGATE_USER);
+        checkVtgateAuthFile();
+        return _username != null ? _username : getConfig().getString(VTGATE_USER);
     }
 
     public String getVtgatePassword() {
-        return getConfig().getString(VTGATE_PASSWORD);
+        checkVtgateAuthFile();
+        return _password != null ? _password : getConfig().getString(VTGATE_PASSWORD);
+    }
+
+    public String getVtgateAuthFile() {
+        return getConfig().getString(VTGATE_AUTH_FILE);
     }
 
     public String getTabletType() {

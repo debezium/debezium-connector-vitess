@@ -49,6 +49,7 @@ public class TestHelper {
     // Use the same username and password for vtgate and vtctld
     private static final String USERNAME = "vitess";
     private static final String PASSWORD = "vitess_password";
+    private static final String PASSWORD_FILE = "vitess_password_file.json";
 
     protected static final String INSERT_STMT = "INSERT INTO t1 (int_col) VALUES (1);";
     protected static final List<String> SETUP_TABLES_STMT = Arrays.asList(
@@ -56,7 +57,7 @@ public class TestHelper {
             "CREATE TABLE t1 (id BIGINT NOT NULL AUTO_INCREMENT, int_col INT, PRIMARY KEY (id));");
 
     public static Configuration.Builder defaultConfig() {
-        return defaultConfig(false);
+        return defaultConfig(false, false);
     }
 
     /**
@@ -65,15 +66,22 @@ public class TestHelper {
      * @param hasMultipleShards whether the keyspace has multiple shards
      * @return Configuration builder
      */
-    public static Configuration.Builder defaultConfig(boolean hasMultipleShards) {
+    public static Configuration.Builder defaultConfig(boolean hasMultipleShards, boolean usingPasswordFile) {
         Configuration.Builder builder = Configuration.create();
         builder = builder
                 .with(RelationalDatabaseConnectorConfig.SERVER_NAME, TEST_SERVER)
                 .with(VitessConnectorConfig.VTGATE_HOST, VTGATE_HOST)
                 .with(VitessConnectorConfig.VTGATE_PORT, VTGATE_PORT)
-                .with(VitessConnectorConfig.VTGATE_USER, USERNAME)
-                .with(VitessConnectorConfig.VTGATE_PASSWORD, PASSWORD)
                 .with(VitessConnectorConfig.POLL_INTERVAL_MS, 100);
+        if (usingPasswordFile) {
+            URL pwdFile = TestHelper.class.getClassLoader().getResource(PASSWORD_FILE);
+            builder = builder.with(VitessConnectorConfig.VTGATE_AUTH_FILE, pwdFile.getFile());
+        }
+        else {
+            builder = builder
+                    .with(VitessConnectorConfig.VTGATE_USER, USERNAME)
+                    .with(VitessConnectorConfig.VTGATE_PASSWORD, PASSWORD);
+        }
         if (hasMultipleShards) {
             return builder.with(VitessConnectorConfig.KEYSPACE, TEST_SHARDED_KEYSPACE);
         }

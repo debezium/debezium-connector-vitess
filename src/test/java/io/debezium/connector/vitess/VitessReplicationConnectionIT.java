@@ -44,10 +44,7 @@ public class VitessReplicationConnectionIT {
         TestHelper.execute(TestHelper.INSERT_STMT);
     }
 
-    @Test
-    public void shouldHaveVgtidInResponse() throws Exception {
-        // setup fixture
-        final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());
+    private void validateVgtidInReponse(VitessConnectorConfig conf) throws Exception {
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
                 conf, SchemaNameAdjuster.create(), VitessTopicSelector.defaultSelector(conf));
 
@@ -108,6 +105,20 @@ public class VitessReplicationConnectionIT {
                 LOGGER.error("Error during streaming", error.get());
             }
         }
+    }
+
+    @Test
+    public void shouldHaveVgtidInResponse() throws Exception {
+        // setup fixture
+        final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());
+        validateVgtidInReponse(conf);
+    }
+
+    @Test
+    public void shouldHaveVgtidInResponseUsingPasswordFile() throws Exception {
+        // setup fixture
+        final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig(false, true).build());
+        validateVgtidInReponse(conf);
     }
 
     @Test

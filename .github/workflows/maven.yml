@@ -39,6 +39,6 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
       - name: Maven build core
-        run: ./vitess/mvnw clean install -f core/pom.xml -pl debezium-bom,debezium-embedded -am -DskipTests -DskipITs -Dformat.formatter.goal=validate -Dformat.imports.goal=check -Dmaven.wagon.http.pool=false -Dmaven.wagon.httpconnectionManager.ttlSeconds=120
+        run: ./vitess/mvnw clean install -f core/pom.xml -pl debezium-bom,debezium-embedded,debezium-storage -am -DskipTests -DskipITs -Dformat.formatter.goal=validate -Dformat.imports.goal=check -Dmaven.wagon.http.pool=false -Dmaven.wagon.httpconnectionManager.ttlSeconds=120
       - name: Maven build vitess
         run: ./vitess/mvnw clean install -f vitess/pom.xml -Passembly -Dformat.formatter.goal=validate -Dformat.imports.goal=check -Dmaven.wagon.http.pool=false -Dmaven.wagon.httpconnectionManager.ttlSeconds=120

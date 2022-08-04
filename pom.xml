@@ -311,7 +311,7 @@
                                     <color>yellow</color>
                                 </log>
                                 <wait>
-                                    <time>120000</time> <!-- 120 seconds max -->
+                                    <time>240000</time> <!-- 240 seconds max -->
                                     <log>vtgate is up</log>
                                 </wait>
                             </run>

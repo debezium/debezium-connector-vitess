@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.kafka.common.config.ConfigDef;
@@ -153,6 +154,18 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                             + "'false' (the default) omits the fields; "
                             + "'true' converts the field into an implementation dependent binary representation.");
 
+    public static final Field OFFSET_STORAGE_PER_TASK = Field.create(VITESS_CONFIG_GROUP_PREFIX + "offset.storage.per.task")
+            .withDisplayName("Store offsets per task")
+            .withType(Type.BOOLEAN)
+            .withDefault(false)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription(
+                    "Whether to store the offsets in Kafka's offset storage topic by task id. "
+                            + "You must set offset.storage.per.task to true if tasks.max > 1"
+                            + "'false' (the default) offsets are stored as a single unit under the database name. "
+                            + "'true' stores the offsets per task id");
+
     protected static final ConfigDefinition CONFIG_DEFINITION = RelationalDatabaseConnectorConfig.CONFIG_DEFINITION
             .edit()
             .name("Vitess")
@@ -170,10 +183,23 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     GRPC_HEADERS,
                     GRPC_MAX_INBOUND_MESSAGE_SIZE,
                     BINARY_HANDLING_MODE,
-                    SCHEMA_NAME_ADJUSTMENT_MODE)
+                    SCHEMA_NAME_ADJUSTMENT_MODE,
+                    OFFSET_STORAGE_PER_TASK)
             .events(INCLUDE_UNKNOWN_DATATYPES)
             .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST)
             .create();
+
+    // tasks.max is defined in org.apache.kafka.connect.runtime.ConnectorConfig
+    // We copy the definition here instead of importing the class from connect.runtime package
+    protected static final String TASKS_MAX_CONFIG = "tasks.max";
+
+    // The vitess.task.key config, the value is in the form of <task-id>_<num-tasks>,
+    // VitessConnector will populate the value of this param and pass on to VitessConnectorTask
+    protected static final String VITESS_TASK_KEY_CONFIG = "vitess.task.key";
+
+    // The vitess.task.shards config, the value is a comma separated vitess shard names
+    // VitessConnector will populate the value of this param and pass on to VitessConnectorTask
+    protected static final String VITESS_TASK_KEY_SHARDS_CONFIG = "vitess.task.shards";
 
     /**
      * The set of {@link Field}s defined as part of this configuration.
@@ -274,4 +300,15 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return getConfig().getBoolean(INCLUDE_UNKNOWN_DATATYPES);
     }
 
+    public boolean offsetStoragePerTask() {
+        return getConfig().getBoolean(OFFSET_STORAGE_PER_TASK);
+    }
+
+    public String getVitessTaskKey() {
+        return getConfig().getString(VITESS_TASK_KEY_CONFIG);
+    }
+
+    public List<String> getVitessTaskKeyShards() {
+        return getConfig().getStrings(VITESS_TASK_KEY_SHARDS_CONFIG, ",");
+    }
 }

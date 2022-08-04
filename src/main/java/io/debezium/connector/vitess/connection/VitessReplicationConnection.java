@@ -61,14 +61,15 @@ public class VitessReplicationConnection implements ReplicationConnection {
      * @param sqlStatement The SQL statement to be executed
      * @throws StatusRuntimeException if the connection is not valid, or SQL statement can not be successfully exected
      */
-    public void execute(String sqlStatement) {
+    public Vtgate.ExecuteResponse execute(String sqlStatement) {
+        LOGGER.info("Executing sqlStament {}", sqlStatement);
         ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize());
         managedChannel.compareAndSet(null, channel);
 
         Vtgate.ExecuteRequest request = Vtgate.ExecuteRequest.newBuilder()
                 .setQuery(Proto.bindQuery(sqlStatement, Collections.emptyMap()))
                 .build();
-        newBlockingStub(channel).execute(request);
+        return newBlockingStub(channel).execute(request);
     }
 
     @Override
@@ -292,37 +293,61 @@ public class VitessReplicationConnection implements ReplicationConnection {
         }
     }
 
-    /** Get latest replication position */
-    public static Vgtid defaultVgtid(VitessConnectorConfig config) {
-        if (config.getShard() == null || config.getShard().isEmpty()) {
-            // Replicate all shards of the given keyspace
-            final Vgtid gtid = Vgtid.of(
-                    Binlogdata.VGtid.newBuilder()
-                            .addShardGtids(
-                                    Binlogdata.ShardGtid.newBuilder()
-                                            .setKeyspace(config.getKeyspace())
-                                            .setGtid(Vgtid.CURRENT_GTID)
-                                            .build())
-                            .build());
-            LOGGER.info("Default VGTID '{}' is set to the current gtid of all shards from keyspace: {}", gtid, config.getKeyspace());
-            return gtid;
+    private static Vgtid buildVgtid(String keyspace, List<String> shards, List<String> gtids) {
+        Binlogdata.VGtid.Builder builder = Binlogdata.VGtid.newBuilder();
+        Vgtid vgtid;
+        if (shards == null || shards.isEmpty()) {
+            vgtid = Vgtid.of(builder.addShardGtids(
+                    Binlogdata.ShardGtid.newBuilder()
+                            .setKeyspace(keyspace)
+                            .setGtid(Vgtid.CURRENT_GTID)
+                            .build())
+                    .build());
         }
         else {
-            String shardGtid = config.getGtid();
-            String shard = config.getShard();
-            String keyspace = config.getKeyspace();
-            final Vgtid gtid = Vgtid.of(
-                    Binlogdata.VGtid.newBuilder()
-                            .addShardGtids(
-                                    Binlogdata.ShardGtid.newBuilder()
-                                            .setKeyspace(keyspace)
-                                            .setShard(shard)
-                                            .setGtid(shardGtid)
-                                            .build())
-                            .build());
-            LOGGER.info("VGTID '{}' is set to the GTID {} for keyspace: {} shard: {}", gtid, shardGtid, config.getKeyspace(), shard);
-            return gtid;
+            for (int i = 0; i < shards.size(); i++) {
+                String shard = shards.get(i);
+                String gtid = gtids.get(i);
+                builder.addShardGtids(
+                        Binlogdata.ShardGtid.newBuilder()
+                                .setKeyspace(keyspace)
+                                .setShard(shard)
+                                .setGtid(gtid)
+                                .build());
+            }
+            vgtid = Vgtid.of(builder.build());
         }
+        LOGGER.info("Default VGTID '{}' for keyspace {}, shards: {}, gtids {}", vgtid, keyspace, shards, gtids);
+        return vgtid;
+    }
+
+    /** Get latest replication position */
+    public static Vgtid defaultVgtid(VitessConnectorConfig config) {
+        Vgtid vgtid;
+        if (config.offsetStoragePerTask()) {
+            List<String> shards = config.getVitessTaskKeyShards();
+            List<String> gtids = new ArrayList<>();
+            for (int i = 0; i < shards.size(); i++) {
+                gtids.add(Vgtid.CURRENT_GTID);
+            }
+            vgtid = buildVgtid(config.getKeyspace(), shards, gtids);
+            LOGGER.info("VGTID '{}' is set for the keyspace: {} shards: {}",
+                    vgtid, config.getKeyspace(), shards);
+        }
+        else {
+            if (config.getShard() == null || config.getShard().isEmpty()) {
+                vgtid = buildVgtid(config.getKeyspace(), Collections.emptyList(), Collections.emptyList());
+                LOGGER.info("Default VGTID '{}' is set to the current gtid of all shards from keyspace: {}",
+                        vgtid, config.getKeyspace());
+            }
+            else {
+                vgtid = buildVgtid(config.getKeyspace(), Collections.singletonList(config.getShard()),
+                        Collections.singletonList(config.getGtid()));
+                LOGGER.info("VGTID '{}' is set to the GTID {} for keyspace: {} shard: {}",
+                        vgtid, config.getGtid(), config.getKeyspace(), config.getShard());
+            }
+        }
+        return vgtid;
     }
 
     public String connectionString() {

@@ -10,10 +10,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.debezium.pipeline.spi.Partition;
 import io.debezium.util.Collect;
 
 public class VitessPartition implements Partition {
+    private static final Logger LOGGER = LoggerFactory.getLogger(VitessPartition.class);
+
     private static final String SERVER_PARTITION_KEY = "server";
 
     private final String serverName;
@@ -58,7 +63,16 @@ public class VitessPartition implements Partition {
 
         @Override
         public Set<VitessPartition> getPartitions() {
-            return Collections.singleton(new VitessPartition(connectorConfig.getLogicalName()));
+            if (connectorConfig.offsetStoragePerTask()) {
+                String taskKey = connectorConfig.getVitessTaskKey();
+                if (taskKey == null) {
+                    throw new RuntimeException("No vitess.task.key in: {}" + connectorConfig.getConfig());
+                }
+                return Collections.singleton(new VitessPartition(taskKey));
+            }
+            else {
+                return Collections.singleton(new VitessPartition(connectorConfig.getLogicalName()));
+            }
         }
     }
 }

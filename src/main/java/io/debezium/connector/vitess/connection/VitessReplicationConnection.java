@@ -293,7 +293,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
         }
     }
 
-    private static Vgtid buildVgtid(String keyspace, List<String> shards, List<String> gtids) {
+    public static Vgtid buildVgtid(String keyspace, List<String> shards, List<String> gtids) {
         Binlogdata.VGtid.Builder builder = Binlogdata.VGtid.newBuilder();
         Vgtid vgtid;
         if (shards == null || shards.isEmpty()) {

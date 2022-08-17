@@ -56,7 +56,7 @@ public class TestHelper {
             "CREATE TABLE t1 (id BIGINT NOT NULL AUTO_INCREMENT, int_col INT, PRIMARY KEY (id));");
 
     public static Configuration.Builder defaultConfig() {
-        return defaultConfig(false);
+        return defaultConfig(false, false, 1);
     }
 
     /**
@@ -65,7 +65,9 @@ public class TestHelper {
      * @param hasMultipleShards whether the keyspace has multiple shards
      * @return Configuration builder
      */
-    public static Configuration.Builder defaultConfig(boolean hasMultipleShards) {
+    public static Configuration.Builder defaultConfig(boolean hasMultipleShards,
+                                                      boolean offsetStoragePerTask,
+                                                      int numTasks) {
         Configuration.Builder builder = Configuration.create();
         builder = builder
                 .with(RelationalDatabaseConnectorConfig.SERVER_NAME, TEST_SERVER)
@@ -75,12 +77,17 @@ public class TestHelper {
                 .with(VitessConnectorConfig.VTGATE_PASSWORD, PASSWORD)
                 .with(VitessConnectorConfig.POLL_INTERVAL_MS, 100);
         if (hasMultipleShards) {
-            return builder.with(VitessConnectorConfig.KEYSPACE, TEST_SHARDED_KEYSPACE);
+            builder = builder.with(VitessConnectorConfig.KEYSPACE, TEST_SHARDED_KEYSPACE);
         }
         else {
-            return builder.with(VitessConnectorConfig.KEYSPACE, TEST_UNSHARDED_KEYSPACE)
+            builder = builder.with(VitessConnectorConfig.KEYSPACE, TEST_UNSHARDED_KEYSPACE)
                     .with(VitessConnectorConfig.SHARD, TEST_SHARD);
         }
+        if (offsetStoragePerTask) {
+            builder = builder.with(VitessConnectorConfig.OFFSET_STORAGE_PER_TASK, "true")
+                    .with(VitessConnectorConfig.TASKS_MAX_CONFIG, Integer.toString(numTasks));
+        }
+        return builder;
     }
 
     public static void execute(List<String> statements) {

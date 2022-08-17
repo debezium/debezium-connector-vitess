@@ -154,6 +154,6 @@ public class VitessChangeRecordEmitterTest {
     }
 
     private VitessPartition initializePartition() {
-        return new VitessPartition("test");
+        return new VitessPartition("test", null);
     }
 }

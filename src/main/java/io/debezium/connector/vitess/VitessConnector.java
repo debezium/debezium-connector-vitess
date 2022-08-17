@@ -76,7 +76,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
             for (int tid : shardsPerTask.keySet()) {
                 List<String> taskShards = shardsPerTask.get(tid);
                 Map<String, String> taskProps = new HashMap<>(properties);
-                taskProps.put(VitessConnectorConfig.VITESS_TASK_KEY_CONFIG, String.format("task%d_%d", tid, tasks));
+                taskProps.put(VitessConnectorConfig.VITESS_TASK_KEY_CONFIG, getTaskKeyName(tid, tasks));
                 taskProps.put(VitessConnectorConfig.VITESS_TASK_KEY_SHARDS_CONFIG, String.join(",", taskShards));
                 allTaskProps.add(taskProps);
             }
@@ -89,6 +89,10 @@ public class VitessConnector extends RelationalBaseSourceConnector {
             }
             return Collections.singletonList(properties);
         }
+    }
+
+    protected static final String getTaskKeyName(int tid, int numTasks) {
+        return String.format("task%d_%d", tid, numTasks);
     }
 
     @Override

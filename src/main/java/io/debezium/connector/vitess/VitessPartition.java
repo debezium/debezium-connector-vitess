@@ -19,16 +19,22 @@ import io.debezium.util.Collect;
 public class VitessPartition implements Partition {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessPartition.class);
 
-    private static final String SERVER_PARTITION_KEY = "server";
+    protected static final String SERVER_PARTITION_KEY = "server";
+    protected static final String TASK_KEY_PARTITION_KEY = "task_key";
 
     private final String serverName;
+    private final String taskKeyName;
 
-    public VitessPartition(String serverName) {
+    public VitessPartition(String serverName, String taskKeyName) {
         this.serverName = serverName;
+        this.taskKeyName = taskKeyName;
     }
 
     @Override
     public Map<String, String> getSourcePartition() {
+        if (taskKeyName != null) {
+            return Collect.hashMapOf(SERVER_PARTITION_KEY, serverName, TASK_KEY_PARTITION_KEY, taskKeyName);
+        }
         return Collect.hashMapOf(SERVER_PARTITION_KEY, serverName);
     }
 
@@ -41,12 +47,12 @@ public class VitessPartition implements Partition {
             return false;
         }
         final VitessPartition other = (VitessPartition) obj;
-        return Objects.equals(serverName, other.serverName);
+        return Objects.equals(serverName, other.serverName) && Objects.equals(taskKeyName, other.taskKeyName);
     }
 
     @Override
     public int hashCode() {
-        return serverName.hashCode();
+        return serverName.hashCode() ^ (taskKeyName != null ? taskKeyName.hashCode() : 0);
     }
 
     @Override
@@ -68,10 +74,10 @@ public class VitessPartition implements Partition {
                 if (taskKey == null) {
                     throw new RuntimeException("No vitess.task.key in: {}" + connectorConfig.getConfig());
                 }
-                return Collections.singleton(new VitessPartition(taskKey));
+                return Collections.singleton(new VitessPartition(connectorConfig.getLogicalName(), taskKey));
             }
             else {
-                return Collections.singleton(new VitessPartition(connectorConfig.getLogicalName()));
+                return Collections.singleton(new VitessPartition(connectorConfig.getLogicalName(), null));
             }
         }
     }

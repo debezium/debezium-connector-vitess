@@ -13,6 +13,7 @@ import static org.junit.Assert.fail;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -869,6 +870,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertThat(key.type).isEqualTo(expected.type());
         if (expected.equals(CommonConnectorConfig.TOPIC_NAMING_STRATEGY)) {
             assertThat(((Class<?>) key.defaultValue).getName()).isEqualTo((String) expected.defaultValue());
+        }
+        else if (expected.type() == ConfigDef.Type.LIST && key.defaultValue != null) {
+            assertThat(key.defaultValue).isEqualTo(Arrays.asList(expected.defaultValue()));
         }
         else {
             assertThat(key.defaultValue).isEqualTo(expected.defaultValue());

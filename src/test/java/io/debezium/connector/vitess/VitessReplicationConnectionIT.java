@@ -61,7 +61,7 @@ public class VitessReplicationConnectionIT {
                                     Binlogdata.ShardGtid.newBuilder()
                                             .setKeyspace(conf.getKeyspace())
                                             .setShard(conf.getShard())
-                                            .setGtid("current")
+                                            .setGtid(Vgtid.CURRENT_GTID)
                                             .build())
                             .build());
 
@@ -126,7 +126,7 @@ public class VitessReplicationConnectionIT {
                                     Binlogdata.ShardGtid.newBuilder()
                                             .setKeyspace(conf.getKeyspace())
                                             .setShard(conf.getShard())
-                                            .setGtid("current")
+                                            .setGtid(Vgtid.CURRENT_GTID)
                                             .build())
                             .build());
 

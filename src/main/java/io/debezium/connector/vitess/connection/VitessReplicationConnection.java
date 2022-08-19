@@ -326,11 +326,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
         Vgtid vgtid;
         if (config.offsetStoragePerTask()) {
             List<String> shards = config.getVitessTaskKeyShards();
-            List<String> gtids = new ArrayList<>();
-            for (int i = 0; i < shards.size(); i++) {
-                gtids.add(Vgtid.CURRENT_GTID);
-            }
-            vgtid = buildVgtid(config.getKeyspace(), shards, gtids);
+            vgtid = config.getVitessTaskVgtid();
             LOGGER.info("VGTID '{}' is set for the keyspace: {} shards: {}",
                     vgtid, config.getKeyspace(), shards);
         }

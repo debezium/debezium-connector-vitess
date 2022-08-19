@@ -56,7 +56,7 @@ public class TestHelper {
             "CREATE TABLE t1 (id BIGINT NOT NULL AUTO_INCREMENT, int_col INT, PRIMARY KEY (id));");
 
     public static Configuration.Builder defaultConfig() {
-        return defaultConfig(false, false, 1);
+        return defaultConfig(false, false, 1, -1, -1);
     }
 
     /**
@@ -67,7 +67,9 @@ public class TestHelper {
      */
     public static Configuration.Builder defaultConfig(boolean hasMultipleShards,
                                                       boolean offsetStoragePerTask,
-                                                      int numTasks) {
+                                                      int numTasks,
+                                                      int gen,
+                                                      int prevNumTasks) {
         Configuration.Builder builder = Configuration.create();
         builder = builder
                 .with(RelationalDatabaseConnectorConfig.SERVER_NAME, TEST_SERVER)
@@ -85,7 +87,9 @@ public class TestHelper {
         }
         if (offsetStoragePerTask) {
             builder = builder.with(VitessConnectorConfig.OFFSET_STORAGE_PER_TASK, "true")
-                    .with(VitessConnectorConfig.TASKS_MAX_CONFIG, Integer.toString(numTasks));
+                    .with(VitessConnectorConfig.TASKS_MAX_CONFIG, Integer.toString(numTasks))
+                    .with(VitessConnectorConfig.OFFSET_STORAGE_TASK_KEY_GEN, Integer.toString(gen))
+                    .with(VitessConnectorConfig.PREV_NUM_TASKS, Integer.toString(prevNumTasks));
         }
         return builder;
     }

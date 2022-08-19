@@ -92,7 +92,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDisplayName("gtid")
             .withType(Type.STRING)
             .withWidth(Width.LONG)
-            .withDefault("current")
+            .withDefault(Vgtid.CURRENT_GTID)
             .withImportance(ConfigDef.Importance.HIGH)
             .withDescription(
                     "Single GTID from where to start reading from for a given shard."
@@ -166,6 +166,50 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                             + "'false' (the default) offsets are stored as a single unit under the database name. "
                             + "'true' stores the offsets per task id");
 
+    public static final Field OFFSET_STORAGE_TASK_KEY_GEN = Field.create(VITESS_CONFIG_GROUP_PREFIX + "offset.storage.task.key.gen")
+            .withDisplayName("Offset storage task key generation number")
+            .withType(Type.INT)
+            .withDefault(-1)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription(
+                    "Offset storage task key generation number. "
+                            + "The partition key in the offset storage will be in the form of <taskId>_<numTasks>_<gen>. "
+                            + "You will increase the <gen> number when the parallelism of your tasks are changing. \n"
+                            + "This will make each generation of task parallelism leaves different sets of partition keys in the offset storage. "
+                            + "E.g. you were using 2 tasks for the connector previously and now you want to use 4 tasks. "
+                            + "Previously you might specify <gen> as 1 and now you will specify <gen> as 2. "
+                            + "Previously the partition key in the offset storage will be task0_2_1, task1_2_1, "
+                            + "And now the partition key in the offset storage will be task0_4_2, task1_4_2, task2_4_2, task3_4_2. \n"
+                            + "Note that for generation number lineage tracking purpose, generation number starts with 0.  "
+                            + "If your installation previously did not use offset.storage.per.task, the offset storage "
+                            + " key will be in the form of server=db_1, this will implicitly be treated as generation 0. "
+                            + "And when you switch to use offset.storage.per.task mode, you should specify task.key.gen=1 "
+                            + "so we can establish the offset generation lineage for offset migration. \n"
+                            + "If your installation starts with offset.storage.per.task mode upfront (which means you don't have "
+                            + "any previous key in offset storage, you should start with specifying task.key.gen = 0 explicitly "
+                            + "So we know this run is the origin.");
+
+    public static final Field PREV_NUM_TASKS = Field.create(VITESS_CONFIG_GROUP_PREFIX + "prev.num.tasks")
+            .withDisplayName("Previous number of tasks")
+            .withType(Type.INT)
+            .withDefault(-1)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription(
+                    "Previous number of tasks used for the previous generation of task parallelism. \n"
+                            + "This param is only used when your tasks parallelism is changing and "
+                            + "We will use prev.num.tasks to fetch the existing offset from offset storage associated "
+                            + "with your previous run to keep the offset progression continuously. \n"
+                            + "E.g. Previously you were using 2 tasks for the connector and offset.storage.task.key.gen = 1, "
+                            + "The partition keys in the offset storage were task0_2_1, task1_2_1, \n"
+                            + "Now you want to use 4 tasks. You will specify prev.num.tasks = 2 and offset.storage.task.key.gen = 2, "
+                            + "We will use this information to fetch the offsets through partition keys from previous run, "
+                            + "Previous run's partition keys will be calculated using <taskId>_<prev.num.task>_<offset.storage.task.key.gen - 1>. \n"
+                            + "Note this param is only used once the first time when we detect task parallelism change. "
+                            + "Once we persist the new offsets in offset storage using new partition key "
+                            + "based on current <numTasks> and <gen>, we will no longer read prev.num.tasks param");
+
     protected static final ConfigDefinition CONFIG_DEFINITION = RelationalDatabaseConnectorConfig.CONFIG_DEFINITION
             .edit()
             .name("Vitess")
@@ -184,7 +228,9 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     GRPC_MAX_INBOUND_MESSAGE_SIZE,
                     BINARY_HANDLING_MODE,
                     SCHEMA_NAME_ADJUSTMENT_MODE,
-                    OFFSET_STORAGE_PER_TASK)
+                    OFFSET_STORAGE_PER_TASK,
+                    OFFSET_STORAGE_TASK_KEY_GEN,
+                    PREV_NUM_TASKS)
             .events(INCLUDE_UNKNOWN_DATATYPES)
             .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST)
             .create();
@@ -200,6 +246,12 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     // The vitess.task.shards config, the value is a comma separated vitess shard names
     // VitessConnector will populate the value of this param and pass on to VitessConnectorTask
     protected static final String VITESS_TASK_KEY_SHARDS_CONFIG = "vitess.task.shards";
+
+    // The vgtid assigned to the given task in the json format, this is the same format as we would see
+    // in the Kafka offset storage.
+    // e.g. [{\"keyspace\":\"ks\",\"shard\":\"-80\",\"gtid\":\"MySQL56/0001:1-114\"},
+    // {\"keyspace\":\"ks\",\"shard\":\"80-\",\"gtid\":\"MySQL56/0002:1-122\"}]
+    protected static final String VITESS_KEY_KEY_VGTID_CONFIG = "vitess.task.vgtid";
 
     /**
      * The set of {@link Field}s defined as part of this configuration.
@@ -304,11 +356,24 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return getConfig().getBoolean(OFFSET_STORAGE_PER_TASK);
     }
 
+    public int getOffsetStorageTaskKeyGen() {
+        return getConfig().getInteger(OFFSET_STORAGE_TASK_KEY_GEN);
+    }
+
+    public int getPrevNumTasks() {
+        return getConfig().getInteger(PREV_NUM_TASKS);
+    }
+
     public String getVitessTaskKey() {
         return getConfig().getString(VITESS_TASK_KEY_CONFIG);
     }
 
     public List<String> getVitessTaskKeyShards() {
         return getConfig().getStrings(VITESS_TASK_KEY_SHARDS_CONFIG, ",");
+    }
+
+    public Vgtid getVitessTaskVgtid() {
+        String vgtidStr = getConfig().getString(VITESS_KEY_KEY_VGTID_CONFIG);
+        return vgtidStr == null ? null : Vgtid.of(vgtidStr);
     }
 }

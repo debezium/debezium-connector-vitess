@@ -11,10 +11,13 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigValue;
 import org.apache.kafka.connect.connector.Task;
+import org.apache.kafka.connect.source.SourceConnectorContext;
+import org.apache.kafka.connect.storage.OffsetStorageReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,11 +35,14 @@ public class VitessConnector extends RelationalBaseSourceConnector {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessConnector.class);
 
     private Map<String, String> properties;
+    private VitessConnectorConfig connectorConfig;
 
     @Override
     public void start(Map<String, String> props) {
         LOGGER.info("Starting Vitess Connector");
         this.properties = Collections.unmodifiableMap(props);
+        this.connectorConfig = new VitessConnectorConfig(Configuration.from(properties));
+
     }
 
     @Override
@@ -44,25 +50,75 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         return VitessConnectorTask.class;
     }
 
+    protected Map<String, String> getGtidPerShardFromStorage(int numTasks, int gen, boolean expectsOffset) {
+        // Note that in integration test, EmbeddedEngine didn't initialize SourceConnector with SourceConnectorContext
+        if (context == null
+                || !(context instanceof SourceConnectorContext) || context().offsetStorageReader() == null) {
+            LOGGER.warn("Context {} is not setup for the connector, this can happen in unit tests.", context);
+            return null;
+        }
+        final OffsetStorageReader offsetStorageReader = context().offsetStorageReader();
+        final Map<String, String> gtidsPerShard = new HashMap<>();
+        for (int i = 0; i < numTasks; i++) {
+            String taskKey = VitessConnector.getTaskKeyName(i, numTasks, gen);
+            VitessPartition par = new VitessPartition(connectorConfig.getLogicalName(), taskKey);
+            Map<String, Object> offset = offsetStorageReader.offset(par.getSourcePartition());
+            if (offset == null && gen == 0) {
+                LOGGER.info("No previous offset for partition: {}, fall back to only server key", par);
+                par = new VitessPartition(connectorConfig.getLogicalName(), null);
+                offset = offsetStorageReader.offset(par.getSourcePartition());
+            }
+            if (offset == null) {
+                if (expectsOffset) {
+                    throw new IllegalArgumentException(String.format("No offset found for %s", par));
+                }
+                else {
+                    LOGGER.warn("No offset found for key key: {}", taskKey);
+                    continue;
+                }
+            }
+            final String vgtidStr = (String) offset.get(SourceInfo.VGTID_KEY);
+            Objects.requireNonNull(vgtidStr, String.format("No vgtid from %s", offset));
+            List<Vgtid.ShardGtid> shardGtids = Vgtid.of(vgtidStr).getShardGtids();
+            for (Vgtid.ShardGtid shardGtid : shardGtids) {
+                gtidsPerShard.put(shardGtid.getShard(), shardGtid.getGtid());
+            }
+        }
+        return gtidsPerShard;
+    }
+
     @Override
     public List<Map<String, String>> taskConfigs(int maxTasks) {
         LOGGER.info("Calculating taskConfigs for {} tasks", maxTasks);
-        List<String> shards = null;
-        String storagePerTask = properties.get(VitessConnectorConfig.OFFSET_STORAGE_PER_TASK.name());
-        if (storagePerTask != null && storagePerTask.equalsIgnoreCase("true")) {
-            VitessConnectorConfig connectorConfig = new VitessConnectorConfig(Configuration.from(properties));
-            shards = getVitessShards(connectorConfig);
-        }
+        List<String> shards = connectorConfig.offsetStoragePerTask() ? getVitessShards(connectorConfig) : null;
         return taskConfigs(maxTasks, shards);
     }
 
     public List<Map<String, String>> taskConfigs(int maxTasks, List<String> shards) {
         LOGGER.info("Calculating taskConfigs for {} tasks and shards: {}", maxTasks, shards);
-        String storagePerTask = properties.get(VitessConnectorConfig.OFFSET_STORAGE_PER_TASK.name());
-        if (storagePerTask != null && storagePerTask.equalsIgnoreCase("true")) {
+        if (connectorConfig.offsetStoragePerTask()) {
+            final int prevNumTasks = connectorConfig.getPrevNumTasks();
+            final int gen = connectorConfig.getOffsetStorageTaskKeyGen();
+            Map<String, String> prevGtidsPerShard = gen > 0 ? getGtidPerShardFromStorage(prevNumTasks, gen - 1, true) : null;
+            LOGGER.info("Previous gtids Per shard: {}", prevGtidsPerShard);
             int tasks = Math.min(maxTasks, shards.size());
             LOGGER.info("There are {} vitess shards for maxTasks: {}, we will use {} tasks",
                     shards.size(), maxTasks, tasks);
+            if (gen > 0 && tasks == prevNumTasks) {
+                throw new IllegalArgumentException(String.format(
+                        "Previous num.tasks: %s and current num.tasks: %s are the same",
+                        prevNumTasks, tasks));
+            }
+            if (prevGtidsPerShard != null && prevGtidsPerShard.size() != shards.size()) {
+                throw new IllegalArgumentException(String.format("Different number of shards between %s and %S",
+                        prevGtidsPerShard, shards));
+            }
+            final String keyspace = connectorConfig.getKeyspace();
+            Map<String, String> gtidsPerShard = getGtidPerShardFromStorage(tasks, gen, false);
+            if (gtidsPerShard != null && gtidsPerShard.size() != shards.size()) {
+                LOGGER.warn("Some shards for the current generation {} are not persisted.  Expected shards: {}",
+                        gtidsPerShard.keySet(), shards);
+            }
             shards.sort(Comparator.naturalOrder());
             Map<Integer, List<String>> shardsPerTask = new HashMap<>();
             int taskId = 0;
@@ -76,8 +132,22 @@ public class VitessConnector extends RelationalBaseSourceConnector {
             for (int tid : shardsPerTask.keySet()) {
                 List<String> taskShards = shardsPerTask.get(tid);
                 Map<String, String> taskProps = new HashMap<>(properties);
-                taskProps.put(VitessConnectorConfig.VITESS_TASK_KEY_CONFIG, getTaskKeyName(tid, tasks));
+                taskProps.put(VitessConnectorConfig.VITESS_TASK_KEY_CONFIG, getTaskKeyName(tid, tasks, gen));
                 taskProps.put(VitessConnectorConfig.VITESS_TASK_KEY_SHARDS_CONFIG, String.join(",", taskShards));
+                List<Vgtid.ShardGtid> shardGtids = new ArrayList<>();
+                for (String shard : taskShards) {
+                    String gtidStr = gtidsPerShard != null ? gtidsPerShard.get(shard) : null;
+                    if (gtidStr == null) {
+                        LOGGER.warn("No current gtid found for shard: {}, fallback to previous gen", shard);
+                        gtidStr = prevGtidsPerShard != null ? prevGtidsPerShard.get(shard) : null;
+                    }
+                    if (gtidStr == null) {
+                        LOGGER.warn("No previous gtid found either for shard: {}, fallback to current", shard);
+                        gtidStr = Vgtid.CURRENT_GTID;
+                    }
+                    shardGtids.add(new Vgtid.ShardGtid(keyspace, shard, gtidStr));
+                }
+                taskProps.put(VitessConnectorConfig.VITESS_KEY_KEY_VGTID_CONFIG, Vgtid.of(shardGtids).toString());
                 allTaskProps.add(taskProps);
             }
             LOGGER.info("taskConfigs are: {}", allTaskProps);
@@ -91,8 +161,8 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         }
     }
 
-    protected static final String getTaskKeyName(int tid, int numTasks) {
-        return String.format("task%d_%d", tid, numTasks);
+    protected static final String getTaskKeyName(int tid, int numTasks, int gen) {
+        return String.format("task%d_%d_%d", tid, numTasks, gen);
     }
 
     @Override
@@ -162,12 +232,29 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         Map<String, ConfigValue> results = config.validate(VitessConnectorConfig.ALL_FIELDS);
         Integer maxTasks = config.getInteger(VitessConnectorConfig.TASKS_MAX_CONFIG);
         if (maxTasks != null && maxTasks > 1) {
-            if (!config.getBoolean(VitessConnectorConfig.OFFSET_STORAGE_PER_TASK)) {
-                String offsetConfigName = VitessConnectorConfig.OFFSET_STORAGE_PER_TASK.name();
-                results.computeIfAbsent(offsetConfigName, k -> new ConfigValue(offsetConfigName));
-                ConfigValue offSetConfigValue = results.get(offsetConfigName);
-                results.get(offsetConfigName).addErrorMessage(
-                        "offset.storage.per.task needs to be enabled when tasks.max > 1");
+            if (!connectorConfig.offsetStoragePerTask()) {
+                String configName = VitessConnectorConfig.OFFSET_STORAGE_PER_TASK.name();
+                results.computeIfAbsent(configName, k -> new ConfigValue(configName));
+                results.get(configName).addErrorMessage(String.format(
+                        "%s needs to be enabled when %s > 1", configName, VitessConnectorConfig.TASKS_MAX_CONFIG));
+            }
+        }
+        if (connectorConfig.offsetStoragePerTask()) {
+            if (connectorConfig.getOffsetStorageTaskKeyGen() < 0) {
+                String configName = VitessConnectorConfig.OFFSET_STORAGE_TASK_KEY_GEN.name();
+                results.computeIfAbsent(configName, k -> new ConfigValue(configName));
+                results.get(configName).addErrorMessage(String.format(
+                        "%s needs to be enabled when %s is specified",
+                        configName, VitessConnectorConfig.OFFSET_STORAGE_PER_TASK.name()));
+            }
+        }
+        if (connectorConfig.getOffsetStorageTaskKeyGen() >= 0) {
+            if (connectorConfig.getPrevNumTasks() <= 0) {
+                String configName = VitessConnectorConfig.PREV_NUM_TASKS.name();
+                results.computeIfAbsent(configName, k -> new ConfigValue(configName));
+                results.get(configName).addErrorMessage(String.format(
+                        "%s needs to be enabled when %s is specified",
+                        configName, VitessConnectorConfig.OFFSET_STORAGE_TASK_KEY_GEN.name()));
             }
         }
         return results;

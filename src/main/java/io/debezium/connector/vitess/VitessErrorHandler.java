@@ -19,6 +19,7 @@ public class VitessErrorHandler extends ErrorHandler {
         if (throwable instanceof StatusRuntimeException) {
             final StatusRuntimeException exception = (StatusRuntimeException) throwable;
             switch (exception.getStatus().getCode()) {
+                case CANCELLED:
                 case UNAVAILABLE:
                     return true;
                 case UNKNOWN:

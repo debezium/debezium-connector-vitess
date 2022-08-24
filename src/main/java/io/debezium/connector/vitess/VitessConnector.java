@@ -73,7 +73,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                     throw new IllegalArgumentException(String.format("No offset found for %s", par));
                 }
                 else {
-                    LOGGER.warn("No offset found for key key: {}", taskKey);
+                    LOGGER.warn("No offset found for task key: {}", taskKey);
                     continue;
                 }
             }
@@ -99,18 +99,22 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         if (connectorConfig.offsetStoragePerTask()) {
             final int prevNumTasks = connectorConfig.getPrevNumTasks();
             final int gen = connectorConfig.getOffsetStorageTaskKeyGen();
-            Map<String, String> prevGtidsPerShard = gen > 0 ? getGtidPerShardFromStorage(prevNumTasks, gen - 1, true) : null;
-            LOGGER.info("Previous gtids Per shard: {}", prevGtidsPerShard);
             int tasks = Math.min(maxTasks, shards.size());
             LOGGER.info("There are {} vitess shards for maxTasks: {}, we will use {} tasks",
                     shards.size(), maxTasks, tasks);
             if (gen > 0 && tasks == prevNumTasks) {
                 throw new IllegalArgumentException(String.format(
-                        "Previous num.tasks: %s and current num.tasks: %s are the same",
+                        "Previous num.tasks: %s and current num.tasks: %s are the same. "
+                                + "Please choose different tasks.max or have different number of vitess shards "
+                                + "if you want to change the task parallelism.  "
+                                + "Otherwise please reset the offset.storage.task.key.gen config to its original value",
                         prevNumTasks, tasks));
             }
+            Map<String, String> prevGtidsPerShard = gen > 0 ? getGtidPerShardFromStorage(prevNumTasks, gen - 1, true) : null;
+            LOGGER.info("Previous gtids Per shard: {}", prevGtidsPerShard);
             if (prevGtidsPerShard != null && prevGtidsPerShard.size() != shards.size()) {
-                throw new IllegalArgumentException(String.format("Different number of shards between %s and %S",
+                throw new IllegalArgumentException(String.format(
+                        "Different number of shards between offset storage: %s and current vitess shards: %s. ",
                         prevGtidsPerShard, shards));
             }
             final String keyspace = connectorConfig.getKeyspace();
@@ -133,7 +137,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                 List<String> taskShards = shardsPerTask.get(tid);
                 Map<String, String> taskProps = new HashMap<>(properties);
                 taskProps.put(VitessConnectorConfig.VITESS_TASK_KEY_CONFIG, getTaskKeyName(tid, tasks, gen));
-                taskProps.put(VitessConnectorConfig.VITESS_TASK_KEY_SHARDS_CONFIG, String.join(",", taskShards));
+                taskProps.put(VitessConnectorConfig.VITESS_TASK_SHARDS_CONFIG, String.join(",", taskShards));
                 List<Vgtid.ShardGtid> shardGtids = new ArrayList<>();
                 for (String shard : taskShards) {
                     String gtidStr = gtidsPerShard != null ? gtidsPerShard.get(shard) : null;
@@ -147,7 +151,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                     }
                     shardGtids.add(new Vgtid.ShardGtid(keyspace, shard, gtidStr));
                 }
-                taskProps.put(VitessConnectorConfig.VITESS_KEY_KEY_VGTID_CONFIG, Vgtid.of(shardGtids).toString());
+                taskProps.put(VitessConnectorConfig.VITESS_TASK_VGTID_CONFIG, Vgtid.of(shardGtids).toString());
                 allTaskProps.add(taskProps);
             }
             LOGGER.info("taskConfigs are: {}", allTaskProps);

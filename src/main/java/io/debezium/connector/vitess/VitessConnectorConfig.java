@@ -245,13 +245,13 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     // The vitess.task.shards config, the value is a comma separated vitess shard names
     // VitessConnector will populate the value of this param and pass on to VitessConnectorTask
-    protected static final String VITESS_TASK_KEY_SHARDS_CONFIG = "vitess.task.shards";
+    protected static final String VITESS_TASK_SHARDS_CONFIG = "vitess.task.shards";
 
     // The vgtid assigned to the given task in the json format, this is the same format as we would see
     // in the Kafka offset storage.
     // e.g. [{\"keyspace\":\"ks\",\"shard\":\"-80\",\"gtid\":\"MySQL56/0001:1-114\"},
     // {\"keyspace\":\"ks\",\"shard\":\"80-\",\"gtid\":\"MySQL56/0002:1-122\"}]
-    protected static final String VITESS_KEY_KEY_VGTID_CONFIG = "vitess.task.vgtid";
+    protected static final String VITESS_TASK_VGTID_CONFIG = "vitess.task.vgtid";
 
     /**
      * The set of {@link Field}s defined as part of this configuration.
@@ -369,11 +369,11 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     }
 
     public List<String> getVitessTaskKeyShards() {
-        return getConfig().getStrings(VITESS_TASK_KEY_SHARDS_CONFIG, ",");
+        return getConfig().getStrings(VITESS_TASK_SHARDS_CONFIG, ",");
     }
 
     public Vgtid getVitessTaskVgtid() {
-        String vgtidStr = getConfig().getString(VITESS_KEY_KEY_VGTID_CONFIG);
+        String vgtidStr = getConfig().getString(VITESS_TASK_VGTID_CONFIG);
         return vgtidStr == null ? null : Vgtid.of(vgtidStr);
     }
 }

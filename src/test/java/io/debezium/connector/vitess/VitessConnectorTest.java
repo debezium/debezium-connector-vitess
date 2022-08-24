@@ -130,12 +130,12 @@ public class VitessConnectorTest {
         assertThat(firstConfig.size() == 4);
         assertEquals(firstConfig.get(VitessConnectorConfig.VITESS_TASK_KEY_CONFIG),
                 VitessConnector.getTaskKeyName(0, 1, 0));
-        assertEquals(firstConfig.get(VitessConnectorConfig.VITESS_TASK_KEY_SHARDS_CONFIG),
+        assertEquals(firstConfig.get(VitessConnectorConfig.VITESS_TASK_SHARDS_CONFIG),
                 String.join(",", shards));
         List<String> gtidStrs = Arrays.asList(Vgtid.CURRENT_GTID, Vgtid.CURRENT_GTID,
                 Vgtid.CURRENT_GTID, Vgtid.CURRENT_GTID);
         Vgtid vgtid = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE, shards, gtidStrs);
-        assertEquals(vgtid.toString(), firstConfig.get(VitessConnectorConfig.VITESS_KEY_KEY_VGTID_CONFIG));
+        assertEquals(vgtid.toString(), firstConfig.get(VitessConnectorConfig.VITESS_TASK_VGTID_CONFIG));
         assertEquals("value", firstConfig.get("key"));
     }
 
@@ -158,19 +158,19 @@ public class VitessConnectorTest {
         Map<String, String> firstConfig = taskConfigs.get(0);
         assertThat(firstConfig.size() == 4);
         assertEquals(firstConfig.get(VitessConnectorConfig.VITESS_TASK_KEY_CONFIG), "task0_2_0");
-        assertEquals(firstConfig.get(VitessConnectorConfig.VITESS_TASK_KEY_SHARDS_CONFIG), "-4000,8000-c000");
+        assertEquals(firstConfig.get(VitessConnectorConfig.VITESS_TASK_SHARDS_CONFIG), "-4000,8000-c000");
         List<String> gtidStrs = Arrays.asList(Vgtid.CURRENT_GTID, Vgtid.CURRENT_GTID);
         List<String> shards0 = Arrays.asList("-4000", "8000-c000");
         Vgtid vgtid0 = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE, shards0, gtidStrs);
-        assertEquals(firstConfig.get(VitessConnectorConfig.VITESS_KEY_KEY_VGTID_CONFIG), vgtid0.toString());
+        assertEquals(firstConfig.get(VitessConnectorConfig.VITESS_TASK_VGTID_CONFIG), vgtid0.toString());
         assertEquals(firstConfig.get("key"), "value");
         Map<String, String> secondConfig = taskConfigs.get(1);
         assertThat(secondConfig.size() == 4);
         assertEquals(secondConfig.get(VitessConnectorConfig.VITESS_TASK_KEY_CONFIG), "task1_2_0");
-        assertEquals(secondConfig.get(VitessConnectorConfig.VITESS_TASK_KEY_SHARDS_CONFIG), "4000-8000,c000-");
+        assertEquals(secondConfig.get(VitessConnectorConfig.VITESS_TASK_SHARDS_CONFIG), "4000-8000,c000-");
         List<String> shards1 = Arrays.asList("4000-8000", "c000-");
         Vgtid vgtid1 = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE, shards1, gtidStrs);
-        assertEquals(secondConfig.get(VitessConnectorConfig.VITESS_KEY_KEY_VGTID_CONFIG), vgtid1.toString());
+        assertEquals(secondConfig.get(VitessConnectorConfig.VITESS_TASK_VGTID_CONFIG), vgtid1.toString());
         assertEquals(secondConfig.get("key"), "value");
     }
 

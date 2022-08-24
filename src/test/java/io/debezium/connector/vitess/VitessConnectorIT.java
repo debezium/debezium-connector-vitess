@@ -570,7 +570,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @FixFor("DBZ-2836")
     public void shouldTaskFailIfColumnNameInvalid() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
-        TestHelper.execute("ALTER TABLE numeric_table ADD `@1` INT;");
 
         CountDownLatch latch = new CountDownLatch(1);
         EmbeddedEngine.CompletionCallback completionCallback = (success, message, error) -> {
@@ -586,6 +585,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         waitForStreamingRunning();
 
         // Connector receives a row whose column name is not valid, task should fail
+        TestHelper.execute("ALTER TABLE numeric_table ADD `@1` INT;");
         TestHelper.execute(INSERT_NUMERIC_TYPES_STMT);
         if (!latch.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS)) {
             fail("did not reach stop condition in time");

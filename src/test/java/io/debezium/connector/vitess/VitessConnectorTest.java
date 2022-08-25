@@ -192,7 +192,6 @@ public class VitessConnectorTest {
             }
         };
         VitessConnector connector = new VitessConnector();
-        connector.start(props);
         Configuration config = Configuration.from(props);
         Map<String, ConfigValue> results = connector.validateAllFields(config);
         LOGGER.info("results: {}", results);

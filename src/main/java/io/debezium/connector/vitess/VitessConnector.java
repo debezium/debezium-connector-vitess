@@ -235,16 +235,17 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         LOGGER.info("Validating config: {}", config);
         Map<String, ConfigValue> results = config.validate(VitessConnectorConfig.ALL_FIELDS);
         Integer maxTasks = config.getInteger(VitessConnectorConfig.TASKS_MAX_CONFIG);
+        VitessConnectorConfig tempConnectorConfig = new VitessConnectorConfig(config);
         if (maxTasks != null && maxTasks > 1) {
-            if (!connectorConfig.offsetStoragePerTask()) {
+            if (!tempConnectorConfig.offsetStoragePerTask()) {
                 String configName = VitessConnectorConfig.OFFSET_STORAGE_PER_TASK.name();
                 results.computeIfAbsent(configName, k -> new ConfigValue(configName));
                 results.get(configName).addErrorMessage(String.format(
                         "%s needs to be enabled when %s > 1", configName, VitessConnectorConfig.TASKS_MAX_CONFIG));
             }
         }
-        if (connectorConfig.offsetStoragePerTask()) {
-            if (connectorConfig.getOffsetStorageTaskKeyGen() < 0) {
+        if (tempConnectorConfig.offsetStoragePerTask()) {
+            if (tempConnectorConfig.getOffsetStorageTaskKeyGen() < 0) {
                 String configName = VitessConnectorConfig.OFFSET_STORAGE_TASK_KEY_GEN.name();
                 results.computeIfAbsent(configName, k -> new ConfigValue(configName));
                 results.get(configName).addErrorMessage(String.format(
@@ -252,8 +253,8 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                         configName, VitessConnectorConfig.OFFSET_STORAGE_PER_TASK.name()));
             }
         }
-        if (connectorConfig.getOffsetStorageTaskKeyGen() >= 0) {
-            if (connectorConfig.getPrevNumTasks() <= 0) {
+        if (tempConnectorConfig.getOffsetStorageTaskKeyGen() >= 0) {
+            if (tempConnectorConfig.getPrevNumTasks() <= 0) {
                 String configName = VitessConnectorConfig.PREV_NUM_TASKS.name();
                 results.computeIfAbsent(configName, k -> new ConfigValue(configName));
                 results.get(configName).addErrorMessage(String.format(

@@ -21,6 +21,7 @@ import io.debezium.DebeziumException;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
+import io.debezium.util.Strings;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Metadata;
@@ -239,15 +240,33 @@ public class VitessReplicationConnection implements ReplicationConnection {
         Vtgate.VStreamFlags vStreamFlags = Vtgate.VStreamFlags.newBuilder()
                 .setStopOnReshard(config.getStopOnReshard())
                 .build();
+        // Add filtering for whitelist tables
+        Binlogdata.Filter.Builder filterBuilder = Binlogdata.Filter.newBuilder();
+        if (!Strings.isNullOrEmpty(config.tableIncludeList())) {
+            String[] dbTables = config.tableIncludeList().split(",");
+            for (String dbTable : dbTables) {
+                // the dbTable is in the form of dbName.tableName
+                int pos = dbTable.indexOf('.');
+                String table = pos >= 0 ? dbTable.substring(pos + 1) : dbTable;
+                String sql = "select * from " + table;
+                // See rule in: https://github.com/vitessio/vitess/blob/release-14.0/go/vt/vttablet/tabletserver/vstreamer/planbuilder.go#L316
+                Binlogdata.Rule rule = Binlogdata.Rule.newBuilder().setMatch(table).setFilter(sql).build();
+                LOGGER.info("Add vstream table filtering: {}", rule.getMatch());
+                filterBuilder.addRules(rule);
+            }
+        }
         // Providing a vgtid MySQL56/19eb2657-abc2-11ea-8ffc-0242ac11000a:1-61 here will make VStream to
         // start receiving row-changes from MySQL56/19eb2657-abc2-11ea-8ffc-0242ac11000a:1-62
+        Vtgate.VStreamRequest.Builder vstreamBuilder = Vtgate.VStreamRequest.newBuilder()
+                .setVgtid(vgtid.getRawVgtid())
+                .setTabletType(
+                        toTopodataTabletType(VitessTabletType.valueOf(config.getTabletType())))
+                .setFlags(vStreamFlags);
+        if (filterBuilder.getRulesCount() > 0) {
+            vstreamBuilder.setFilter(filterBuilder);
+        }
         stub.vStream(
-                Vtgate.VStreamRequest.newBuilder()
-                        .setVgtid(vgtid.getRawVgtid())
-                        .setTabletType(
-                                toTopodataTabletType(VitessTabletType.valueOf(config.getTabletType())))
-                        .setFlags(vStreamFlags)
-                        .build(),
+                vstreamBuilder.build(),
                 responseObserver);
         LOGGER.info("Started VStream");
     }

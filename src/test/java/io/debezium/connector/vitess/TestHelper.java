@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import com.google.common.base.Strings;
 import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 
@@ -56,7 +57,7 @@ public class TestHelper {
             "CREATE TABLE t1 (id BIGINT NOT NULL AUTO_INCREMENT, int_col INT, PRIMARY KEY (id));");
 
     public static Configuration.Builder defaultConfig() {
-        return defaultConfig(false, false, 1, -1, -1);
+        return defaultConfig(false, false, 1, -1, -1, null);
     }
 
     /**
@@ -69,7 +70,8 @@ public class TestHelper {
                                                       boolean offsetStoragePerTask,
                                                       int numTasks,
                                                       int gen,
-                                                      int prevNumTasks) {
+                                                      int prevNumTasks,
+                                                      String tableInclude) {
         Configuration.Builder builder = Configuration.create();
         builder = builder
                 .with(RelationalDatabaseConnectorConfig.SERVER_NAME, TEST_SERVER)
@@ -78,6 +80,9 @@ public class TestHelper {
                 .with(VitessConnectorConfig.VTGATE_USER, USERNAME)
                 .with(VitessConnectorConfig.VTGATE_PASSWORD, PASSWORD)
                 .with(VitessConnectorConfig.POLL_INTERVAL_MS, 100);
+        if (!Strings.isNullOrEmpty(tableInclude)) {
+            builder.with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude);
+        }
         if (hasMultipleShards) {
             builder = builder.with(VitessConnectorConfig.KEYSPACE, TEST_SHARDED_KEYSPACE);
         }

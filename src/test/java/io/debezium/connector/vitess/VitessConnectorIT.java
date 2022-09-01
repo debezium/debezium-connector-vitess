@@ -699,6 +699,21 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         testOffsetStorage(true);
     }
 
+    @Test
+    public void testTableIncludeFilter() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + "numeric_table";
+        startConnector(Function.identity(), false, false, 1, -1, -1, tableInclude);
+        assertConnectorIsRunning();
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        // We should not receive record from string_table
+        TestHelper.execute(INSERT_STRING_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        // We should receive record from numeeric_table
+        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
+    }
+
     private void testOffsetStorage(boolean offsetStoragePerTask) throws Exception {
         final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
         TestHelper.executeDDL("vitess_create_tables.ddl", TEST_UNSHARDED_KEYSPACE);
@@ -707,14 +722,15 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         final int numTasks = 1;
         final int gen = 0;
         final int tid = 0;
-        Configuration config = TestHelper.defaultConfig(hasMultipleShards, offsetStoragePerTask, numTasks, gen, -1).build();
+        Configuration config = TestHelper.defaultConfig(hasMultipleShards,
+                offsetStoragePerTask, numTasks, gen, -1, null).build();
         final String serverName = config.getString(VitessConnectorConfig.SERVER_NAME);
         Map<String, String> srcPartition = Collect.hashMapOf(VitessPartition.SERVER_PARTITION_KEY, serverName);
         if (offsetStoragePerTask) {
             srcPartition.put(VitessPartition.TASK_KEY_PARTITION_KEY, VitessConnector.getTaskKeyName(tid, numTasks, gen));
         }
 
-        startConnector(Function.identity(), hasMultipleShards, offsetStoragePerTask, numTasks, gen, -1);
+        startConnector(Function.identity(), hasMultipleShards, offsetStoragePerTask, numTasks, gen, -1, null);
 
         consumer = testConsumer(1);
         executeAndWait("INSERT INTO pk_single_unique_key_table (id, int_col) VALUES (1, 1);",
@@ -785,15 +801,15 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig,
                                 boolean hasMultipleShards)
             throws InterruptedException {
-        startConnector(customConfig, hasMultipleShards, false, 1, -1, -1);
+        startConnector(customConfig, hasMultipleShards, false, 1, -1, -1, null);
     }
 
     private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig,
                                 boolean hasMultipleShards, boolean offsetStoragePerTask,
-                                int numTasks, int gen, int prevNumTasks)
+                                int numTasks, int gen, int prevNumTasks, String tableInclude)
             throws InterruptedException {
         Configuration.Builder configBuilder = customConfig.apply(TestHelper.defaultConfig(
-                hasMultipleShards, offsetStoragePerTask, numTasks, gen, prevNumTasks));
+                hasMultipleShards, offsetStoragePerTask, numTasks, gen, prevNumTasks, tableInclude));
         final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
         start(VitessConnector.class, configBuilder.build());
         assertConnectorIsRunning();

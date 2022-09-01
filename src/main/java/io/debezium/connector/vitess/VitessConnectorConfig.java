@@ -26,6 +26,7 @@ import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.schema.AbstractTopicNamingStrategy;
 
 /**
  * Vitess connector configuration, including its specific configurations and the common
@@ -263,7 +264,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     }
 
     public VitessConnectorConfig(Configuration config) {
-        super(config, config.getString(SERVER_NAME), null, x -> x.schema() + "." + x.table(), -1, ColumnFilterMode.CATALOG, true);
+        super(config, config.getString(AbstractTopicNamingStrategy.TOPIC_PREFIX), null, x -> x.schema() + "." + x.table(), -1, ColumnFilterMode.CATALOG, true);
     }
 
     @Override

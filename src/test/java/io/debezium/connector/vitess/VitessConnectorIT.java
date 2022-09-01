@@ -53,6 +53,7 @@ import io.debezium.doc.FixFor;
 import io.debezium.embedded.EmbeddedEngine;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.TableId;
+import io.debezium.schema.AbstractTopicNamingStrategy;
 import io.debezium.util.Collect;
 import io.debezium.util.Testing;
 
@@ -748,7 +749,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         final int tid = 0;
         Configuration config = TestHelper.defaultConfig(hasMultipleShards,
                 offsetStoragePerTask, numTasks, gen, -1, null).build();
-        final String serverName = config.getString(VitessConnectorConfig.SERVER_NAME);
+        final String serverName = config.getString(AbstractTopicNamingStrategy.TOPIC_PREFIX);
         Map<String, String> srcPartition = Collect.hashMapOf(VitessPartition.SERVER_PARTITION_KEY, serverName);
         if (offsetStoragePerTask) {
             srcPartition.put(VitessPartition.TASK_KEY_PARTITION_KEY, VitessConnector.getTaskKeyName(tid, numTasks, gen));
@@ -773,7 +774,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         VitessOffsetContext.Loader loader = new VitessOffsetContext.Loader(
                 new VitessConnectorConfig(Configuration.create()
-                        .with(VitessConnectorConfig.SERVER_NAME, serverName)
+                        .with(AbstractTopicNamingStrategy.TOPIC_PREFIX, serverName)
                         .build()));
         Map<String, String> partition = new VitessPartition(serverName,
                 offsetStoragePerTask ? VitessConnector.getTaskKeyName(0, numTasks, gen) : null).getSourcePartition();

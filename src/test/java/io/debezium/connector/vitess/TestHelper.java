@@ -29,6 +29,7 @@ import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageColumn;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.schema.AbstractTopicNamingStrategy;
 import io.vitess.proto.Query;
 import io.vitess.proto.Query.Field;
 
@@ -74,7 +75,7 @@ public class TestHelper {
                                                       String tableInclude) {
         Configuration.Builder builder = Configuration.create();
         builder = builder
-                .with(RelationalDatabaseConnectorConfig.SERVER_NAME, TEST_SERVER)
+                .with(AbstractTopicNamingStrategy.TOPIC_PREFIX, TEST_SERVER)
                 .with(VitessConnectorConfig.VTGATE_HOST, VTGATE_HOST)
                 .with(VitessConnectorConfig.VTGATE_PORT, VTGATE_PORT)
                 .with(VitessConnectorConfig.VTGATE_USER, USERNAME)

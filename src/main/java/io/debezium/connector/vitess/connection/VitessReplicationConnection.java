@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import io.debezium.DebeziumException;
 import io.debezium.connector.vitess.Vgtid;
+import io.debezium.connector.vitess.VitessConnector;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.debezium.util.Strings;
@@ -243,11 +244,11 @@ public class VitessReplicationConnection implements ReplicationConnection {
         // Add filtering for whitelist tables
         Binlogdata.Filter.Builder filterBuilder = Binlogdata.Filter.newBuilder();
         if (!Strings.isNullOrEmpty(config.tableIncludeList())) {
-            String[] dbTables = config.tableIncludeList().split(",");
-            for (String dbTable : dbTables) {
-                // the dbTable is in the form of dbName.tableName
-                int pos = dbTable.indexOf('.');
-                String table = pos >= 0 ? dbTable.substring(pos + 1) : dbTable;
+            final String keyspace = config.getKeyspace();
+            final List<String> allTables = VitessConnector.getKeyspaceTables(config);
+            List<String> includedTables = VitessConnector.getIncludedTables(config.getKeyspace(),
+                    config.tableIncludeList(), allTables);
+            for (String table : includedTables) {
                 String sql = "select * from " + table;
                 // See rule in: https://github.com/vitessio/vitess/blob/release-14.0/go/vt/vttablet/tabletserver/vstreamer/planbuilder.go#L316
                 Binlogdata.Rule rule = Binlogdata.Rule.newBuilder().setMatch(table).setFilter(sql).build();

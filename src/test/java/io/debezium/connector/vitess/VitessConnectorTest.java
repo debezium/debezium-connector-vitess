@@ -451,6 +451,16 @@ public class VitessConnectorTest {
         assertArrayEquals(vgtids.values().toArray(), expectedVgtids.values().toArray());
     }
 
+    @Test
+    public void testTableIncludeList() {
+        String keyspace = "ks";
+        List<String> allTables = Arrays.asList("t1", "t22", "t3");
+        String tableIncludeList = new String("ks.t1,ks.t2.*");
+        List<String> includedTables = VitessConnector.getIncludedTables(keyspace, tableIncludeList, allTables);
+        List<String> expectedTables = Arrays.asList("t1", "t22");
+        assertEquals(expectedTables, includedTables);
+    }
+
     private void storeOffsets(OffsetBackingStore offsetStore, String serverVgtid, Map<String, Object> prevVgtids) {
         if (serverVgtid == null && (prevVgtids == null || prevVgtids.isEmpty())) {
             Testing.print("Empty gtids to store to offset.");

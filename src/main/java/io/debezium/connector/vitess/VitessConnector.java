@@ -12,6 +12,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigValue;
@@ -25,6 +27,7 @@ import io.debezium.config.Configuration;
 import io.debezium.connector.common.RelationalBaseSourceConnector;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.util.Strings;
 import io.grpc.StatusRuntimeException;
 import io.vitess.proto.Query;
 import io.vitess.proto.Vtgate;
@@ -204,30 +207,55 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         }
     }
 
-    public static List<String> getVitessShards(VitessConnectorConfig connectionConfig) {
+    private static List<String> getRowsFromQuery(VitessConnectorConfig connectionConfig, String query) {
         try (VitessReplicationConnection connection = new VitessReplicationConnection(connectionConfig, null)) {
-            String keyspace = connectionConfig.getKeyspace();
-            String query = String.format("SHOW VITESS_SHARDS LIKE '%s/%%'", keyspace);
             Vtgate.ExecuteResponse response = connection.execute(query);
-            LOGGER.info("Got response {} for keyspace shards", response);
+            LOGGER.info("Got response: {} for query: {}", response, query);
             assert response != null && !response.hasError() && response.hasResult()
                     : String.format("Error response: %s", response);
             Query.QueryResult result = response.getResult();
             List<Query.Row> rows = result.getRowsList();
             assert !rows.isEmpty() : String.format("Empty response: %s", response);
-            List<String> shards = new ArrayList<>();
-            for (Query.Row row : rows) {
-                String fieldValue = row.getValues().toStringUtf8();
-                String[] parts = fieldValue.split("/");
-                assert parts != null && parts.length == 2 : String.format("Wrong field format: %s", fieldValue);
-                shards.add(parts[1]);
-            }
-            LOGGER.info("Current shards are: {}", shards);
-            return shards;
+            return rows.stream().map(s -> s.getValues().toStringUtf8()).collect(Collectors.toList());
         }
         catch (Exception e) {
-            throw new RuntimeException("Unexpected error while retrievign vitess shards", e);
+            throw new RuntimeException(String.format("Unexpected error while running query: %s", query), e);
         }
+    }
+
+    public static List<String> getIncludedTables(String keyspace, String tableIncludeList, List<String> allTables) {
+        // table.include.list are list of patterns, filter all the tables in the keyspace through those patterns
+        // to get the list of table names.
+        final List<Pattern> patterns = Strings.listOfRegex(tableIncludeList, Pattern.CASE_INSENSITIVE);
+        List<String> includedTables = new ArrayList<>();
+        for (String ksTable : allTables) {
+            for (Pattern pattern : patterns) {
+                if (pattern.asPredicate().test(String.format("%s.%s", keyspace, ksTable))) {
+                    includedTables.add(ksTable);
+                    break;
+                }
+            }
+        }
+        return includedTables;
+    }
+
+    public static List<String> getKeyspaceTables(VitessConnectorConfig connectionConfig) {
+        String query = String.format("SHOW TABLES FROM %s", connectionConfig.getKeyspace());
+        List<String> tables = getRowsFromQuery(connectionConfig, query);
+        LOGGER.info("All tables from keyspace {} are: {}", connectionConfig.getKeyspace(), tables);
+        return tables;
+    }
+
+    public static List<String> getVitessShards(VitessConnectorConfig connectionConfig) {
+        String query = String.format("SHOW VITESS_SHARDS LIKE '%s/%%'", connectionConfig.getKeyspace());
+        List<String> rows = getRowsFromQuery(connectionConfig, query);
+        List<String> shards = rows.stream().map(fieldValue -> {
+            String[] parts = fieldValue.split("/");
+            assert parts != null && parts.length == 2 : String.format("Wrong field format: %s", fieldValue);
+            return parts[1];
+        }).collect(Collectors.toList());
+        LOGGER.info("Shards: {}", shards);
+        return shards;
     }
 
     @Override

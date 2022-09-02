@@ -18,11 +18,14 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.kafka.common.config.Config;
@@ -712,6 +715,27 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.execute(INSERT_STRING_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
         // We should receive record from numeeric_table
         assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void testGetVitessShards() throws Exception {
+        VitessConnectorConfig config = new VitessConnectorConfig(TestHelper.defaultConfig().build());
+        Set<String> shards = new HashSet<>(VitessConnector.getVitessShards(config));
+        assertEquals(new HashSet<>(Arrays.asList("0")), shards);
+    }
+
+    @Test
+    public void testGetKeyspaceTables() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        VitessConnectorConfig config = new VitessConnectorConfig(TestHelper.defaultConfig().build());
+        Set<String> tables = new HashSet<>(VitessConnector.getKeyspaceTables(config));
+        // Remove system tables starts with _
+        tables = tables.stream().filter(t -> !t.startsWith("_")).collect(Collectors.toSet());
+        List<String> expectedTables = Arrays.asList("my_seq", "t1",
+                "numeric_table", "string_table", "enum_table", "set_table", "time_table",
+                "no_pk_table", "pk_single_unique_key_table", "no_pk_multi_unique_keys_table",
+                "no_pk_multi_comp_unique_keys_table", "comp_pk_table");
+        assertEquals(new HashSet<>(expectedTables), tables);
     }
 
     private void testOffsetStorage(boolean offsetStoragePerTask) throws Exception {

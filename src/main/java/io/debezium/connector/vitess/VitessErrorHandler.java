@@ -36,8 +36,10 @@ public class VitessErrorHandler extends ErrorHandler {
                 case UNAVAILABLE:
                     return true;
                 case UNKNOWN:
-                    // Stream timeout error due to idle VStream.
-                    if (description != null && description.equals("stream timeout")) {
+                    // Stream timeout error due to idle VStream or vstream ended unexpectedly.
+                    if (description != null &&
+                            (description.equals("stream timeout") ||
+                                    description.contains("vstream ended unexpectedly"))) {
                         return true;
                     }
                     return false;

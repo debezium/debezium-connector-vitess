@@ -14,11 +14,11 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 import org.junit.Before;
 import org.junit.Test;
 
+import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.connector.AbstractSourceInfoStructMaker;
 import io.debezium.connector.SnapshotRecord;
 import io.debezium.relational.TableId;
-import io.debezium.schema.AbstractTopicNamingStrategy;
 import io.debezium.util.Collect;
 
 public class SourceInfoTest {
@@ -45,7 +45,7 @@ public class SourceInfoTest {
     public void beforeEach() {
         final VitessConnectorConfig connectorConfig = new VitessConnectorConfig(
                 Configuration.create()
-                        .with(AbstractTopicNamingStrategy.TOPIC_PREFIX, "server_foo")
+                        .with(CommonConnectorConfig.TOPIC_PREFIX, "server_foo")
                         .with(VitessConnectorConfig.KEYSPACE, TEST_KEYSPACE)
                         .with(VitessConnectorConfig.SHARD, AnonymousValue.getString())
                         .with(VitessConnectorConfig.VTGATE_HOST, AnonymousValue.getString())

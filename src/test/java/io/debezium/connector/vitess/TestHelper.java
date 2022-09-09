@@ -24,12 +24,12 @@ import com.google.common.base.Strings;
 import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 
+import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageColumn;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
-import io.debezium.schema.AbstractTopicNamingStrategy;
 import io.vitess.proto.Query;
 import io.vitess.proto.Query.Field;
 
@@ -75,7 +75,7 @@ public class TestHelper {
                                                       String tableInclude) {
         Configuration.Builder builder = Configuration.create();
         builder = builder
-                .with(AbstractTopicNamingStrategy.TOPIC_PREFIX, TEST_SERVER)
+                .with(CommonConnectorConfig.TOPIC_PREFIX, TEST_SERVER)
                 .with(VitessConnectorConfig.VTGATE_HOST, VTGATE_HOST)
                 .with(VitessConnectorConfig.VTGATE_PORT, VTGATE_PORT)
                 .with(VitessConnectorConfig.VTGATE_USER, USERNAME)

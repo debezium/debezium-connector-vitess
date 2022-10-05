@@ -3,17 +3,11 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
+
 package io.debezium.connector.vitess.connection;
 
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.Objects;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import binlogdata.Binlogdata;
+import binlogdata.Binlogdata.VEvent;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
@@ -28,9 +22,19 @@ import io.vitess.client.grpc.StaticAuthCredentials;
 import io.vitess.proto.Topodata;
 import io.vitess.proto.Vtgate;
 import io.vitess.proto.grpc.VitessGrpc;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import binlogdata.Binlogdata;
-import binlogdata.Binlogdata.VEvent;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 /**
  * Connection to VTGate to replication messages. Also connect to VTCtld to get the latest {@link
@@ -44,6 +48,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
     private final VitessConnectorConfig config;
     // Channel closing is invoked from the change-event-source-coordinator thread
     private final AtomicReference<ManagedChannel> managedChannel = new AtomicReference<>();
+    private AtomicInteger internalRestarts = new AtomicInteger(5);
 
     public VitessReplicationConnection(VitessConnectorConfig config, VitessDatabaseSchema schema) {
         this.messageDecoder = new VStreamOutputMessageDecoder(schema);
@@ -72,11 +77,16 @@ public class VitessReplicationConnection implements ReplicationConnection {
             Objects.requireNonNull(vgtid);
         }
 
+        LOGGER.info("Vgtid eof handling enabled:" + config.getVgtidEofHandlingEnabled());
+
         ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort());
         managedChannel.compareAndSet(null, channel);
 
         VitessGrpc.VitessStub stub = newStub(channel);
         StreamObserver<Vtgate.VStreamResponse> responseObserver = new StreamObserver<Vtgate.VStreamResponse>() {
+
+            private Vgtid lastProcessedVgtid = null;
+            private Vgtid lastErrorVgtid = null;
 
             @Override
             public void onNext(Vtgate.VStreamResponse response) {
@@ -97,11 +107,13 @@ public class VitessReplicationConnection implements ReplicationConnection {
                         if (vEvent.getType() == Binlogdata.VEventType.ROW) {
                             rowEventSeen++;
                         }
-                        boolean isLastRowEventOfTransaction = newVgtid != null && numOfRowEvents != 0 && rowEventSeen == numOfRowEvents ? true : false;
+                        boolean isLastRowEventOfTransaction = newVgtid != null && numOfRowEvents != 0 && rowEventSeen == numOfRowEvents;
                         messageDecoder.processMessage(response.getEvents(i), processor, newVgtid, isLastRowEventOfTransaction);
                     }
-                }
-                catch (InterruptedException e) {
+                    if (newVgtid != null) {
+                        lastProcessedVgtid = newVgtid;
+                    }
+                } catch (InterruptedException e) {
                     LOGGER.error("Message processing is interrupted", e);
                     // Only propagate the first error
                     error.compareAndSet(null, e);
@@ -109,16 +121,86 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 }
             }
 
+            private Boolean isVitessEofException(Throwable t) {
+                if (t instanceof StatusRuntimeException) {
+                    Status status = ((StatusRuntimeException) t).getStatus();
+                    return (status.getCode().equals(Status.UNKNOWN.getCode())
+                            && status.getDescription() != null
+                            && status.getDescription().contains("unexpected server EOF"));
+                } else {
+                    return false;
+                }
+            }
+
+            private void restartStreaming(Vgtid startVgtid) {
+                try {
+                    close();
+                } catch (Exception e) {
+                    LOGGER.warn("Closing vitess connection error.", e);
+                }
+                startStreaming(startVgtid, processor, error);
+            }
+
             @Override
             public void onError(Throwable t) {
-                LOGGER.info("VStream streaming onError. Status: " + Status.fromThrowable(t), t);
-                // Only propagate the first error
-                error.compareAndSet(null, t);
+                if (isVitessEofException(t)) {
+                    // mitigate Vitess EOF exception when initial load is done
+                    Vgtid currentVgtid =
+                            lastProcessedVgtid != null ? lastProcessedVgtid : vgtid;
+
+                    LOGGER.warn(
+                            String.format(
+                                    "Initial vgid:%s, "
+                                            + "lastProcessedVgtid:%s, "
+                                            + "lastErrorVgtid:%s, "
+                                            + "vgtidEofHandlingEnabled: %b, "
+                                            + "internalRestarts: %s",
+                                    vgtid,
+                                    lastProcessedVgtid,
+                                    lastErrorVgtid,
+                                    config.getVgtidEofHandlingEnabled(),
+                                    internalRestarts.get()));
+
+                    if (internalRestarts.get() > 0) {
+                        String message =
+                                String.format(
+                                        "Vitess connection was closed. Restart #:%s. Using Vgtid:%s",
+                                        internalRestarts.decrementAndGet(), currentVgtid);
+                        LOGGER.warn(message, t);
+                        restartStreaming(currentVgtid);
+                    }
+                    // Mitigate vgtid expired with EOF exception in case SKIP is enabled
+                    else if (internalRestarts.get() <= 0
+                            && lastErrorVgtid.equals(currentVgtid)
+                            && config.getVgtidEofHandlingEnabled()) {
+
+                        Vgtid latestExistingVgtid = defaultVgtid(config);
+                        String message =
+                                String.format(
+                                        "Vitess connection was closed and didn't recover. "
+                                                + "Vgtid:%s is probably expired, skipping to latest Vgtid:%s ",
+                                        currentVgtid, latestExistingVgtid);
+                        LOGGER.warn(message, t);
+                        restartStreaming(latestExistingVgtid);
+                    } else {
+                        LOGGER.error(
+                                "VStream streaming onError. Status: "
+                                        + Status.fromThrowable(t),
+                                t);
+                        error.compareAndSet(null, t);
+                    }
+                    lastErrorVgtid = currentVgtid;
+                } else {
+                    LOGGER.error(
+                            "VStream streaming onError. Status: " + Status.fromThrowable(t),
+                            t);
+                    error.compareAndSet(null, t);
+                }
             }
 
             @Override
             public void onCompleted() {
-                LOGGER.info("VStream streaming completed.");
+                LOGGER.error("VStream streaming completed.");
             }
 
             // We assume there is at most one vgtid event for response.
@@ -158,15 +240,55 @@ public class VitessReplicationConnection implements ReplicationConnection {
             }
         };
 
-        // Providing a vgtid MySQL56/19eb2657-abc2-11ea-8ffc-0242ac11000a:1-61 here will make VStream to
-        // start receiving row-changes from MySQL56/19eb2657-abc2-11ea-8ffc-0242ac11000a:1-62
-        stub.vStream(
-                Vtgate.VStreamRequest.newBuilder()
-                        .setVgtid(vgtid.getRawVgtid())
-                        .setTabletType(
-                                toTopodataTabletType(VtctldConnection.TabletType.valueOf(config.getTabletType())))
-                        .build(),
-                responseObserver);
+        Topodata.TabletType tabletType =
+                toTopodataTabletType(VtctldConnection.TabletType.valueOf(config.getTabletType()));
+
+        String[] includedTables =
+                Optional.ofNullable(config.tableIncludeList()).orElse("").split(",");
+        String[] excludedTables =
+                Optional.ofNullable(config.tableExcludeList()).orElse("").split(",");
+
+        List<String> explicitTables =
+                Arrays.stream(includedTables)
+                        .filter(element -> !Arrays.asList(excludedTables).contains(element))
+                        .map(table -> table.replaceFirst(".*\\.", ""))
+                        .collect(Collectors.toList());
+
+        // Providing a vgtid MySQL56/19eb2657-abc2-11ea-8ffc-0242ac11000a:1-61 here will make
+        // VStream to start receiving row-changes from
+        // MySQL56/19eb2657-abc2-11ea-8ffc-0242ac11000a:1-62
+
+        // Adding table filter to address gho migration issues
+        // https://github.com/vitessio/vitess/blob/fa2f2c066dc4175fea1955ba31f75ef0c7aed58d/proto/binlogdata.proto#L132
+
+        // Table filter should address missing gho table schema decoration issue
+        // Caused by: java.lang.RuntimeException: io.grpc.StatusRuntimeException: UNKNOWN: target:
+        // xxxxx.0.replica: vttablet: rpc error:
+        //  code = Unknown desc = stream (at source tablet) error unknown table _xxxxxx_ghc in
+        // schema at io.debezium.connector.vitess.VitessStreamingChangeEventSource.execute
+        // (VitessStreamingChangeEventSource.java:75)
+
+        if (explicitTables.size() > 0) {
+            String tableRegexp = "/\\b(?:" + String.join("|", explicitTables) + ")\\b";
+            Binlogdata.Filter tableFilter =
+                    Binlogdata.Filter.newBuilder()
+                            .addRules(Binlogdata.Rule.newBuilder().setMatch(tableRegexp).build())
+                            .build();
+            stub.vStream(
+                    Vtgate.VStreamRequest.newBuilder()
+                            .setVgtid(vgtid.getRawVgtid())
+                            .setTabletType(Objects.requireNonNull(tabletType))
+                            .setFilter(tableFilter)
+                            .build(),
+                    responseObserver);
+        } else {
+            stub.vStream(
+                    Vtgate.VStreamRequest.newBuilder()
+                            .setVgtid(vgtid.getRawVgtid())
+                            .setTabletType(Objects.requireNonNull(tabletType))
+                            .build(),
+                    responseObserver);
+        }
     }
 
     private VitessGrpc.VitessStub newStub(ManagedChannel channel) {

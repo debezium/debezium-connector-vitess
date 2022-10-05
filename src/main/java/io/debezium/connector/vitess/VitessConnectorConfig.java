@@ -130,6 +130,17 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                             + "'false' (the default) omits the fields; "
                             + "'true' converts the field into an implementation dependent binary representation.");
 
+    public static final Field VGTID_EOF_HANDLING_ENABLED = Field.create("vgtid.eof.handling.enabled")
+            .withDisplayName("Enables VGTID eof handling")
+            .withType(Type.BOOLEAN)
+            .withDefault(false)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription(
+                    "Specify whether the vgtid eof exception should trigger specific custom logic that tries to get new vgtid "
+                            + "'true' enables specific eof handling; "
+                            + "'false' (the default) disables specific eof handling.");
+
     protected static final ConfigDefinition CONFIG_DEFINITION = RelationalDatabaseConnectorConfig.CONFIG_DEFINITION
             .edit()
             .name("Vitess")
@@ -225,6 +236,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public boolean includeUnknownDatatypes() {
         return getConfig().getBoolean(INCLUDE_UNKNOWN_DATATYPES);
+    }
+
+    public boolean getVgtidEofHandlingEnabled() {
+        return getConfig().getBoolean(VGTID_EOF_HANDLING_ENABLED);
     }
 
 }

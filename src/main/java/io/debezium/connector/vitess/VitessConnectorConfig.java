@@ -144,7 +144,8 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     VTCTLD_PORT,
                     VTCTLD_USER,
                     VTCTLD_PASSWORD,
-                    TABLET_TYPE)
+                    TABLET_TYPE,
+                    BINARY_HANDLING_MODE)
             .events(INCLUDE_UNKNOWN_DATATYPES)
             .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST, PROVIDE_TRANSACTION_METADATA)
             .create();

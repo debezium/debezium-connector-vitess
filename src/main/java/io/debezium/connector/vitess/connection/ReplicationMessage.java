@@ -50,6 +50,8 @@ public interface ReplicationMessage {
 
         String asString();
 
+        byte[] asBytes();
+
         Integer asInteger();
 
         Short asShort();

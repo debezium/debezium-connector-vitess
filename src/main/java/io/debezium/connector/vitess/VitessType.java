@@ -13,7 +13,9 @@ import java.util.Objects;
 
 import io.vitess.proto.Query;
 
-/** The Vitess table column type */
+/**
+ * The Vitess table column type
+ */
 public class VitessType {
 
     // name of the column type
@@ -94,10 +96,13 @@ public class VitessType {
                 return new VitessType(type, Types.BIGINT, resolveEnumAndSetValues(field.getColumnType()));
             case "UINT32":
             case "INT64":
-            case "UINT64":
                 return new VitessType(type, Types.BIGINT);
+            case "BLOB":
+                return new VitessType(type, Types.BLOB);
             case "VARBINARY":
             case "BINARY":
+                return new VitessType(type, Types.BINARY);
+            case "UINT64":
             case "VARCHAR":
             case "CHAR":
             case "TEXT":
@@ -120,6 +125,7 @@ public class VitessType {
 
     /**
      * Resolve the list of permitted Enum or Set values from the Enum or Set Definition
+     *
      * @param definition the Enum or Set column definition from the MySQL table. E.g. "enum('m','l','xl')" or "set('a','b','c')"
      * @return The list of permitted Enum values or Set values
      */

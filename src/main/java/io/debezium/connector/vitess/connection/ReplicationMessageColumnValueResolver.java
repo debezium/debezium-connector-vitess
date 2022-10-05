@@ -31,6 +31,9 @@ public class ReplicationMessageColumnValueResolver {
                 else {
                     return value.asLong();
                 }
+            case Types.BLOB:
+            case Types.BINARY:
+                return value.asBytes();
             case Types.VARCHAR:
                 return value.asString();
             case Types.FLOAT:

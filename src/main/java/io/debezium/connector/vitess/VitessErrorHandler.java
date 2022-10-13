@@ -39,7 +39,8 @@ public class VitessErrorHandler extends ErrorHandler {
                     // Stream timeout error due to idle VStream or vstream ended unexpectedly.
                     if (description != null &&
                             (description.equals("stream timeout") ||
-                                    description.contains("vstream ended unexpectedly"))) {
+                                    description.contains("vstream ended unexpectedly") ||
+                                    description.contains("unexpected server EOF"))) {
                         return true;
                     }
                     return false;

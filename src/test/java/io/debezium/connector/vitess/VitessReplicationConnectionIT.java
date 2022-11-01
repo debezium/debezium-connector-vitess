@@ -6,7 +6,7 @@
 package io.debezium.connector.vitess;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.fest.assertions.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 
 import java.time.Duration;

@@ -5,7 +5,7 @@
  */
 package io.debezium.connector.vitess;
 
-import static org.fest.assertions.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.Types;
 import java.util.Arrays;

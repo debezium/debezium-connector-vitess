@@ -7,7 +7,7 @@ package io.debezium.connector.vitess;
 
 import static io.debezium.connector.vitess.TestHelper.TEST_SERVER;
 import static io.debezium.connector.vitess.TestHelper.TEST_UNSHARDED_KEYSPACE;
-import static org.fest.assertions.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;

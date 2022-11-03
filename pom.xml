@@ -30,6 +30,13 @@
         <!--suppress UnresolvedMavenProperty -->
         <vitess.vtctld.host>${docker.host.address}</vitess.vtctld.host>
         <vitess.vtctld.grpc.port>15999</vitess.vtctld.grpc.port>
+
+        <docker.dbs>${vitess.image}</docker.dbs>
+        <docker.filter>${docker.dbs}</docker.filter>
+
+        <!-- Apicurion container properties -->
+        <apicurio.port>8080</apicurio.port>
+        <apicurio.init.timeout>60000</apicurio.init.timeout> <!-- 60 seconds -->
     </properties>
 
     <repositories>
@@ -319,6 +326,24 @@
                                 <contextDir>${project.basedir}/src/test/docker</contextDir>
                             </build>
                         </image>
+                        <image>
+                            <name>apicurio/apicurio-registry-mem:${version.apicurio}</name>
+                            <run>
+                                <namingStrategy>none</namingStrategy>
+                                <ports>
+                                    <port>${apicurio.port}:8080</port>
+                                </ports>
+                                <log>
+                                    <prefix>apicurio</prefix>
+                                    <enabled>true</enabled>
+                                    <color>blue</color>
+                                </log>
+                                <wait>
+                                    <log>.*apicurio-registry-app.*started in.*</log>
+                                    <time>${apicurio.init.timeout}</time>
+                                </wait>
+                            </run>
+                        </image>
                     </images>
                 </configuration>
                 <!--
@@ -456,6 +481,31 @@
             <properties>
                 <skipITs>true</skipITs>
                 <docker.skip>true</docker.skip>
+            </properties>
+        </profile>
+        <profile>
+            <id>apicurio</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+                <property>
+                    <name>apicurio</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <use.apicurio>true</use.apicurio>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+            <properties>
+                <docker.filter>${docker.dbs},apicurio/apicurio-registry-mem:${version.apicurio}</docker.filter>
             </properties>
         </profile>
     </profiles>

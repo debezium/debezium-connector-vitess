@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -610,21 +611,16 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 .with(VitessConnectorConfig.VTGATE_USER, "incorrect_username")
                 .with(VitessConnectorConfig.VTGATE_PASSWORD, "incorrect_password");
 
-        CountDownLatch latch = new CountDownLatch(1);
-        EmbeddedEngine.CompletionCallback completionCallback = (success, message, error) -> {
-            if (error != null) {
-                latch.countDown();
-            }
-            else {
-                fail("A controlled exception was expected....");
-            }
-        };
+        Map<String, Object> result = new HashMap<>();
+        start(VitessConnector.class, configBuilder.build(), (success, message, error) -> {
+            result.put("success", success);
+            result.put("message", message);
+            result.put("error", error);
+        });
 
-        start(VitessConnector.class, configBuilder.build(), completionCallback);
-
-        if (!latch.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS)) {
-            fail("did not reach stop condition in time");
-        }
+        assertEquals(false, result.get("success"));
+        assertThat(result.get("message").toString().contains("Connector configuration is not valid. Unable to connect: "));
+        assertEquals(null, result.get("error"));
     }
 
     @Test
@@ -739,7 +735,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     private void testOffsetStorage(boolean offsetStoragePerTask) throws Exception {
-        final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
         TestHelper.executeDDL("vitess_create_tables.ddl", TEST_UNSHARDED_KEYSPACE);
 
         boolean hasMultipleShards = false;
@@ -747,14 +742,14 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         final int gen = 0;
         final int tid = 0;
         Configuration config = TestHelper.defaultConfig(hasMultipleShards,
-                offsetStoragePerTask, numTasks, gen, -1, null).build();
+                offsetStoragePerTask, numTasks, gen, 1, null).build();
         final String serverName = config.getString(CommonConnectorConfig.TOPIC_PREFIX);
         Map<String, String> srcPartition = Collect.hashMapOf(VitessPartition.SERVER_PARTITION_KEY, serverName);
         if (offsetStoragePerTask) {
             srcPartition.put(VitessPartition.TASK_KEY_PARTITION_KEY, VitessConnector.getTaskKeyName(tid, numTasks, gen));
         }
 
-        startConnector(Function.identity(), hasMultipleShards, offsetStoragePerTask, numTasks, gen, -1, null);
+        startConnector(Function.identity(), hasMultipleShards, offsetStoragePerTask, numTasks, gen, 1, null);
 
         consumer = testConsumer(1);
         executeAndWait("INSERT INTO pk_single_unique_key_table (id, int_col) VALUES (1, 1);",

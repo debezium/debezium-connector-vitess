@@ -734,6 +734,43 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertEquals(new HashSet<>(expectedTables), tables);
     }
 
+    @Test
+    public void testCopyAndReplicateTable() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + "numeric_table";
+        startConnector(builder -> builder.with(VitessConnectorConfig.GTID, ""),
+                false, false, 1, -1, -1, tableInclude);
+
+        // We should receive a record written before starting the connector.
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
+        assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, "numeric_table");
+        assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
+
+        // We should receive additional record from numeric_table
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void testCopyNoRecordsAndReplicateTable() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+
+        String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + "numeric_table";
+        // An exception due to duplicate BEGIN events shouldn't occur
+        startConnector(builder -> builder.with(VitessConnectorConfig.GTID, ""),
+                false, false, 1, -1, -1, tableInclude);
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        // We should receive record from numeric_table
+        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
+    }
+
     private void testOffsetStorage(boolean offsetStoragePerTask) throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl", TEST_UNSHARDED_KEYSPACE);
 

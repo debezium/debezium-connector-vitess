@@ -116,9 +116,16 @@ public class VitessReplicationConnection implements ReplicationConnection {
                         case VGTID:
                             // We always use the latest VGTID if any.
                             if (newVgtid != null) {
-                                LOGGER.warn("Received more than one VGTID events and the previous one is {}. Using the latest: {}",
-                                        newVgtid.toString(),
-                                        event.getVgtid().toString());
+                                if (newVgtid.getRawVgtid().getShardGtidsList().stream().findFirst().map(s -> s.getTablePKsCount() == 0).orElse(false)
+                                    && event.getVgtid().getShardGtidsList().stream().findFirst().map(s -> 0 < s.getTablePKsCount()).orElse(false)) {
+                                    LOGGER.info("Received more than one VGTID events during a copy operation and the previous one is {}. Using the latest: {}",
+                                            newVgtid.toString(),
+                                            event.getVgtid().toString());
+                                } else {
+                                    LOGGER.warn("Received more than one VGTID events and the previous one is {}. Using the latest: {}",
+                                            newVgtid.toString(),
+                                            event.getVgtid().toString());
+                                }
                             }
                             newVgtid = Vgtid.of(event.getVgtid());
                             break;
@@ -131,8 +138,18 @@ public class VitessReplicationConnection implements ReplicationConnection {
                             }
                             if (beginEventSeen) {
                                 String msg = "Received duplicate BEGIN events";
-                                setError(msg);
-                                return;
+                                // During a copy operation, we receive the duplicate event once when no record is copied.
+                                String eventTypes = bufferedEvents.stream().map(VEvent::getType).map(Objects::toString).collect(Collectors.joining(", "));
+                                if (eventTypes.equals("BEGIN, FIELD, VGTID")) {
+                                    msg += String.format(" during a copy operation. No harm to skip the buffered events. Buffered event types: %s",
+                                            eventTypes);
+                                    LOGGER.info(msg);
+                                    reset();
+                                }
+                                else {
+                                    setError(msg);
+                                    return;
+                                }
                             }
                             beginEventSeen = true;
                             break;

@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.vitess;
 
+import static io.debezium.connector.vitess.TestHelper.TEST_UNSHARDED_KEYSPACE;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
@@ -29,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.doc.FixFor;
+import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.schema.DefaultTopicNamingStrategy;
 import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.util.SchemaNameAdjuster;
@@ -100,6 +102,85 @@ public class VitessReplicationConnectionIT {
                     });
 
             // verify outcome
+            messages.forEach(m -> assertValidVgtid(m.getVgtid(), conf.getKeyspace(), conf.getShard()));
+            assertThat(messages.get(0).getMessage().getOperation().name()).isEqualTo("BEGIN");
+            assertThat(messages.get(1).getMessage().getOperation().name()).isEqualTo("INSERT");
+            assertThat(messages.get(2).getMessage().getOperation().name()).isEqualTo("COMMIT");
+        }
+        finally {
+            if (error.get() != null) {
+                LOGGER.error("Error during streaming", error.get());
+            }
+        }
+    }
+
+    @Test
+    public void shouldCopyAndReplicate() throws Exception {
+        // setup fixture
+        String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + "t1";
+
+        final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig()
+                .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude).build());
+        final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
+
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
+            Vgtid startingVgtid = Vgtid.of(
+                    Binlogdata.VGtid.newBuilder()
+                            .addShardGtids(
+                                    Binlogdata.ShardGtid.newBuilder()
+                                            .setKeyspace(conf.getKeyspace())
+                                            .setShard(conf.getShard())
+                                            .setGtid("")
+                                            .build())
+                            .build());
+
+            BlockingQueue<MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
+            connection.startStreaming(
+                    startingVgtid,
+                    (message, vgtid, isLastRowEventOfTransaction) -> {
+                        consumedMessages.add(new MessageAndVgtid(message, vgtid));
+                    },
+                    error);
+
+            int expectedNumOfMessages = 3;
+            List<MessageAndVgtid> messages = awaitMessages(
+                    TestHelper.waitTimeForRecords(),
+                    SECONDS,
+                    expectedNumOfMessages,
+                    () -> {
+                        try {
+                            return consumedMessages.poll(pollTimeoutInMs, TimeUnit.MILLISECONDS);
+                        }
+                        catch (InterruptedException e) {
+                            return null;
+                        }
+                    });
+
+            // verify outcome from the copy operation
+            messages.forEach(m -> assertValidVgtid(m.getVgtid(), conf.getKeyspace(), conf.getShard()));
+            assertThat(messages.get(0).getMessage().getOperation().name()).isEqualTo("BEGIN");
+            assertThat(messages.get(1).getMessage().getOperation().name()).isEqualTo("INSERT");
+            assertThat(messages.get(2).getMessage().getOperation().name()).isEqualTo("COMMIT");
+
+            consumedMessages.clear();
+
+            TestHelper.execute(TestHelper.INSERT_STMT);
+            messages = awaitMessages(
+                    TestHelper.waitTimeForRecords(),
+                    SECONDS,
+                    expectedNumOfMessages,
+                    () -> {
+                        try {
+                            return consumedMessages.poll(pollTimeoutInMs, TimeUnit.MILLISECONDS);
+                        }
+                        catch (InterruptedException e) {
+                            return null;
+                        }
+                    });
+
+            // verify outcome from the replicate operation
             messages.forEach(m -> assertValidVgtid(m.getVgtid(), conf.getKeyspace(), conf.getShard()));
             assertThat(messages.get(0).getMessage().getOperation().name()).isEqualTo("BEGIN");
             assertThat(messages.get(1).getMessage().getOperation().name()).isEqualTo("INSERT");

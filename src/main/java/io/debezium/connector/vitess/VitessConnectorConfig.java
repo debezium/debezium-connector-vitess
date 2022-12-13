@@ -96,7 +96,9 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withImportance(ConfigDef.Importance.HIGH)
             .withDescription(
                     "Single GTID from where to start reading from for a given shard."
-                            + " It has to be set together with vitess.shard");
+                            + " It has to be set together with vitess.shard."
+                            + " If set an empty string, the connector starts copying the tables for the given shard first."
+                            + " If not configured, the connector streams changes from the latest position for the given shard.");
 
     public static final Field TABLET_TYPE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "tablet.type")
             .withDisplayName("Tablet type to get data-changes")

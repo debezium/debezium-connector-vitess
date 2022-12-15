@@ -117,11 +117,12 @@ public class VitessReplicationConnection implements ReplicationConnection {
                             // We always use the latest VGTID if any.
                             if (newVgtid != null) {
                                 if (newVgtid.getRawVgtid().getShardGtidsList().stream().findFirst().map(s -> s.getTablePKsCount() == 0).orElse(false)
-                                    && event.getVgtid().getShardGtidsList().stream().findFirst().map(s -> 0 < s.getTablePKsCount()).orElse(false)) {
+                                        && event.getVgtid().getShardGtidsList().stream().findFirst().map(s -> 0 < s.getTablePKsCount()).orElse(false)) {
                                     LOGGER.info("Received more than one VGTID events during a copy operation and the previous one is {}. Using the latest: {}",
                                             newVgtid.toString(),
                                             event.getVgtid().toString());
-                                } else {
+                                }
+                                else {
                                     LOGGER.warn("Received more than one VGTID events and the previous one is {}. Using the latest: {}",
                                             newVgtid.toString(),
                                             event.getVgtid().toString());

@@ -739,8 +739,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
         String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + "numeric_table";
-        startConnector(builder -> builder.with(VitessConnectorConfig.GTID, ""),
-                false, false, 1, -1, -1, tableInclude);
+        startConnector(Function.identity(), false, false, 1, -1, -1, tableInclude, null);
 
         // We should receive a record written before starting the connector.
         int expectedRecordsCount = 1;
@@ -761,8 +760,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + "numeric_table";
         // An exception due to duplicate BEGIN events shouldn't occur
-        startConnector(builder -> builder.with(VitessConnectorConfig.GTID, ""),
-                false, false, 1, -1, -1, tableInclude);
+        startConnector(Function.identity(), false, false, 1, -1, -1, tableInclude, null);
 
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
@@ -779,7 +777,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         final int gen = 0;
         final int tid = 0;
         Configuration config = TestHelper.defaultConfig(hasMultipleShards,
-                offsetStoragePerTask, numTasks, gen, 1, null).build();
+                offsetStoragePerTask, numTasks, gen, 1, null, VitessConnectorConfig.SnapshotMode.NEVER).build();
         final String serverName = config.getString(CommonConnectorConfig.TOPIC_PREFIX);
         Map<String, String> srcPartition = Collect.hashMapOf(VitessPartition.SERVER_PARTITION_KEY, serverName);
         if (offsetStoragePerTask) {
@@ -857,15 +855,24 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig,
                                 boolean hasMultipleShards)
             throws InterruptedException {
-        startConnector(customConfig, hasMultipleShards, false, 1, -1, -1, null);
+        startConnector(customConfig, hasMultipleShards, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER);
     }
 
     private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig,
                                 boolean hasMultipleShards, boolean offsetStoragePerTask,
                                 int numTasks, int gen, int prevNumTasks, String tableInclude)
             throws InterruptedException {
+        startConnector(customConfig, hasMultipleShards, offsetStoragePerTask, numTasks, gen, prevNumTasks,
+                tableInclude, VitessConnectorConfig.SnapshotMode.NEVER);
+    }
+
+    private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig,
+                                boolean hasMultipleShards, boolean offsetStoragePerTask,
+                                int numTasks, int gen, int prevNumTasks, String tableInclude,
+                                VitessConnectorConfig.SnapshotMode snapshotMode)
+            throws InterruptedException {
         Configuration.Builder configBuilder = customConfig.apply(TestHelper.defaultConfig(
-                hasMultipleShards, offsetStoragePerTask, numTasks, gen, prevNumTasks, tableInclude));
+                hasMultipleShards, offsetStoragePerTask, numTasks, gen, prevNumTasks, tableInclude, snapshotMode));
         final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
         start(VitessConnector.class, configBuilder.build());
         assertConnectorIsRunning();

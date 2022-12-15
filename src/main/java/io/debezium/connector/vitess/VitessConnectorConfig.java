@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.debezium.config.EnumeratedValue;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
@@ -37,6 +38,71 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     private static final String VITESS_CONFIG_GROUP_PREFIX = "vitess.";
     private static final int DEFAULT_VTGATE_PORT = 15_991;
+
+    /**
+     * The set of predefined SnapshotMode options or aliases.
+     */
+    public static enum SnapshotMode implements EnumeratedValue {
+
+        /**
+         * Perform an initial snapshot when starting, if it does not detect a value in its offsets topic.
+         */
+        INITIAL("initial"),
+
+        /**
+         * Never perform an initial snapshot and only receive new data changes.
+         */
+        NEVER("never");
+
+        private final String value;
+
+        private SnapshotMode(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String getValue() {
+            return value;
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value the configuration property value; may not be null
+         * @return the matching option, or null if no match is found
+         */
+        public static SnapshotMode parse(String value) {
+            if (value == null) {
+                return null;
+            }
+            value = value.trim();
+
+            for (SnapshotMode option : SnapshotMode.values()) {
+                if (option.getValue().equalsIgnoreCase(value)) {
+                    return option;
+                }
+            }
+
+            return null;
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value        the configuration property value; may not be null
+         * @param defaultValue the default value; may be null
+         * @return the matching option, or null if no match is found and the non-null default is invalid
+         */
+        public static SnapshotMode parse(String value, String defaultValue) {
+            SnapshotMode mode = parse(value);
+
+            if (mode == null && defaultValue != null) {
+                mode = parse(defaultValue);
+            }
+
+            return mode;
+        }
+    }
 
     public static final Field VTGATE_HOST = Field.create(DATABASE_CONFIG_PREFIX + JdbcConfiguration.HOSTNAME)
             .withDisplayName("Vitess database hostname")
@@ -212,6 +278,18 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                             + "Once we persist the new offsets in offset storage using new partition key "
                             + "based on current <numTasks> and <gen>, we will no longer read prev.num.tasks param");
 
+    public static final Field SNAPSHOT_MODE = Field.create("snapshot.mode")
+            .withDisplayName("Snapshot mode")
+            // TODO: .withEnum(SnapshotMode.class, SnapshotMode.INITIAL)
+            .withEnum(SnapshotMode.class, SnapshotMode.NEVER)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT, 0))
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.LOW)
+            .withDescription("The criteria for running a snapshot upon startup of the connector. "
+                    + "Options include: "
+                    + "'initial' (the default) to specify the connector should always perform an initial sync when required; "
+                    + "'never' to specify the connector should never perform an initial sync ");
+
     protected static final ConfigDefinition CONFIG_DEFINITION = RelationalDatabaseConnectorConfig.CONFIG_DEFINITION
             .edit()
             .name("Vitess")
@@ -234,6 +312,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     OFFSET_STORAGE_TASK_KEY_GEN,
                     PREV_NUM_TASKS)
             .events(INCLUDE_UNKNOWN_DATATYPES)
+            .connector(SNAPSHOT_MODE)
             .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST)
             .create();
 
@@ -298,6 +377,9 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     }
 
     public String getGtid() {
+        if (getSnapshotMode() == SnapshotMode.INITIAL) {
+            return "";
+        }
         return getConfig().getString(GTID);
     }
 
@@ -382,5 +464,9 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     public Vgtid getVitessTaskVgtid() {
         String vgtidStr = getConfig().getString(VITESS_TASK_VGTID_CONFIG);
         return vgtidStr == null ? null : Vgtid.of(vgtidStr);
+    }
+
+    public SnapshotMode getSnapshotMode() {
+        return SnapshotMode.parse(getConfig().getString(SNAPSHOT_MODE), SNAPSHOT_MODE.defaultValueAsString());
     }
 }

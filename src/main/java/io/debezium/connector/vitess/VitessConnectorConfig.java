@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import io.debezium.config.EnumeratedValue;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
@@ -21,6 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import io.debezium.config.ConfigDefinition;
 import io.debezium.config.Configuration;
+import io.debezium.config.EnumeratedValue;
 import io.debezium.config.Field;
 import io.debezium.connector.SourceInfoStructMaker;
 import io.debezium.connector.vitess.connection.VitessTabletType;
@@ -280,8 +280,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public static final Field SNAPSHOT_MODE = Field.create("snapshot.mode")
             .withDisplayName("Snapshot mode")
-            // TODO: .withEnum(SnapshotMode.class, SnapshotMode.INITIAL)
-            .withEnum(SnapshotMode.class, SnapshotMode.NEVER)
+            .withEnum(SnapshotMode.class, SnapshotMode.INITIAL)
             .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT, 0))
             .withWidth(Width.SHORT)
             .withImportance(ConfigDef.Importance.LOW)

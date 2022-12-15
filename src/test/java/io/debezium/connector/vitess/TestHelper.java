@@ -58,7 +58,7 @@ public class TestHelper {
             "CREATE TABLE t1 (id BIGINT NOT NULL AUTO_INCREMENT, int_col INT, PRIMARY KEY (id));");
 
     public static Configuration.Builder defaultConfig() {
-        return defaultConfig(false, false, 1, -1, -1, null);
+        return defaultConfig(false, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER);
     }
 
     /**
@@ -72,7 +72,8 @@ public class TestHelper {
                                                       int numTasks,
                                                       int gen,
                                                       int prevNumTasks,
-                                                      String tableInclude) {
+                                                      String tableInclude,
+                                                      VitessConnectorConfig.SnapshotMode snapshotMode) {
         Configuration.Builder builder = Configuration.create();
         builder = builder
                 .with(CommonConnectorConfig.TOPIC_PREFIX, TEST_SERVER)
@@ -96,6 +97,9 @@ public class TestHelper {
                     .with(VitessConnectorConfig.TASKS_MAX_CONFIG, Integer.toString(numTasks))
                     .with(VitessConnectorConfig.OFFSET_STORAGE_TASK_KEY_GEN, Integer.toString(gen))
                     .with(VitessConnectorConfig.PREV_NUM_TASKS, Integer.toString(prevNumTasks));
+        }
+        if (snapshotMode != null) {
+            builder = builder.with(VitessConnectorConfig.SNAPSHOT_MODE, snapshotMode.getValue());
         }
         return builder;
     }

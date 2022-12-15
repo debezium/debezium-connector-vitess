@@ -503,7 +503,7 @@ public class VitessConnectorTest {
 
     private Map<String, String> getTaskOffsets(OffsetBackingStore offsetStore, int numTasks, List<String> shards,
                                                int gen, int prevNumTasks) {
-        final Configuration config = TestHelper.defaultConfig(false, true, numTasks, gen, prevNumTasks, null).build();
+        final Configuration config = TestHelper.defaultConfig(false, true, numTasks, gen, prevNumTasks, null, VitessConnectorConfig.SnapshotMode.NEVER).build();
         final String engineName = "testOffset";
         final Converter keyConverter = new JsonConverter();
         Map<String, Object> converterConfig = Collect.hashMapOf("schemas.enable", false);

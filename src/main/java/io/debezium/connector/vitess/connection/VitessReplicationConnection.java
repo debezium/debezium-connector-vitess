@@ -370,6 +370,9 @@ public class VitessReplicationConnection implements ReplicationConnection {
         }
         else {
             if (config.getShard() == null || config.getShard().isEmpty()) {
+                if (config.getGtid().equals("")) {
+                    LOGGER.warn("Vitess doesn't support a combination of an empty shard and an empty gtid.");
+                }
                 vgtid = buildVgtid(config.getKeyspace(), Collections.emptyList(), Collections.emptyList());
                 LOGGER.info("Default VGTID '{}' is set to the current gtid of all shards from keyspace: {}",
                         vgtid, config.getKeyspace());

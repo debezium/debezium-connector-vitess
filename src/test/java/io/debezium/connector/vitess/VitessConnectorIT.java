@@ -784,6 +784,27 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TEST_SHARDED_KEYSPACE, TestHelper.PK_FIELD, hasMultipleShards);
     }
 
+    @Test
+    public void testCopyTableAndRestart() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(Function.identity(), false, false, 1, -1, -1, null, null);
+
+        // We should receive a record written before starting the connector.
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        SourceRecord record = assertRecordInserted(TEST_UNSHARDED_KEYSPACE + ".my_seq", TestHelper.PK_FIELD);
+        assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, "my_seq");
+
+        // Restart the connector.
+        stopConnector();
+        startConnector(Function.identity(), false, false, 1, -1, -1, null, null);
+
+        // We shouldn't receive a record written before restarting the connector.
+        consumer = testConsumer(expectedRecordsCount);
+        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
+    }
+
     private void testOffsetStorage(boolean offsetStoragePerTask) throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl", TEST_UNSHARDED_KEYSPACE);
 

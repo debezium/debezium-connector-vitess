@@ -141,7 +141,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                                 String msg = "Received duplicate BEGIN events";
                                 // During a copy operation, we receive the duplicate event once when no record is copied.
                                 String eventTypes = bufferedEvents.stream().map(VEvent::getType).map(Objects::toString).collect(Collectors.joining(", "));
-                                if (eventTypes.equals("BEGIN, FIELD, VGTID")) {
+                                if (eventTypes.equals("BEGIN, FIELD") || eventTypes.equals("BEGIN, FIELD, VGTID")) {
                                     msg += String.format(" during a copy operation. No harm to skip the buffered events. Buffered event types: %s",
                                             eventTypes);
                                     LOGGER.info(msg);

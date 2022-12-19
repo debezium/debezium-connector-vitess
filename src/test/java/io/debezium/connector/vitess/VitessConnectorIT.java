@@ -787,15 +787,20 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @Test
     public void testCopyTableAndRestart() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
+        TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+
+        String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + ".*_table";
+
         // An exception due to duplicate BEGIN events (Buffered event type: BEGIN, FIELD) shouldn't occur
-        startConnector(Function.identity(), false, false, 1, -1, -1, null, null);
+        startConnector(Function.identity(), false, false, 1, -1, -1, tableInclude, null);
 
         // We should receive a record written before starting the connector.
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
-        SourceRecord record = assertRecordInserted(TEST_UNSHARDED_KEYSPACE + ".my_seq", TestHelper.PK_FIELD);
-        assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, "my_seq");
+        SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
+        assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, "numeric_table");
+        assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
 
         // Restart the connector.
         stopConnector();

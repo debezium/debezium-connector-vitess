@@ -120,6 +120,7 @@ public class VitessConnectorTest {
                 put(VitessConnectorConfig.OFFSET_STORAGE_PER_TASK.name(), "true");
                 put(VitessConnectorConfig.OFFSET_STORAGE_TASK_KEY_GEN.name(), "0");
                 put(VitessConnectorConfig.PREV_NUM_TASKS.name(), "1");
+                put(VitessConnectorConfig.SNAPSHOT_MODE.name(), VitessConnectorConfig.SnapshotMode.NEVER.getValue());
             }
         };
         connector.start(props);
@@ -149,6 +150,7 @@ public class VitessConnectorTest {
                 put(VitessConnectorConfig.OFFSET_STORAGE_PER_TASK.name(), "true");
                 put(VitessConnectorConfig.OFFSET_STORAGE_TASK_KEY_GEN.name(), "0");
                 put(VitessConnectorConfig.PREV_NUM_TASKS.name(), "1");
+                put(VitessConnectorConfig.SNAPSHOT_MODE.name(), VitessConnectorConfig.SnapshotMode.NEVER.getValue());
             }
         };
         connector.start(props);

@@ -150,7 +150,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                     }
                     if (gtidStr == null) {
                         LOGGER.warn("No previous gtid found either for shard: {}, fallback to current", shard);
-                        gtidStr = Vgtid.CURRENT_GTID;
+                        gtidStr = connectorConfig.getGtid();
                     }
                     shardGtids.add(new Vgtid.ShardGtid(keyspace, shard, gtidStr));
                 }

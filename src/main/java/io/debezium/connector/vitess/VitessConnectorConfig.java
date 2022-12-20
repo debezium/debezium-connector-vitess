@@ -286,8 +286,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withImportance(ConfigDef.Importance.LOW)
             .withDescription("The criteria for running a snapshot upon startup of the connector. "
                     + "Options include: "
-                    + "'initial' (the default) to specify the connector should always perform an initial sync when required. "
-                    + " It has to be set together with vitess.shard. \n"
+                    + "'initial' (the default) to specify the connector should always perform an initial sync when required; "
                     + "'never' to specify the connector should never perform an initial sync ");
 
     protected static final ConfigDefinition CONFIG_DEFINITION = RelationalDatabaseConnectorConfig.CONFIG_DEFINITION

@@ -770,21 +770,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
-    public void testInitialSnapshotModeHaveMultiShard() throws Exception {
-        final boolean hasMultipleShards = true;
-
-        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
-        TestHelper.applyVSchema("vitess_vschema.json");
-
-        // We should not receive a record written before starting the connector even though the snapshotMode is default (INITIAL).
-        startConnector(Function.identity(), hasMultipleShards, false, 1, -1, -1, null, null);
-
-        int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount);
-        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TEST_SHARDED_KEYSPACE, TestHelper.PK_FIELD, hasMultipleShards);
-    }
-
-    @Test
     public void testCopyTableAndRestart() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);

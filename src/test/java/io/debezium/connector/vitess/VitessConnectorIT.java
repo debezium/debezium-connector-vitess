@@ -770,6 +770,29 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    public void testInitialSnapshotModeHaveMultiShard() throws Exception {
+        final boolean hasMultipleShards = true;
+
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, TEST_SHARDED_KEYSPACE);
+
+        startConnector(Function.identity(), hasMultipleShards, false, 1, -1, -1, null, null);
+
+        // We should receive a record written before starting the connector.
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT, TEST_SHARDED_KEYSPACE), TestHelper.PK_FIELD);
+        assertSourceInfo(record, TEST_SERVER, TEST_SHARDED_KEYSPACE, "numeric_table");
+        assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
+
+        // We should receive additional record from numeric_table
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TEST_SHARDED_KEYSPACE, TestHelper.PK_FIELD, hasMultipleShards);
+    }
+
+    @Test
     public void testCopyTableAndRestart() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);

@@ -370,7 +370,15 @@ public class VitessReplicationConnection implements ReplicationConnection {
         }
         else {
             if (config.getShard() == null || config.getShard().isEmpty()) {
-                vgtid = buildVgtid(config.getKeyspace(), Collections.emptyList(), Collections.emptyList());
+                // This case is not supported by the Vitess, so our workaround is to get all the shards from vtgate.
+                if (config.getGtid().equals("")) {
+                    List<String> shards = VitessConnector.getVitessShards(config);
+                    List<String> gtids = Collections.nCopies(shards.size(), config.getGtid());
+                    vgtid = buildVgtid(config.getKeyspace(), shards, gtids);
+                }
+                else {
+                    vgtid = buildVgtid(config.getKeyspace(), Collections.emptyList(), Collections.emptyList());
+                }
                 LOGGER.info("Default VGTID '{}' is set to the current gtid of all shards from keyspace: {}",
                         vgtid, config.getKeyspace());
             }

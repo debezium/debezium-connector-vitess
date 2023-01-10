@@ -68,7 +68,7 @@ public class VitessSourceInfoStructMakerTest {
                 "test_connector",
                 "test_version",
                 new VitessConnectorConfig(TestHelper.defaultConfig().build()))
-                        .struct(sourceInfo);
+                .struct(sourceInfo);
 
         // verify outcome
         assertThat(struct.getString(SourceInfo.KEYSPACE_NAME_KEY)).isEqualTo(TestHelper.TEST_UNSHARDED_KEYSPACE);

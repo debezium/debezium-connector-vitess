@@ -37,13 +37,13 @@ class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter {
     private final VitessConnectorConfig connectorConfig;
     private final TableId tableId;
 
-    public VitessChangeRecordEmitter(
-                                     VitessPartition partition,
-                                     VitessOffsetContext offsetContext,
-                                     Clock clock,
-                                     VitessConnectorConfig connectorConfig,
-                                     VitessDatabaseSchema schema,
-                                     ReplicationMessage message) {
+    VitessChangeRecordEmitter(
+                              VitessPartition partition,
+                              VitessOffsetContext offsetContext,
+                              Clock clock,
+                              VitessConnectorConfig connectorConfig,
+                              VitessDatabaseSchema schema,
+                              ReplicationMessage message) {
         super(partition, offsetContext, clock);
 
         this.schema = schema;

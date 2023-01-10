@@ -325,7 +325,7 @@ public class VitessReplicationConnectionIT {
         ReplicationMessage message;
         Vgtid vgtid;
 
-        public MessageAndVgtid(ReplicationMessage message, Vgtid vgtid) {
+        MessageAndVgtid(ReplicationMessage message, Vgtid vgtid) {
             this.message = message;
             this.vgtid = vgtid;
         }

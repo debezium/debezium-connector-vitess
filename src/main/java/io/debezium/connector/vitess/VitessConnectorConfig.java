@@ -42,7 +42,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     /**
      * The set of predefined SnapshotMode options or aliases.
      */
-    public static enum SnapshotMode implements EnumeratedValue {
+    public enum SnapshotMode implements EnumeratedValue {
 
         /**
          * Perform an initial snapshot when starting, if it does not detect a value in its offsets topic.
@@ -56,7 +56,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
         private final String value;
 
-        private SnapshotMode(String value) {
+        SnapshotMode(String value) {
             this.value = value;
         }
 

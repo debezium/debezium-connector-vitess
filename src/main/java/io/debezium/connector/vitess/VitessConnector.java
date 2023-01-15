@@ -97,14 +97,14 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         return taskConfigs(maxTasks, shards);
     }
 
-    public List<Map<String, String>> taskConfigs(int maxTasks, List<String> shards) {
-        LOGGER.info("Calculating taskConfigs for {} tasks and shards: {}", maxTasks, shards);
+    public List<Map<String, String>> taskConfigs(int maxTasks, List<String> currentShards) {
+        LOGGER.info("Calculating taskConfigs for {} tasks and shards: {}", maxTasks, currentShards);
         if (connectorConfig.offsetStoragePerTask()) {
             final int prevNumTasks = connectorConfig.getPrevNumTasks();
             final int gen = connectorConfig.getOffsetStorageTaskKeyGen();
-            int tasks = Math.min(maxTasks, shards.size());
+            int tasks = Math.min(maxTasks, currentShards.size());
             LOGGER.info("There are {} vitess shards for maxTasks: {}, we will use {} tasks",
-                    shards.size(), maxTasks, tasks);
+                    currentShards.size(), maxTasks, tasks);
             if (gen > 0 && tasks == prevNumTasks) {
                 throw new IllegalArgumentException(String.format(
                         "Previous num.tasks: %s and current num.tasks: %s are the same. "
@@ -113,18 +113,53 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                                 + "Otherwise please reset the offset.storage.task.key.gen config to its original value",
                         prevNumTasks, tasks));
             }
+            // Check the task offsets persisted from previous gen, we expect the offsets are saved
             Map<String, String> prevGtidsPerShard = gen > 0 ? getGtidPerShardFromStorage(prevNumTasks, gen - 1, true) : null;
             LOGGER.info("Previous gtids Per shard: {}", prevGtidsPerShard);
-            if (prevGtidsPerShard != null && prevGtidsPerShard.size() != shards.size()) {
-                throw new IllegalArgumentException(String.format(
-                        "Different number of shards between offset storage: %s and current vitess shards: %s. ",
-                        prevGtidsPerShard, shards));
+            if (prevGtidsPerShard != null && prevGtidsPerShard.size() != currentShards.size()) {
+                LOGGER.warn("Some shards for the previous generation {} are not persisted.  Expected shards: {}",
+                        prevGtidsPerShard.keySet(), currentShards);
             }
             final String keyspace = connectorConfig.getKeyspace();
+            // Check the task offsets for the current gen, the offset might not be persisted if this gen just turned on
             Map<String, String> gtidsPerShard = getGtidPerShardFromStorage(tasks, gen, false);
-            if (gtidsPerShard != null && gtidsPerShard.size() != shards.size()) {
+            if (gtidsPerShard != null && gtidsPerShard.size() != currentShards.size()) {
                 LOGGER.warn("Some shards for the current generation {} are not persisted.  Expected shards: {}",
-                        gtidsPerShard.keySet(), shards);
+                        gtidsPerShard.keySet(), currentShards);
+                if (!currentShards.containsAll(gtidsPerShard.keySet())) {
+                    LOGGER.warn("Shards from persisted offset: {} not contained within current db shards: {}",
+                            gtidsPerShard.keySet(), currentShards);
+                    // gtidsPerShard has shards not present in the current db shards, we have to rely on the shards
+                    // from gtidsPerShard and we have to require all task offsets are persisted.
+                    gtidsPerShard = getGtidPerShardFromStorage(tasks, gen, true);
+                }
+            }
+            // Use the shards from task offsets persisted in the offset storage if it's not empty.
+            // The shards from offset storage might be different than the current db shards, this can happen when
+            // debezium was offline and there was a shard split happened during that time.
+            // In this case we want to use the old shards from the saved offset storage. Those old shards will
+            // eventually be replaced with new shards as binlog stream processing handles the shard split event
+            // and new shards will be persisted in offset storage after the shard split event.
+            List<String> shards = null;
+            if (gtidsPerShard != null && gtidsPerShard.size() == 0) {
+                // if there is no offset persisted for current gen, look for previous gen
+                if (prevGtidsPerShard != null && prevGtidsPerShard.size() != 0) {
+                    LOGGER.info("Using shards from persisted offset from prev gen: {}", prevGtidsPerShard.keySet());
+                    shards = new ArrayList<>(prevGtidsPerShard.keySet());
+                }
+                else {
+                    LOGGER.warn("No persisted offset for current or previous gen, using current shards from db: {}", currentShards);
+                    shards = currentShards;
+                }
+            }
+            else if (gtidsPerShard != null && !currentShards.containsAll(gtidsPerShard.keySet())) {
+                LOGGER.info("Persisted offset has different shards, Using shards from persisted offset: {}", gtidsPerShard.keySet());
+                shards = new ArrayList<>(gtidsPerShard.keySet());
+            }
+            else {
+                // In this case, we prefer the current db shards since gtidsPerShard might only be partially persisted
+                LOGGER.warn("Current db shards is the superset of persisted offset, using current shards from db: {}", currentShards);
+                shards = currentShards;
             }
             shards.sort(Comparator.naturalOrder());
             Map<Integer, List<String>> shardsPerTask = new HashMap<>();

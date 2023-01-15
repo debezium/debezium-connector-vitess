@@ -454,6 +454,95 @@ public class VitessConnectorTest {
     }
 
     @Test
+    public void testCurrentOffsetStorageShardSplit() {
+        final int gen = 0;
+        final int prevNumTasks = 1;
+        Vgtid vgtid = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE,
+                Arrays.asList("s0", "s1", "s2", "s3"), Arrays.asList("gt0", "gt1", "gt2", "gt3"));
+        final Map<String, Object> prevVgtids = Collect.hashMapOf(
+                VitessConnector.getTaskKeyName(0, prevNumTasks, gen), vgtid.toString());
+
+        final int numTasks = 2;
+        // "s3" split into "s30", "s31"
+        final List<String> shards = Arrays.asList("s0", "s1", "s2", "s30", "s31");
+        Vgtid vgtid0 = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE,
+                Arrays.asList("s0", "s2"), Arrays.asList("gt0", "gt2"));
+        Vgtid vgtid1 = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE,
+                Arrays.asList("s1", "s3"), Arrays.asList("gt1", "gt3"));
+        // We still expect the code will use the old shards "s3" instead of "s30" and "s31"
+        final Map<String, Object> expectedVgtids = Collect.hashMapOf(
+                VitessConnector.getTaskKeyName(0, numTasks, gen + 1), vgtid0.toString(),
+                VitessConnector.getTaskKeyName(1, numTasks, gen + 1), vgtid1.toString());
+        // Add in current gen maps
+        prevVgtids.putAll(expectedVgtids);
+
+        Map<String, String> vgtids = getOffsetFromStorage(numTasks, shards, gen + 1, 1, null, prevVgtids);
+        Testing.print(String.format("vgtids: %s", vgtids));
+        assertEquals(vgtids.size(), 2);
+        assertArrayEquals(vgtids.values().toArray(), expectedVgtids.values().toArray());
+    }
+
+    @Test
+    public void testCurrentOffsetStorageShardSplitIncomplete() {
+        final int gen = 0;
+        final int prevNumTasks = 1;
+        Vgtid vgtid = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE,
+                Arrays.asList("s0", "s1", "s2", "s3"), Arrays.asList("gt0", "gt1", "gt2", "gt3"));
+        final Map<String, Object> prevVgtids = Collect.hashMapOf(
+                VitessConnector.getTaskKeyName(0, prevNumTasks, gen), vgtid.toString());
+
+        final int numTasks = 2;
+        // "s3" split into "s30", "s31"
+        final List<String> shards = Arrays.asList("s0", "s1", "s2", "s30", "s31");
+        Vgtid vgtid0 = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE,
+                Arrays.asList("s0", "s2"), Arrays.asList("gt0", "gt2"));
+        Vgtid vgtid1 = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE,
+                Arrays.asList("s1", "s3"), Arrays.asList("gt1", "gt3"));
+        // Put in current gen, but missing one task
+        prevVgtids.put(VitessConnector.getTaskKeyName(1, numTasks, gen + 1), vgtid1.toString());
+
+        // We still expect the code will use the old shards "s3" instead of "s30" and "s31"
+        final Map<String, Object> expectedVgtids = Collect.hashMapOf(
+                VitessConnector.getTaskKeyName(0, numTasks, gen + 1), vgtid0.toString(),
+                VitessConnector.getTaskKeyName(1, numTasks, gen + 1), vgtid1.toString());
+        try {
+            Map<String, String> vgtids = getOffsetFromStorage(numTasks, shards, gen + 1, 1, null, prevVgtids);
+            fail("This call should not reach here.");
+        }
+        catch (IllegalArgumentException ex) {
+            Testing.print(String.format("Got expected exception: {}", ex));
+        }
+    }
+
+    @Test
+    public void testCurrentOffsetStorageIncomplete() {
+        final int gen = 0;
+        final int prevNumTasks = 1;
+        Vgtid vgtid = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE,
+                Arrays.asList("s0", "s1", "s2", "s3"), Arrays.asList("gt0", "gt1", "gt2", "gt3"));
+        final Map<String, Object> prevVgtids = Collect.hashMapOf(
+                VitessConnector.getTaskKeyName(0, prevNumTasks, gen), vgtid.toString());
+
+        final int numTasks = 2;
+        final List<String> shards = Arrays.asList("s0", "s1", "s2", "s3");
+        Vgtid vgtid0 = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE,
+                Arrays.asList("s0", "s2"), Arrays.asList("gt0", "gt2"));
+        Vgtid vgtid1 = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE,
+                Arrays.asList("s1", "s3"), Arrays.asList("gt1", "gt3"));
+        // Put in current gen, but missing one task
+        prevVgtids.put(VitessConnector.getTaskKeyName(0, numTasks, gen + 1), vgtid0.toString());
+
+        // We still expect the code will use the current db shards: s0, s1, s2, s3
+        final Map<String, Object> expectedVgtids = Collect.hashMapOf(
+                VitessConnector.getTaskKeyName(0, numTasks, gen + 1), vgtid0.toString(),
+                VitessConnector.getTaskKeyName(1, numTasks, gen + 1), vgtid1.toString());
+        Map<String, String> vgtids = getOffsetFromStorage(numTasks, shards, gen + 1, 1, null, prevVgtids);
+        Testing.print(String.format("vgtids: %s", vgtids));
+        assertEquals(vgtids.size(), 2);
+        assertArrayEquals(vgtids.values().toArray(), expectedVgtids.values().toArray());
+    }
+
+    @Test
     public void testTableIncludeList() {
         String keyspace = "ks";
         List<String> allTables = Arrays.asList("t1", "t22", "t3");

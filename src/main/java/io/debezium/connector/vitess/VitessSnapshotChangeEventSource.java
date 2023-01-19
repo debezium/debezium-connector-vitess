@@ -92,7 +92,4 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
         return null;
     }
 
-    @Override
-    protected void complete(SnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext) {
-    }
 }

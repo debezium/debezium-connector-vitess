@@ -6,12 +6,15 @@
 package io.debezium.connector.vitess;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -97,6 +100,24 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         return taskConfigs(maxTasks, shards);
     }
 
+    public static boolean hasSameShards(Collection<String> shardsOne, Collection<String> shardsTwo) {
+        if (shardsOne == null) {
+            return shardsTwo == null;
+        }
+        else if (shardsTwo == null) {
+            return shardsOne == null;
+        }
+        else if (shardsOne.size() != shardsTwo.size()) {
+            return false;
+        }
+        else {
+            // Order independent comparison
+            Set<String> setOne = new HashSet<>(shardsOne);
+            Set<String> setTwo = new HashSet<>(shardsTwo);
+            return setOne.equals(setTwo);
+        }
+    }
+
     public List<Map<String, String>> taskConfigs(int maxTasks, List<String> currentShards) {
         LOGGER.info("Calculating taskConfigs for {} tasks and shards: {}", maxTasks, currentShards);
         if (connectorConfig.offsetStoragePerTask()) {
@@ -116,14 +137,14 @@ public class VitessConnector extends RelationalBaseSourceConnector {
             // Check the task offsets persisted from previous gen, we expect the offsets are saved
             Map<String, String> prevGtidsPerShard = gen > 0 ? getGtidPerShardFromStorage(prevNumTasks, gen - 1, true) : null;
             LOGGER.info("Previous gtids Per shard: {}", prevGtidsPerShard);
-            if (prevGtidsPerShard != null && prevGtidsPerShard.size() != currentShards.size()) {
+            if (prevGtidsPerShard != null && !hasSameShards(prevGtidsPerShard.keySet(), currentShards)) {
                 LOGGER.warn("Some shards for the previous generation {} are not persisted.  Expected shards: {}",
                         prevGtidsPerShard.keySet(), currentShards);
             }
             final String keyspace = connectorConfig.getKeyspace();
             // Check the task offsets for the current gen, the offset might not be persisted if this gen just turned on
             Map<String, String> gtidsPerShard = getGtidPerShardFromStorage(tasks, gen, false);
-            if (gtidsPerShard != null && gtidsPerShard.size() != currentShards.size()) {
+            if (gtidsPerShard != null && !hasSameShards(gtidsPerShard.keySet(), currentShards)) {
                 LOGGER.warn("Some shards for the current generation {} are not persisted.  Expected shards: {}",
                         gtidsPerShard.keySet(), currentShards);
                 if (!currentShards.containsAll(gtidsPerShard.keySet())) {

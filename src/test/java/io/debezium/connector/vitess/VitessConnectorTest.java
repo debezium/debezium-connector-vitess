@@ -8,9 +8,7 @@ package io.debezium.connector.vitess;
 import static io.debezium.connector.vitess.TestHelper.TEST_SERVER;
 import static io.debezium.connector.vitess.TestHelper.TEST_UNSHARDED_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -540,6 +538,21 @@ public class VitessConnectorTest {
         Testing.print(String.format("vgtids: %s", vgtids));
         assertEquals(vgtids.size(), 2);
         assertArrayEquals(vgtids.values().toArray(), expectedVgtids.values().toArray());
+    }
+
+    @Test
+    public void testHashSameShards() {
+        List<String> shardsOne = Arrays.asList("-c0", "c0+");
+        List<String> shardsTwo = Arrays.asList("c0+", "-c0");
+        assertTrue(VitessConnector.hasSameShards(shardsOne, shardsTwo));
+
+        shardsOne = Arrays.asList("-c0", "c0+", "-c0");
+        shardsTwo = Arrays.asList("c0+", "-c0");
+        assertTrue(!VitessConnector.hasSameShards(shardsOne, shardsTwo));
+
+        shardsOne = null;
+        shardsTwo = Arrays.asList("c0+", "-c0");
+        assertTrue(!VitessConnector.hasSameShards(shardsOne, shardsTwo));
     }
 
     @Test

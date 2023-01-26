@@ -37,7 +37,7 @@ public class VitessChangeRecordEmitterTest {
                 connectorConfig,
                 SchemaNameAdjuster.create(),
                 (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig));
-        decoder = new VStreamOutputMessageDecoder(schema);
+        decoder = new VStreamOutputMessageDecoder(connectorConfig, schema);
         // initialize schema by FIELD event
         decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);
     }

@@ -77,6 +77,10 @@ public class VitessType {
 
     // Resolve JDBC type from vstream FIELD event
     public static VitessType resolve(Query.Field field) {
+        return resolve(field, null);
+    }
+
+    public static VitessType resolve(Query.Field field, VitessConnectorConfig.BigIntUnsignedHandlingMode bigIntUnsignedHandlingMode) {
         String type = field.getType().name();
         switch (type) {
             case "INT8":
@@ -101,6 +105,12 @@ public class VitessType {
             case "BINARY":
                 return new VitessType(type, Types.BINARY);
             case "UINT64":
+                if (bigIntUnsignedHandlingMode == VitessConnectorConfig.BigIntUnsignedHandlingMode.LONG) {
+                    return new VitessType(type, Types.BIGINT);
+                }
+                else {
+                    return new VitessType(type, Types.VARCHAR);
+                }
             case "VARCHAR":
             case "CHAR":
             case "TEXT":

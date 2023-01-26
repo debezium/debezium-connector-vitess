@@ -104,7 +104,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         }
     }
 
-    public static enum BigIntUnsignedHandlingMode implements EnumeratedValue {
+    public enum BigIntUnsignedHandlingMode implements EnumeratedValue {
         /**
          * Represent {@code BIGINT UNSIGNED} values as string.
          */
@@ -119,7 +119,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
         private final String value;
 
-        private BigIntUnsignedHandlingMode(String value) {
+        BigIntUnsignedHandlingMode(String value) {
             this.value = value;
         }
 

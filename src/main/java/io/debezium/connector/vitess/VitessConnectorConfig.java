@@ -104,6 +104,65 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         }
     }
 
+    public static enum BigIntUnsignedHandlingMode implements EnumeratedValue {
+        /**
+         * Represent {@code BIGINT UNSIGNED} values as string.
+         */
+        STRING("string"),
+
+        /**
+         * Represent {@code BIGINT UNSIGNED} values as {@code long} values. This may not be precise
+         * when the value is over 9,223,372,036,854,775,807, but it might be how other data
+         * system (e.g. Hudi) was mapping big int unsigned to.
+         */
+        LONG("long");
+
+        private final String value;
+
+        private BigIntUnsignedHandlingMode(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String getValue() {
+            return value;
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value the configuration property value; may not be null
+         * @return the matching option, or null if no match is found
+         */
+        public static BigIntUnsignedHandlingMode parse(String value) {
+            if (value == null) {
+                return null;
+            }
+            value = value.trim();
+            for (BigIntUnsignedHandlingMode option : BigIntUnsignedHandlingMode.values()) {
+                if (option.getValue().equalsIgnoreCase(value)) {
+                    return option;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value the configuration property value; may not be null
+         * @param defaultValue the default value; may be null
+         * @return the matching option, or null if no match is found and the non-null default is invalid
+         */
+        public static BigIntUnsignedHandlingMode parse(String value, String defaultValue) {
+            BigIntUnsignedHandlingMode mode = parse(value);
+            if (mode == null && defaultValue != null) {
+                mode = parse(defaultValue);
+            }
+            return mode;
+        }
+    }
+
     public static final Field VTGATE_HOST = Field.create(DATABASE_CONFIG_PREFIX + JdbcConfiguration.HOSTNAME)
             .withDisplayName("Vitess database hostname")
             .withType(Type.STRING)
@@ -289,6 +348,16 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     + "'initial' (the default) to specify the connector should always perform an initial sync when required; "
                     + "'never' to specify the connector should never perform an initial sync ");
 
+    public static final Field BIGINT_UNSIGNED_HANDLING_MODE = Field.create("bigint.unsigned.handling.mode")
+            .withDisplayName("BIGINT UNSIGNED Handling")
+            .withEnum(BigIntUnsignedHandlingMode.class, BigIntUnsignedHandlingMode.STRING)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR, 1))
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription("Specify how BIGINT UNSIGNED columns should be represented in change events, including: "
+                    + "'string' (the default) represent values using Java's 'string'; "
+                    + "'long' represents values using Java's 'long', which may not offer the precision but will be far easier to use in consumers.");
+
     protected static final ConfigDefinition CONFIG_DEFINITION = RelationalDatabaseConnectorConfig.CONFIG_DEFINITION
             .edit()
             .name("Vitess")
@@ -311,7 +380,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     OFFSET_STORAGE_TASK_KEY_GEN,
                     PREV_NUM_TASKS)
             .events(INCLUDE_UNKNOWN_DATATYPES)
-            .connector(SNAPSHOT_MODE)
+            .connector(SNAPSHOT_MODE, BIGINT_UNSIGNED_HANDLING_MODE)
             .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST)
             .create();
 
@@ -467,5 +536,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public SnapshotMode getSnapshotMode() {
         return SnapshotMode.parse(getConfig().getString(SNAPSHOT_MODE), SNAPSHOT_MODE.defaultValueAsString());
+    }
+
+    public BigIntUnsignedHandlingMode getBigIntUnsgnedHandlingMode() {
+        return BigIntUnsignedHandlingMode.parse(getConfig().getString(BIGINT_UNSIGNED_HANDLING_MODE),
+                BIGINT_UNSIGNED_HANDLING_MODE.defaultValueAsString());
     }
 }

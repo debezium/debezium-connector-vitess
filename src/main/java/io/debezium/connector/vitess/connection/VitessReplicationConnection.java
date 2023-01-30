@@ -54,7 +54,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
     private final AtomicReference<ManagedChannel> managedChannel = new AtomicReference<>();
 
     public VitessReplicationConnection(VitessConnectorConfig config, VitessDatabaseSchema schema) {
-        this.messageDecoder = new VStreamOutputMessageDecoder(config, schema);
+        this.messageDecoder = new VStreamOutputMessageDecoder(schema);
         this.config = config;
     }
 

@@ -5,10 +5,13 @@
  */
 package io.debezium.connector.vitess;
 
+import java.math.BigDecimal;
 import java.time.ZoneOffset;
 import java.util.List;
 
+import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Field;
+import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 
 import io.debezium.config.CommonConnectorConfig.BinaryHandlingMode;
@@ -22,16 +25,22 @@ import io.vitess.proto.Query;
 
 /** Used by {@link RelationalChangeRecordEmitter} to convert Java value to Connect value */
 public class VitessValueConverter extends JdbcValueConverters {
+    private static final BigDecimal BIGINT_MAX_VALUE = new BigDecimal("18446744073709551615");
+    private static final BigDecimal BIGINT_CORRECTION = BIGINT_MAX_VALUE.add(BigDecimal.ONE);
+
     private final boolean includeUnknownDatatypes;
+    private final VitessConnectorConfig.BigIntUnsignedHandlingMode bigIntUnsignedHandlingMode;
 
     public VitessValueConverter(
                                 DecimalMode decimalMode,
                                 TemporalPrecisionMode temporalPrecisionMode,
                                 ZoneOffset defaultOffset,
                                 BinaryHandlingMode binaryMode,
-                                boolean includeUnknownDatatypes) {
+                                boolean includeUnknownDatatypes,
+                                VitessConnectorConfig.BigIntUnsignedHandlingMode bigIntUnsignedHandlingMode) {
         super(decimalMode, temporalPrecisionMode, defaultOffset, null, null, binaryMode);
         this.includeUnknownDatatypes = includeUnknownDatatypes;
+        this.bigIntUnsignedHandlingMode = bigIntUnsignedHandlingMode;
     }
 
     // Get Kafka connect schema from Debezium column.
@@ -46,6 +55,21 @@ public class VitessValueConverter extends JdbcValueConverters {
         }
         if (matches(typeName, Query.Type.SET.name())) {
             return io.debezium.data.EnumSet.builder(column.enumValues());
+        }
+
+        if (matches(typeName, Query.Type.UINT64.name())) {
+            switch (bigIntUnsignedHandlingMode) {
+                case LONG:
+                    return SchemaBuilder.int64();
+                case STRING:
+                    return SchemaBuilder.string();
+                case PRECISE:
+                    // In order to capture unsigned INT 64-bit data source, org.apache.kafka.connect.data.Decimal:Byte will be required to safely capture all valid values with scale of 0
+                    // Source: https://kafka.apache.org/0102/javadoc/org/apache/kafka/connect/data/Schema.Type.html
+                    return Decimal.builder(0);
+                default:
+                    throw new IllegalArgumentException("Unknown bigIntUnsignedHandlingMode: " + bigIntUnsignedHandlingMode);
+            }
         }
 
         final SchemaBuilder jdbcSchemaBuilder = super.schemaBuilder(column);
@@ -68,6 +92,20 @@ public class VitessValueConverter extends JdbcValueConverters {
             return (data) -> convertSetToString(column.enumValues(), column, fieldDefn, data);
         }
 
+        if (matches(typeName, Query.Type.UINT64.name())) {
+            switch (bigIntUnsignedHandlingMode) {
+                case LONG:
+                    return (data) -> convertBigInt(column, fieldDefn, data);
+                case STRING:
+                    return (data) -> convertString(column, fieldDefn, data);
+                case PRECISE:
+                    // Convert BIGINT UNSIGNED internally from SIGNED to UNSIGNED based on the boundary settings
+                    return (data) -> convertUnsignedBigint(column, fieldDefn, data);
+                default:
+                    throw new IllegalArgumentException("Unknown bigIntUnsignedHandlingMode: " + bigIntUnsignedHandlingMode);
+            }
+        }
+
         final ValueConverter jdbcConverter = super.converter(column, fieldDefn);
         if (jdbcConverter == null) {
             return includeUnknownDatatypes
@@ -77,6 +115,50 @@ public class VitessValueConverter extends JdbcValueConverters {
         else {
             return jdbcConverter;
         }
+    }
+
+    /**
+     * Convert original value insertion of type 'BIGINT' into the correct BIGINT UNSIGNED representation
+     * Note: Unsigned BIGINT (64-bit) is represented in 'BigDecimal' data type. Reference: https://kafka.apache.org/0102/javadoc/org/apache/kafka/connect/data/Schema.Type.html
+     *
+     * @param originalNumber {@link BigDecimal} the original insertion value
+     * @return {@link BigDecimal} the correct representation of the original insertion value
+     */
+    protected static BigDecimal convertUnsignedBigint(BigDecimal originalNumber) {
+        if (originalNumber.compareTo(BigDecimal.ZERO) == -1) {
+            return originalNumber.add(BIGINT_CORRECTION);
+        }
+        else {
+            return originalNumber;
+        }
+    }
+
+    /**
+     * Convert the a value representing a Unsigned BIGINT value to the correct Unsigned INT representation.
+     *
+     * @param column the column in which the value appears
+     * @param fieldDefn the field definition for the SourceRecord's {@link Schema}; never null
+     * @param data the data; may be null
+     *
+     * @return the converted value, or null if the conversion could not be made and the column allows nulls
+     *
+     * @throws IllegalArgumentException if the value could not be converted but the column does not allow nulls
+     */
+    protected Object convertUnsignedBigint(Column column, Field fieldDefn, Object data) {
+        return convertValue(column, fieldDefn, data, 0L, (r) -> {
+            if (data instanceof BigDecimal) {
+                r.deliver(convertUnsignedBigint((BigDecimal) data));
+            }
+            else if (data instanceof Number) {
+                r.deliver(convertUnsignedBigint(new BigDecimal(((Number) data).toString())));
+            }
+            else if (data instanceof String) {
+                r.deliver(convertUnsignedBigint(new BigDecimal((String) data)));
+            }
+            else {
+                r.deliver(convertNumeric(column, fieldDefn, data));
+            }
+        });
     }
 
     /**

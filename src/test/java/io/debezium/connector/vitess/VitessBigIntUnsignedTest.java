@@ -7,12 +7,13 @@ package io.debezium.connector.vitess;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.math.BigDecimal;
 import java.sql.Types;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.junit.BeforeClass;
+import org.apache.kafka.connect.data.Struct;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +25,7 @@ import io.debezium.connector.vitess.connection.VStreamOutputReplicationMessage;
 import io.debezium.data.Envelope;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
+import io.debezium.relational.TableSchema;
 import io.debezium.schema.DefaultTopicNamingStrategy;
 import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.util.Clock;
@@ -33,47 +35,63 @@ import io.vitess.proto.Query;
 public class VitessBigIntUnsignedTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessChangeRecordEmitterTest.class);
 
-    private static VitessConnectorConfig connectorConfig;
-    private static VitessDatabaseSchema schema;
-    private static VStreamOutputMessageDecoder decoder;
+    protected static Object getJavaValue(VitessConnectorConfig.BigIntUnsignedHandlingMode mode) {
+        if (mode == null) {
+            return "23";
+        }
+        switch (mode) {
+            case LONG:
+                return 23L;
+            case STRING:
+                return "23";
+            case PRECISE:
+                return new BigDecimal("23");
+            default:
+                throw new IllegalArgumentException("Unknown bigIntUnsignedHandlingMode: " + mode);
+        }
+    }
 
-    public static List<TestHelper.ColumnValue> defaultColumnValues() {
+    protected static List<TestHelper.ColumnValue> defaultColumnValues(VitessConnectorConfig.BigIntUnsignedHandlingMode mode) {
         return Arrays.asList(
                 new TestHelper.ColumnValue("bool_col", Query.Type.INT8, Types.SMALLINT, "1".getBytes(), (short) 1),
                 new TestHelper.ColumnValue("int_col", Query.Type.INT32, Types.INTEGER, null, null),
-                new TestHelper.ColumnValue("bigint_unsigned_col", Query.Type.UINT64, Types.BIGINT, "23".getBytes(), 23L),
-                new TestHelper.ColumnValue("string_col", Query.Type.VARBINARY, Types.VARCHAR, "test".getBytes(), "test"));
+                new TestHelper.ColumnValue("bigint_unsigned_col", Query.Type.UINT64, Types.BIGINT, "23".getBytes(), getJavaValue(mode)),
+                new TestHelper.ColumnValue("string_col", Query.Type.VARCHAR, Types.VARCHAR, "test".getBytes(), "test"));
     }
 
-    public static List<ReplicationMessage.Column> defaultRelationMessageColumns() {
-        return defaultColumnValues().stream()
+    protected static List<ReplicationMessage.Column> defaultRelationMessageColumns(VitessConnectorConfig.BigIntUnsignedHandlingMode mode) {
+        return defaultColumnValues(mode).stream()
                 .map(x -> x.getReplicationMessageColumn())
                 .collect(Collectors.toList());
     }
 
-    public static List<Object> defaultJavaValues() {
-        return defaultColumnValues().stream().map(x -> x.getJavaValue()).collect(Collectors.toList());
+    protected static Struct defaultStruct(TableSchema tableSchema, VitessConnectorConfig.BigIntUnsignedHandlingMode mode) {
+        Struct struct = new Struct(tableSchema.valueSchema());
+        for (TestHelper.ColumnValue columnValue : defaultColumnValues(mode)) {
+            struct.put(columnValue.getReplicationMessageColumn().getName(), columnValue.getJavaValue());
+        }
+        return struct;
     }
 
-    @BeforeClass
-    public static void beforeClass() throws Exception {
-        Configuration config = TestHelper.defaultConfig().with(
-                VitessConnectorConfig.BIGINT_UNSIGNED_HANDLING_MODE.name(),
-                VitessConnectorConfig.BigIntUnsignedHandlingMode.LONG.getValue()).build();
+    protected void handleInsert(VitessConnectorConfig.BigIntUnsignedHandlingMode mode) throws Exception {
+        VitessConnectorConfig connectorConfig;
+        VitessDatabaseSchema schema;
+        VStreamOutputMessageDecoder decoder;
+
+        Configuration.Builder builder = TestHelper.defaultConfig();
+        Configuration config = mode == null ? builder.build()
+                : builder.with(VitessConnectorConfig.BIGINT_UNSIGNED_HANDLING_MODE.name(), mode.getValue()).build();
         connectorConfig = new VitessConnectorConfig(config);
         schema = new VitessDatabaseSchema(
                 connectorConfig,
                 SchemaNameAdjuster.create(),
                 (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig));
-        decoder = new VStreamOutputMessageDecoder(connectorConfig, schema);
+        decoder = new VStreamOutputMessageDecoder(schema);
         // initialize schema by FIELD event
-        decoder.processMessage(TestHelper.newFieldEvent(defaultColumnValues()), null, null, false);
+        decoder.processMessage(TestHelper.newFieldEvent(defaultColumnValues(mode)), null, null, false);
         Table table = schema.tableFor(new TableId(null, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE));
         assertThat(table.columnWithName("bigint_unsigned_col").jdbcType() == Types.BIGINT);
-    }
 
-    @Test
-    public void shouldGetNewColumnValuesFromInsert() {
         // setup fixture
         ReplicationMessage message = new VStreamOutputReplicationMessage(
                 ReplicationMessage.Operation.INSERT,
@@ -82,7 +100,7 @@ public class VitessBigIntUnsignedTest {
                 new TableId(null, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE)
                         .toDoubleQuotedString(),
                 null,
-                defaultRelationMessageColumns());
+                defaultRelationMessageColumns(mode));
 
         // exercise SUT
         VitessChangeRecordEmitter emitter = new VitessChangeRecordEmitter(
@@ -96,7 +114,30 @@ public class VitessBigIntUnsignedTest {
         // verify outcome
         assertThat(emitter.getOperation()).isEqualTo(Envelope.Operation.CREATE);
         assertThat(emitter.getOldColumnValues()).isNull();
-        assertThat(emitter.getNewColumnValues()).isEqualTo(defaultJavaValues().toArray());
+        Object[] newColumnValues = emitter.getNewColumnValues();
+        TableSchema tableSchema = schema.schemaFor(table.id());
+        Struct newValue = tableSchema.valueFromColumnData(newColumnValues);
+        assertThat(newValue).isEqualTo(defaultStruct(tableSchema, mode));
+    }
+
+    @Test
+    public void testHandlingModeString() throws Exception {
+        handleInsert(VitessConnectorConfig.BigIntUnsignedHandlingMode.STRING);
+    }
+
+    @Test
+    public void testHandlingModePrecise() throws Exception {
+        handleInsert(VitessConnectorConfig.BigIntUnsignedHandlingMode.PRECISE);
+    }
+
+    @Test
+    public void testHandlingModeLong() throws Exception {
+        handleInsert(VitessConnectorConfig.BigIntUnsignedHandlingMode.LONG);
+    }
+
+    @Test
+    public void testHandlingModeDefault() throws Exception {
+        handleInsert(null);
     }
 
     private VitessPartition initializePartition() {

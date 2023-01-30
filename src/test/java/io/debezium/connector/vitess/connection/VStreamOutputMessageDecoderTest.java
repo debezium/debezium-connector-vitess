@@ -42,7 +42,7 @@ public class VStreamOutputMessageDecoderTest {
                 connectorConfig,
                 SchemaNameAdjuster.create(),
                 (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig));
-        decoder = new VStreamOutputMessageDecoder(connectorConfig, schema);
+        decoder = new VStreamOutputMessageDecoder(schema);
     }
 
     @Test

@@ -21,7 +21,6 @@ import com.google.protobuf.ByteString;
 
 import io.debezium.annotation.VisibleForTesting;
 import io.debezium.connector.vitess.Vgtid;
-import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.debezium.connector.vitess.VitessType;
 import io.debezium.connector.vitess.connection.ReplicationMessage.Operation;
@@ -45,11 +44,9 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     private Instant commitTimestamp;
     private String transactionId = null;
 
-    private final VitessConnectorConfig config;
     private final VitessDatabaseSchema schema;
 
-    public VStreamOutputMessageDecoder(VitessConnectorConfig config, VitessDatabaseSchema schema) {
-        this.config = config;
+    public VStreamOutputMessageDecoder(VitessDatabaseSchema schema) {
         this.schema = schema;
     }
 
@@ -323,7 +320,6 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     }
 
     private void handleFieldMessage(Binlogdata.VEvent vEvent) {
-        VitessConnectorConfig.BigIntUnsignedHandlingMode bigIntUnsignedHandlingMode = config.getBigIntUnsgnedHandlingMode();
         Binlogdata.FieldEvent fieldEvent = vEvent.getFieldEvent();
         if (fieldEvent == null) {
             LOGGER.error("fieldEvent is expected from {}", vEvent);
@@ -346,7 +342,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                 for (short i = 0; i < columnCount; ++i) {
                     Field field = fieldEvent.getFields(i);
                     String columnName = validateColumnName(field.getName(), schemaName, tableName);
-                    VitessType vitessType = VitessType.resolve(field, bigIntUnsignedHandlingMode);
+                    VitessType vitessType = VitessType.resolve(field);
                     if (vitessType.getJdbcId() == Types.OTHER) {
                         LOGGER.error("Cannot resolve JDBC type from VStream field {}", field);
                     }

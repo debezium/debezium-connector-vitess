@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.vitess;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
@@ -109,6 +110,12 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
          * Represent {@code BIGINT UNSIGNED} values as string.
          */
         STRING("string"),
+
+        /**
+         * Represent {@code BIGINT UNSIGNED} values as precise {@link BigDecimal} values, which are
+         * represented in change events in a binary form. This is precise but difficult to use.
+         */
+        PRECISE("precise"),
 
         /**
          * Represent {@code BIGINT UNSIGNED} values as {@code long} values. This may not be precise

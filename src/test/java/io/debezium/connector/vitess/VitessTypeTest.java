@@ -24,10 +24,7 @@ public class VitessTypeTest {
         assertThat(VitessType.resolve(asField(Query.Type.INT32)).getJdbcId()).isEqualTo(Types.INTEGER);
         assertThat(VitessType.resolve(asField(Query.Type.INT64)).getJdbcId()).isEqualTo(Types.BIGINT);
         assertThat(VitessType.resolve(asField(Query.Type.UINT64)).getJdbcId()).isEqualTo(Types.VARCHAR);
-        assertThat(VitessType.resolve(asField(Query.Type.UINT64),
-                VitessConnectorConfig.BigIntUnsignedHandlingMode.STRING).getJdbcId()).isEqualTo(Types.VARCHAR);
-        assertThat(VitessType.resolve(asField(Query.Type.UINT64),
-                VitessConnectorConfig.BigIntUnsignedHandlingMode.LONG).getJdbcId()).isEqualTo(Types.BIGINT);
+        assertThat(VitessType.resolve(asField(Query.Type.UINT64)).getJdbcId()).isEqualTo(Types.VARCHAR);
         assertThat(VitessType.resolve(asField(Query.Type.FLOAT32)).getJdbcId()).isEqualTo(Types.FLOAT);
         assertThat(VitessType.resolve(asField(Query.Type.FLOAT64)).getJdbcId()).isEqualTo(Types.DOUBLE);
         assertThat(VitessType.resolve(asField(Query.Type.VARBINARY)).getJdbcId())

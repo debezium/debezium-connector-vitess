@@ -363,6 +363,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withImportance(ConfigDef.Importance.MEDIUM)
             .withDescription("Specify how BIGINT UNSIGNED columns should be represented in change events, including: "
                     + "'string' (the default) represent values using Java's 'string'; "
+                    + "'precise' represents values as precise (Java's 'BigDecimal') values;"
                     + "'long' represents values using Java's 'long', which may not offer the precision but will be far easier to use in consumers.");
 
     protected static final ConfigDefinition CONFIG_DEFINITION = RelationalDatabaseConnectorConfig.CONFIG_DEFINITION

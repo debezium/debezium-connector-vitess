@@ -15,8 +15,8 @@ import io.debezium.relational.RelationalDatabaseSchema;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.relational.TableSchemaBuilder;
+import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
-import io.debezium.util.SchemaNameAdjuster;
 
 /**
  * Logical in-memory representation of Vitess schema (a.k.a Vitess keyspace). It is used to create
@@ -45,7 +45,7 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
                         schemaNameAdjuster,
                         config.customConverterRegistry(),
                         config.getSourceInfoStructMaker().schema(),
-                        config.getSanitizeFieldNames(),
+                        config.getFieldNamer(),
                         false),
                 false,
                 config.getKeyMapper());

@@ -19,9 +19,9 @@ import io.debezium.connector.vitess.connection.VStreamOutputReplicationMessage;
 import io.debezium.data.Envelope;
 import io.debezium.relational.TableId;
 import io.debezium.schema.DefaultTopicNamingStrategy;
+import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.util.Clock;
-import io.debezium.util.SchemaNameAdjuster;
 
 public class VitessChangeRecordEmitterTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessChangeRecordEmitterTest.class);

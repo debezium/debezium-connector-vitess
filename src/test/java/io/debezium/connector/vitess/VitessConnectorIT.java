@@ -629,7 +629,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         TestHelper.execute("ALTER TABLE numeric_table ADD `-foo-` INT default 10;");
 
-        startConnector(builder -> builder.with(CommonConnectorConfig.SANITIZE_FIELD_NAMES, "true"), false);
+        startConnector(builder -> builder.with(CommonConnectorConfig.FIELD_NAME_ADJUSTMENT_MODE, "avro"), false);
         assertConnectorIsRunning();
 
         int expectedRecordsCount = 1;

@@ -32,8 +32,8 @@ import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.doc.FixFor;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.schema.DefaultTopicNamingStrategy;
+import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
-import io.debezium.util.SchemaNameAdjuster;
 
 import binlogdata.Binlogdata;
 

@@ -28,7 +28,7 @@ import io.debezium.util.Strings;
  * Used by {@link EventDispatcher} to get the {@link SourceRecord} {@link Struct} and pass it to a
  * {@link Receiver}, which in turn enqueue the {@link SourceRecord} to {@link ChangeEventQueue}.
  */
-class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter {
+class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter<VitessPartition> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessChangeRecordEmitter.class);
 

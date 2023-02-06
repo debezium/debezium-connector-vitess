@@ -372,6 +372,14 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     + "'precise' represents values as precise (Java's 'BigDecimal') values;"
                     + "'long' represents values using Java's 'long', which may not offer the precision but will be far easier to use in consumers.");
 
+    public static final Field SOURCE_INFO_STRUCT_MAKER = Field.create("sourceinfo.struct.maker")
+            .withDisplayName("Source info struct maker class")
+            .withType(Type.CLASS)
+            .withWidth(Width.MEDIUM)
+            .withImportance(ConfigDef.Importance.LOW)
+            .withDescription("The name of the SourceInfoStructMaker class that returns SourceInfo schema and struct.")
+            .withDefault(VitessSourceInfoStructMaker.class.getName());
+
     protected static final ConfigDefinition CONFIG_DEFINITION = RelationalDatabaseConnectorConfig.CONFIG_DEFINITION
             .edit()
             .name("Vitess")
@@ -447,7 +455,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     @Override
     protected SourceInfoStructMaker<?> getSourceInfoStructMaker(Version version) {
         // Assume V2 is used because it is the default version
-        return new VitessSourceInfoStructMaker(Module.name(), Module.version(), this);
+        return getSourceInfoStructMaker(SOURCE_INFO_STRUCT_MAKER, Module.name(), Module.version(), this);
     }
 
     public String getKeyspace() {

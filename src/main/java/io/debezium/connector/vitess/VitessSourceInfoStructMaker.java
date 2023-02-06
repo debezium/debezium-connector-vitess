@@ -8,16 +8,17 @@ package io.debezium.connector.vitess;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 
+import io.debezium.config.CommonConnectorConfig;
 import io.debezium.connector.AbstractSourceInfoStructMaker;
 
 /** Create the source struct in the SourceRecord */
 public class VitessSourceInfoStructMaker extends AbstractSourceInfoStructMaker<SourceInfo> {
 
-    private final Schema schema;
+    private Schema schema;
 
-    public VitessSourceInfoStructMaker(
-                                       String connector, String version, VitessConnectorConfig connectorConfig) {
-        super(connector, version, connectorConfig);
+    @Override
+    public void init(String connector, String version, CommonConnectorConfig connectorConfig) {
+        super.init(connector, version, connectorConfig);
         this.schema = commonSchemaBuilder()
                 .name("io.debezium.connector.vitess.Source")
                 .field(SourceInfo.KEYSPACE_NAME_KEY, Schema.STRING_SCHEMA)

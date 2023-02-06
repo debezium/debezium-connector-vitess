@@ -34,7 +34,8 @@ public class VitessSourceInfoStructMakerTest {
 
     @Test
     public void shouldGetCorrectSourceInfoSchema() {
-        VitessSourceInfoStructMaker structMaker = new VitessSourceInfoStructMaker(
+        VitessSourceInfoStructMaker structMaker = new VitessSourceInfoStructMaker();
+        structMaker.init(
                 "test_connector",
                 "test_version",
                 new VitessConnectorConfig(TestHelper.defaultConfig().build()));
@@ -64,11 +65,13 @@ public class VitessSourceInfoStructMakerTest {
         sourceInfo.setTimestamp(AnonymousValue.getInstant());
 
         // exercise SUT
-        Struct struct = new VitessSourceInfoStructMaker(
+        VitessSourceInfoStructMaker structMaker = new VitessSourceInfoStructMaker();
+        structMaker.init(
                 "test_connector",
                 "test_version",
-                new VitessConnectorConfig(TestHelper.defaultConfig().build()))
-                .struct(sourceInfo);
+                new VitessConnectorConfig(TestHelper.defaultConfig().build()));
+
+        Struct struct = structMaker.struct(sourceInfo);
 
         // verify outcome
         assertThat(struct.getString(SourceInfo.KEYSPACE_NAME_KEY)).isEqualTo(TestHelper.TEST_UNSHARDED_KEYSPACE);

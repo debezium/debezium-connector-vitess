@@ -6,6 +6,7 @@
 package io.debezium.connector.vitess;
 
 import io.debezium.connector.vitess.connection.ReplicationConnection;
+import io.debezium.jdbc.DefaultMainConnectionProvidingConnectionFactory;
 import io.debezium.pipeline.ErrorHandler;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.source.spi.ChangeEventSourceFactory;
@@ -47,7 +48,7 @@ public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<
     public SnapshotChangeEventSource<VitessPartition, VitessOffsetContext> getSnapshotChangeEventSource(SnapshotProgressListener<VitessPartition> snapshotProgressListener) {
         // A dummy SnapshotChangeEventSource, snapshot is skipped.
         return new VitessSnapshotChangeEventSource(
-                connectorConfig, null, dispatcher, schema, clock, null);
+                connectorConfig, new DefaultMainConnectionProvidingConnectionFactory<>(() -> null), dispatcher, schema, clock, null);
     }
 
     @Override

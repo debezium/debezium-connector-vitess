@@ -23,7 +23,10 @@ import io.debezium.util.Collect;
  */
 public class VitessRecordParser extends RecordParser {
 
-    private static final Set<String> VITESS_SOURCE_FIELD = Collect.unmodifiableSet(SourceInfo.VGTID_KEY, SourceInfo.KEYSPACE_NAME_KEY);
+    private static final Set<String> VITESS_SOURCE_FIELD = Collect.unmodifiableSet(
+            SourceInfo.VGTID_KEY,
+            SourceInfo.KEYSPACE_NAME_KEY,
+            SourceInfo.TABLE_NAME_KEY);
 
     public VitessRecordParser(Schema schema, Struct record) {
         super(schema, record, Envelope.FieldName.BEFORE, Envelope.FieldName.AFTER);

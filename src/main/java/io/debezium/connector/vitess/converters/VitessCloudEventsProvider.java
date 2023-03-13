@@ -5,10 +5,8 @@
  */
 package io.debezium.connector.vitess.converters;
 
-import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.data.Struct;
+import io.debezium.connector.vitess.transforms.VitessAbstractRecordParserProvider;
 
-import io.debezium.connector.vitess.Module;
 import io.debezium.converters.spi.CloudEventsMaker;
 import io.debezium.converters.spi.CloudEventsProvider;
 import io.debezium.converters.spi.RecordParser;
@@ -19,17 +17,7 @@ import io.debezium.converters.spi.SerializerType;
  *
  * @author Chris Cranford
  */
-public class VitessCloudEventsProvider implements CloudEventsProvider {
-    @Override
-    public String getName() {
-        return Module.name();
-    }
-
-    @Override
-    public RecordParser createParser(Schema schema, Struct record) {
-        return new VitessRecordParser(schema, record);
-    }
-
+public class VitessCloudEventsProvider extends VitessAbstractRecordParserProvider implements CloudEventsProvider {
     @Override
     public CloudEventsMaker createMaker(RecordParser parser, SerializerType contentType, String dataSchemaUriBase) {
         return new VitessCloudEventsMaker(parser, contentType, dataSchemaUriBase);

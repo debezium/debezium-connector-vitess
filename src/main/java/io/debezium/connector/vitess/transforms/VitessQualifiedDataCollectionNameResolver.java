@@ -8,9 +8,9 @@ package io.debezium.connector.vitess.transforms;
 import io.debezium.connector.AbstractSourceInfo;
 import io.debezium.connector.vitess.SourceInfo;
 import io.debezium.converters.spi.RecordParser;
-import io.debezium.transforms.spi.QualifiedTableNameResolver;
+import io.debezium.transforms.spi.QualifiedDataCollectionNameResolver;
 
-public class VitessQualifiedTableNameResolver extends VitessAbstractRecordParserProvider implements QualifiedTableNameResolver {
+public class VitessQualifiedDataCollectionNameResolver extends VitessAbstractRecordParserProvider implements QualifiedDataCollectionNameResolver {
     public static final String FULLY_QUALIFIED_NAME_FORMAT = "%s.%s";
 
     @Override

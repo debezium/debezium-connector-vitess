@@ -5,22 +5,25 @@
  */
 package io.debezium.connector.vitess.transforms;
 
-import io.debezium.data.Envelope;
-import io.debezium.transforms.partitions.ComputePartition;
-import io.debezium.transforms.partitions.ComputePartitionException;
+import static io.debezium.data.Envelope.Operation.CREATE;
+import static io.debezium.data.Envelope.Operation.DELETE;
+import static io.debezium.data.Envelope.Operation.TRUNCATE;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.Test;
 
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-
-import static io.debezium.data.Envelope.Operation.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import io.debezium.data.Envelope;
+import io.debezium.transforms.partitions.ComputePartition;
+import io.debezium.transforms.partitions.ComputePartitionException;
 
 public class ComputePartitionTest {
 
@@ -154,7 +157,6 @@ public class ComputePartitionTest {
     }
 
     private SourceRecord buildSourceRecord(String keyspace, String tableName, Struct row, Envelope.Operation operation) {
-
 
         SchemaBuilder sourceSchemaBuilder = SchemaBuilder.struct()
                 .name("source")

@@ -5,12 +5,13 @@
  */
 package io.debezium.connector.vitess.transforms;
 
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.Struct;
+
 import io.debezium.connector.vitess.Module;
 import io.debezium.connector.vitess.converters.VitessRecordParser;
 import io.debezium.converters.spi.RecordParser;
 import io.debezium.transforms.spi.RecordParserProvider;
-import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.data.Struct;
 
 public abstract class VitessAbstractRecordParserProvider implements RecordParserProvider {
 

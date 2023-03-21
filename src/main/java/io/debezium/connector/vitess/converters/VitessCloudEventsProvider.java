@@ -6,7 +6,6 @@
 package io.debezium.connector.vitess.converters;
 
 import io.debezium.connector.vitess.transforms.VitessAbstractRecordParserProvider;
-
 import io.debezium.converters.spi.CloudEventsMaker;
 import io.debezium.converters.spi.CloudEventsProvider;
 import io.debezium.converters.spi.RecordParser;

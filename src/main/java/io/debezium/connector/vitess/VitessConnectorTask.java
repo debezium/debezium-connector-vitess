@@ -19,6 +19,7 @@ import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.connector.common.BaseSourceTask;
 import io.debezium.connector.vitess.connection.ReplicationConnection;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
+import io.debezium.connector.vitess.metrics.VitessChangeEventSourceMetricsFactory;
 import io.debezium.pipeline.ChangeEventSourceCoordinator;
 import io.debezium.pipeline.DataChangeEvent;
 import io.debezium.pipeline.ErrorHandler;
@@ -103,7 +104,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
                     connectorConfig,
                     new VitessChangeEventSourceFactory(
                             connectorConfig, errorHandler, dispatcher, clock, schema, replicationConnection),
-                    new DefaultChangeEventSourceMetricsFactory<>(),
+                    connectorConfig.offsetStoragePerTask() ? new VitessChangeEventSourceMetricsFactory() : new DefaultChangeEventSourceMetricsFactory<>(),
                     dispatcher,
                     schema);
 

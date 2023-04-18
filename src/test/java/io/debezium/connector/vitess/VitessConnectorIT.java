@@ -593,7 +593,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         };
         start(VitessConnector.class, TestHelper.defaultConfig().build(), completionCallback);
         assertConnectorIsRunning();
-        waitForStreamingRunning();
+        waitForStreamingRunning(null);
 
         // Connector receives a row whose column name is not valid, task should fail
         TestHelper.execute("ALTER TABLE numeric_table ADD `@1` INT;");
@@ -946,12 +946,13 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
         start(VitessConnector.class, configBuilder.build());
         assertConnectorIsRunning();
-        waitForStreamingRunning();
+        String taskId = offsetStoragePerTask ? VitessConnector.getTaskKeyName(0, numTasks, gen) : null;
+        waitForStreamingRunning(taskId);
         waitForVStreamStarted(logInterceptor);
     }
 
-    private void waitForStreamingRunning() throws InterruptedException {
-        waitForStreamingRunning(Module.name(), TEST_SERVER);
+    private void waitForStreamingRunning(String taskId) throws InterruptedException {
+        waitForStreamingRunning(taskId, Module.name(), TEST_SERVER);
     }
 
     private SourceRecord assertInsert(

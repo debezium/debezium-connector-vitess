@@ -13,6 +13,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.lang.management.ManagementFactory;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,11 +27,17 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.management.InstanceNotFoundException;
+import javax.management.MBeanServer;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
+
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
+import org.awaitility.Awaitility;
 import org.json.JSONException;
 import org.junit.Assert;
 import org.junit.ComparisonFailure;
@@ -47,6 +54,7 @@ import io.debezium.data.VerifyRecord;
 import io.debezium.embedded.AbstractConnectorTest;
 import io.debezium.relational.TableId;
 import io.debezium.util.Clock;
+import io.debezium.util.Collect;
 import io.debezium.util.ElapsedTimeStrategy;
 import io.debezium.util.Testing;
 
@@ -237,6 +245,45 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         int idx = gtid.lastIndexOf("-") + 1;
         int seq = Integer.valueOf(gtid.substring(idx)) + increment;
         return gtid.substring(0, idx) + seq;
+    }
+
+    public static ObjectName getStreamingMetricsObjectName(String connector, String server, String taskId) {
+        return getMetricsObjectNameWithTags(connector,
+                Collect.linkMapOf("context", getStreamingNamespace(), "server", server, "task", taskId));
+    }
+
+    public static void waitForStreamingRunning(String taskId, String connector, String server) {
+        try {
+            waitForStreamingRunning(taskId != null
+                    ? getStreamingMetricsObjectName(connector, server, taskId)
+                    : getStreamingMetricsObjectName(connector, server));
+        }
+        catch (MalformedObjectNameException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void waitForStreamingRunning(ObjectName objectName) {
+        final MBeanServer mbeanServer = ManagementFactory.getPlatformMBeanServer();
+        Awaitility.await()
+                .alias("Streaming was not started on time")
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .atMost(waitTimeForRecords() * 30, TimeUnit.SECONDS)
+                .ignoreException(InstanceNotFoundException.class)
+                .until(() -> (boolean) mbeanServer.getAttribute(objectName, "Connected"));
+    }
+
+    private static ObjectName getMetricsObjectNameWithTags(String connector, Map<String, String> tags) {
+        try {
+            return new ObjectName("debezium." + connector + ":type=connector-metrics,"
+                    + tags.entrySet()
+                            .stream()
+                            .map(e -> e.getKey() + "=" + e.getValue())
+                            .collect(Collectors.joining(",")));
+        }
+        catch (MalformedObjectNameException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     protected TestConsumer testConsumer(int expectedRecordsCount, String... topicPrefixes) throws InterruptedException {

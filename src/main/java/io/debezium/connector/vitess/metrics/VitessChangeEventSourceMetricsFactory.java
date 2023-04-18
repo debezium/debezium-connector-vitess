@@ -14,7 +14,7 @@ import io.debezium.pipeline.metrics.StreamingChangeEventSourceMetrics;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
 
 /**
- * @author Chris Cranford
+ * @author Henry Haiying Cai
  */
 public class VitessChangeEventSourceMetricsFactory extends DefaultChangeEventSourceMetricsFactory<VitessPartition> {
 

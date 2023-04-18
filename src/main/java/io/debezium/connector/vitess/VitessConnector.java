@@ -224,7 +224,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         }
     }
 
-    public static final String getTaskKeyName(int tid, int numTasks, int gen) {
+    protected static final String getTaskKeyName(int tid, int numTasks, int gen) {
         return String.format("task%d_%d_%d", tid, numTasks, gen);
     }
 

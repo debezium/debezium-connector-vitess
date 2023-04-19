@@ -220,9 +220,10 @@ public class VitessConnector extends RelationalBaseSourceConnector {
             if (maxTasks > 1) {
                 throw new IllegalArgumentException("Only a single connector task may be started");
             }
+            final List<String> gtids = connectorConfig.getGtid();
             if (connectorConfig.getShard() != null &&
-                    !connectorConfig.getGtid().equals(List.of(VitessConnectorConfig.GTID.defaultValueAsString())) &&
-                    !connectorConfig.getGtid().equals(List.of("")) &&
+                    gtids != VitessConnectorConfig.DEFAULT_GTID_LIST &&
+                    gtids != VitessConnectorConfig.EMPTY_GTID_LIST &&
                     connectorConfig.getShard().size() != connectorConfig.getGtid().size()) {
                 throw new IllegalArgumentException("If GTIDs are specified must be specified for all shards");
             }

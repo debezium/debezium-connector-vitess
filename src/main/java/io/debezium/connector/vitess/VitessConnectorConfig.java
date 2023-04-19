@@ -448,15 +448,16 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return getConfig().getString(KEYSPACE);
     }
 
-    public String getShard() {
-        return getConfig().getString(SHARD);
+    public List<String> getShard() {
+        return getConfig().getStrings(SHARD, ",");
     }
 
-    public String getGtid() {
+    public List<String> getGtid() {
         if (getSnapshotMode() == SnapshotMode.INITIAL) {
-            return "";
+            return List.of("");
         }
-        return getConfig().getString(GTID);
+        List<String> value = getConfig().getStrings(GTID, ",");
+        return value != null ? value : List.of(GTID.defaultValueAsString());
     }
 
     public String getVtgateHost() {

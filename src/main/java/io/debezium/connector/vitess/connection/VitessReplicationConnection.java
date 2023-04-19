@@ -371,9 +371,9 @@ public class VitessReplicationConnection implements ReplicationConnection {
         else {
             if (config.getShard() == null || config.getShard().isEmpty()) {
                 // This case is not supported by the Vitess, so our workaround is to get all the shards from vtgate.
-                if (config.getGtid().equals("")) {
+                if (config.getGtid().equals(List.of(""))) {
                     List<String> shards = VitessConnector.getVitessShards(config);
-                    List<String> gtids = Collections.nCopies(shards.size(), config.getGtid());
+                    List<String> gtids = Collections.nCopies(shards.size(), config.getGtid().get(0));
                     vgtid = buildVgtid(config.getKeyspace(), shards, gtids);
                 }
                 else {
@@ -383,10 +383,15 @@ public class VitessReplicationConnection implements ReplicationConnection {
                         vgtid, config.getKeyspace());
             }
             else {
-                vgtid = buildVgtid(config.getKeyspace(), Collections.singletonList(config.getShard()),
-                        Collections.singletonList(config.getGtid()));
+                List<String> shards = config.getShard();
+                List<String> gtids = config.getGtid();
+                if (gtids.equals(List.of(VitessConnectorConfig.GTID.defaultValueAsString())) ||
+                        gtids.equals(List.of(""))) {
+                    gtids = Collections.nCopies(shards.size(), gtids.get(0));
+                }
+                vgtid = buildVgtid(config.getKeyspace(), shards, gtids);
                 LOGGER.info("VGTID '{}' is set to the GTID {} for keyspace: {} shard: {}",
-                        vgtid, config.getGtid(), config.getKeyspace(), config.getShard());
+                        vgtid, gtids, config.getKeyspace(), shards);
             }
         }
         return vgtid;

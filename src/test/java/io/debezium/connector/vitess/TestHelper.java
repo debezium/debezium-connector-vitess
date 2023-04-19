@@ -40,6 +40,7 @@ public class TestHelper {
     public static final String TEST_UNSHARDED_KEYSPACE = "test_unsharded_keyspace";
     public static final String TEST_SHARDED_KEYSPACE = "test_sharded_keyspace";
     public static final String TEST_SHARD = "0";
+    public static final String TEST_GTID = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-1513";
     public static final String TEST_TABLE = "test_table";
     private static final String TEST_VITESS_FULL_TABLE = TEST_UNSHARDED_KEYSPACE + "." + TEST_TABLE;
     protected static final String PK_FIELD = "id";
@@ -58,7 +59,7 @@ public class TestHelper {
             "CREATE TABLE t1 (id BIGINT NOT NULL AUTO_INCREMENT, int_col INT, PRIMARY KEY (id));");
 
     public static Configuration.Builder defaultConfig() {
-        return defaultConfig(false, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER);
+        return defaultConfig(false, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER, TEST_SHARD);
     }
 
     /**
@@ -74,6 +75,24 @@ public class TestHelper {
                                                       int prevNumTasks,
                                                       String tableInclude,
                                                       VitessConnectorConfig.SnapshotMode snapshotMode) {
+        return defaultConfig(hasMultipleShards,
+                offsetStoragePerTask,
+                numTasks,
+                gen,
+                prevNumTasks,
+                tableInclude,
+                snapshotMode,
+                "");
+    }
+
+    public static Configuration.Builder defaultConfig(boolean hasMultipleShards,
+                                                      boolean offsetStoragePerTask,
+                                                      int numTasks,
+                                                      int gen,
+                                                      int prevNumTasks,
+                                                      String tableInclude,
+                                                      VitessConnectorConfig.SnapshotMode snapshotMode,
+                                                      String shards) {
         Configuration.Builder builder = Configuration.create();
         builder = builder
                 .with(CommonConnectorConfig.TOPIC_PREFIX, TEST_SERVER)
@@ -89,9 +108,12 @@ public class TestHelper {
             builder = builder.with(VitessConnectorConfig.KEYSPACE, TEST_SHARDED_KEYSPACE);
         }
         else {
-            builder = builder.with(VitessConnectorConfig.KEYSPACE, TEST_UNSHARDED_KEYSPACE)
-                    .with(VitessConnectorConfig.SHARD, TEST_SHARD);
+            builder = builder.with(VitessConnectorConfig.KEYSPACE, TEST_UNSHARDED_KEYSPACE);
         }
+        if (shards != null && !shards.isEmpty()) {
+            builder.with(VitessConnectorConfig.SHARD, shards);
+        }
+
         if (offsetStoragePerTask) {
             builder = builder.with(VitessConnectorConfig.OFFSET_STORAGE_PER_TASK, "true")
                     .with(VitessConnectorConfig.TASKS_MAX_CONFIG, Integer.toString(numTasks))

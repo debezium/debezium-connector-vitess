@@ -205,7 +205,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                         gtidStr = prevGtidsPerShard != null ? prevGtidsPerShard.get(shard) : null;
                     }
                     if (gtidStr == null) {
-                        gtidStr = connectorConfig.getGtid();
+                        gtidStr = connectorConfig.getGtid().get(0);
                         LOGGER.warn("No previous gtid found either for shard: {}, fallback to '{}'", shard, gtidStr);
                     }
                     shardGtids.add(new Vgtid.ShardGtid(keyspace, shard, gtidStr));
@@ -219,6 +219,12 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         else {
             if (maxTasks > 1) {
                 throw new IllegalArgumentException("Only a single connector task may be started");
+            }
+            if (connectorConfig.getShard() != null &&
+                    !connectorConfig.getGtid().equals(List.of(VitessConnectorConfig.GTID.defaultValueAsString())) &&
+                    !connectorConfig.getGtid().equals(List.of("")) &&
+                    connectorConfig.getShard().size() != connectorConfig.getGtid().size()) {
+                throw new IllegalArgumentException("If GTIDs are specified must be specified for all shards");
             }
             return Collections.singletonList(properties);
         }

@@ -62,7 +62,7 @@ public class VitessReplicationConnectionIT {
                             .addShardGtids(
                                     Binlogdata.ShardGtid.newBuilder()
                                             .setKeyspace(conf.getKeyspace())
-                                            .setShard(conf.getShard())
+                                            .setShard(conf.getShard().get(0))
                                             .setGtid(Vgtid.CURRENT_GTID)
                                             .build())
                             .build());
@@ -102,7 +102,7 @@ public class VitessReplicationConnectionIT {
                     });
 
             // verify outcome
-            messages.forEach(m -> assertValidVgtid(m.getVgtid(), conf.getKeyspace(), conf.getShard()));
+            messages.forEach(m -> assertValidVgtid(m.getVgtid(), conf.getKeyspace(), conf.getShard().get(0)));
             assertThat(messages.get(0).getMessage().getOperation().name()).isEqualTo("BEGIN");
             assertThat(messages.get(1).getMessage().getOperation().name()).isEqualTo("INSERT");
             assertThat(messages.get(2).getMessage().getOperation().name()).isEqualTo("COMMIT");
@@ -131,7 +131,7 @@ public class VitessReplicationConnectionIT {
                             .addShardGtids(
                                     Binlogdata.ShardGtid.newBuilder()
                                             .setKeyspace(conf.getKeyspace())
-                                            .setShard(conf.getShard())
+                                            .setShard(conf.getShard().get(0))
                                             .setGtid("")
                                             .build())
                             .build());
@@ -159,7 +159,7 @@ public class VitessReplicationConnectionIT {
                     });
 
             // verify outcome from the copy operation
-            messages.forEach(m -> assertValidVgtid(m.getVgtid(), conf.getKeyspace(), conf.getShard()));
+            messages.forEach(m -> assertValidVgtid(m.getVgtid(), conf.getKeyspace(), conf.getShard().get(0)));
             assertThat(messages.get(0).getMessage().getOperation().name()).isEqualTo("BEGIN");
             assertThat(messages.get(1).getMessage().getOperation().name()).isEqualTo("INSERT");
             assertThat(messages.get(2).getMessage().getOperation().name()).isEqualTo("COMMIT");
@@ -181,7 +181,7 @@ public class VitessReplicationConnectionIT {
                     });
 
             // verify outcome from the replicate operation
-            messages.forEach(m -> assertValidVgtid(m.getVgtid(), conf.getKeyspace(), conf.getShard()));
+            messages.forEach(m -> assertValidVgtid(m.getVgtid(), conf.getKeyspace(), conf.getShard().get(0)));
             assertThat(messages.get(0).getMessage().getOperation().name()).isEqualTo("BEGIN");
             assertThat(messages.get(1).getMessage().getOperation().name()).isEqualTo("INSERT");
             assertThat(messages.get(2).getMessage().getOperation().name()).isEqualTo("COMMIT");
@@ -206,7 +206,7 @@ public class VitessReplicationConnectionIT {
                             .addShardGtids(
                                     Binlogdata.ShardGtid.newBuilder()
                                             .setKeyspace(conf.getKeyspace())
-                                            .setShard(conf.getShard())
+                                            .setShard(conf.getShard().get(0))
                                             .setGtid(Vgtid.CURRENT_GTID)
                                             .build())
                             .build());

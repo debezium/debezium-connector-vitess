@@ -35,6 +35,9 @@ import io.debezium.relational.RelationalDatabaseConnectorConfig;
  */
 public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
+    public static final List<String> EMPTY_GTID_LIST = List.of("");
+    public static final List<String> DEFAULT_GTID_LIST = List.of(Vgtid.CURRENT_GTID);
+
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessConnectorConfig.class);
 
     private static final String VITESS_CONFIG_GROUP_PREFIX = "vitess.";
@@ -454,10 +457,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public List<String> getGtid() {
         if (getSnapshotMode() == SnapshotMode.INITIAL) {
-            return List.of("");
+            return EMPTY_GTID_LIST;
         }
         List<String> value = getConfig().getStrings(GTID, ",");
-        return value != null ? value : List.of(GTID.defaultValueAsString());
+        return (value != null && !GTID.defaultValueAsString().equals(value)) ? value : DEFAULT_GTID_LIST;
     }
 
     public String getVtgateHost() {

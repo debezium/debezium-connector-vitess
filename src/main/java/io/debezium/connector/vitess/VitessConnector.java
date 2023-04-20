@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigValue;
@@ -142,17 +143,22 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                         prevGtidsPerShard.keySet(), currentShards);
             }
             final String keyspace = connectorConfig.getKeyspace();
+            // Check the configs in case there is a user specified GTID override
+            verifyShardGtidConfig();
+            Map<String, String> gtidsPerShard = getGtidsPerShardFromConfig();
             // Check the task offsets for the current gen, the offset might not be persisted if this gen just turned on
-            Map<String, String> gtidsPerShard = getGtidPerShardFromStorage(tasks, gen, false);
-            if (gtidsPerShard != null && !hasSameShards(gtidsPerShard.keySet(), currentShards)) {
-                LOGGER.warn("Some shards for the current generation {} are not persisted.  Expected shards: {}",
-                        gtidsPerShard.keySet(), currentShards);
-                if (!currentShards.containsAll(gtidsPerShard.keySet())) {
-                    LOGGER.warn("Shards from persisted offset: {} not contained within current db shards: {}",
+            if (gtidsPerShard == null) {
+                gtidsPerShard = getGtidPerShardFromStorage(tasks, gen, false);
+                if (gtidsPerShard != null && !hasSameShards(gtidsPerShard.keySet(), currentShards)) {
+                    LOGGER.warn("Some shards for the current generation {} are not persisted.  Expected shards: {}",
                             gtidsPerShard.keySet(), currentShards);
-                    // gtidsPerShard has shards not present in the current db shards, we have to rely on the shards
-                    // from gtidsPerShard and we have to require all task offsets are persisted.
-                    gtidsPerShard = getGtidPerShardFromStorage(tasks, gen, true);
+                    if (!currentShards.containsAll(gtidsPerShard.keySet())) {
+                        LOGGER.warn("Shards from persisted offset: {} not contained within current db shards: {}",
+                                gtidsPerShard.keySet(), currentShards);
+                        // gtidsPerShard has shards not present in the current db shards, we have to rely on the shards
+                        // from gtidsPerShard and we have to require all task offsets are persisted.
+                        gtidsPerShard = getGtidPerShardFromStorage(tasks, gen, true);
+                    }
                 }
             }
             // Use the shards from task offsets persisted in the offset storage if it's not empty.
@@ -220,14 +226,29 @@ public class VitessConnector extends RelationalBaseSourceConnector {
             if (maxTasks > 1) {
                 throw new IllegalArgumentException("Only a single connector task may be started");
             }
-            final List<String> gtids = connectorConfig.getGtid();
-            if (connectorConfig.getShard() != null &&
-                    gtids != VitessConnectorConfig.DEFAULT_GTID_LIST &&
-                    gtids != VitessConnectorConfig.EMPTY_GTID_LIST &&
-                    connectorConfig.getShard().size() != connectorConfig.getGtid().size()) {
-                throw new IllegalArgumentException("If GTIDs are specified must be specified for all shards");
-            }
+            verifyShardGtidConfig();
             return Collections.singletonList(properties);
+        }
+    }
+
+    private Map<String, String> getGtidsPerShardFromConfig() {
+        Map<String, String> gtidsPerShard = null;
+        if (connectorConfig.getShard() != null && connectorConfig.getGtid().size() > 1) {
+            gtidsPerShard = IntStream.range(0, connectorConfig.getShard().size())
+                    .boxed()
+                    .collect(Collectors.toMap(connectorConfig.getShard()::get, connectorConfig.getGtid()::get));
+            LOGGER.info("Found GTIDs per shard in config {}", gtidsPerShard);
+        }
+        return gtidsPerShard;
+    }
+
+    private void verifyShardGtidConfig() {
+        final List<String> gtids = connectorConfig.getGtid();
+        if (connectorConfig.getShard() != null &&
+                gtids != VitessConnectorConfig.DEFAULT_GTID_LIST &&
+                gtids != VitessConnectorConfig.EMPTY_GTID_LIST &&
+                connectorConfig.getShard().size() != connectorConfig.getGtid().size()) {
+            throw new IllegalArgumentException("If GTIDs are specified must be specified for all shards");
         }
     }
 

@@ -151,9 +151,9 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                 LOGGER.warn("Some shards for the previous generation {} are not persisted.  Expected shards: {}",
                         prevGtidsPerShard.keySet(), currentShards);
                 if (prevGtidsPerShard.keySet().containsAll(currentShards)) {
-                    LOGGER.warn("Previous shards: %s is the superset of current shards: %s.  "
+                    throw new IllegalArgumentException(String.format("Previous shards: %s is the superset of current shards: %s.  "
                             + "We will lose gtid positions for some shards if we continue",
-                            prevGtidsPerShard.keySet(), currentShards);
+                            prevGtidsPerShard.keySet(), currentShards));
                 }
             }
             final String keyspace = connectorConfig.getKeyspace();

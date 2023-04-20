@@ -759,13 +759,14 @@ public class VitessConnectorTest {
         final List<String> shards = Arrays.asList("s0", "s1");
         Vgtid vgtid = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE,
                 Arrays.asList("s0", "s1", "s2", "s3"), Arrays.asList("gt0", "gt1", "current", "current"));
-        final Map<String, Object> expectedVgtids = Collect.hashMapOf(
-                VitessConnector.getTaskKeyName(0, numTasks, gen + 1), vgtid.toString());
 
-        Map<String, String> vgtids = getOffsetFromStorage(numTasks, shards, gen + 1, 1, null, prevVgtids);
-        Testing.print(String.format("vgtids: %s", vgtids));
-        assertEquals(vgtids.size(), 1);
-        assertArrayEquals(vgtids.values().toArray(), expectedVgtids.values().toArray());
+        try {
+            getOffsetFromStorage(numTasks, shards, gen + 1, 1, null, prevVgtids);
+            fail("This call should not reach here.");
+        }
+        catch (IllegalArgumentException ex) {
+            Testing.print(String.format("Got expected exception: {}", ex));
+        }
     }
 
     @Test

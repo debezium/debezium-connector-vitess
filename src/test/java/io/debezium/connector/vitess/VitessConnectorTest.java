@@ -228,16 +228,56 @@ public class VitessConnectorTest {
                 put(VitessConnectorConfig.SNAPSHOT_MODE.name(), VitessConnectorConfig.SnapshotMode.NEVER.getValue());
             }
         };
-        connector.start(props);
-        try {
-            List<Map<String, String>> taskConfigs = connector.taskConfigs(1, shards);
-            fail("Should not reach here because shards and gtids have mismatched length, props:"
-                    + props);
-        }
-        catch (IllegalArgumentException ex) {
-            // This is expected();
-            LOGGER.info("Expected exception: ", ex);
-        }
+        Configuration config = Configuration.from(props);
+        Map<String, ConfigValue> results = connector.validateAllFields(config);
+        LOGGER.info("results: {}", results);
+        ConfigValue configValue = results.get(VitessConnectorConfig.GTID.name());
+        List<String> expectedErrorMessages = List.of("The 'vitess.gtid' value is invalid: If GTIDs are specified must be specified for all shards");
+        assertEquals(configValue.errorMessages(), expectedErrorMessages);
+    }
+
+    @Test
+    public void testTaskConfigsSingleTaskNoShardsMultipleGtidsMultipleTasks() {
+        VitessConnector connector = new VitessConnector();
+        List<String> gtids = Arrays.asList(TestHelper.TEST_GTID);
+        String gtidCsv = String.join(",", gtids);
+        int maxTasks = 2;
+        Map<String, String> props = new HashMap<>() {
+            {
+                put("key", "value");
+                put(VitessConnectorConfig.KEYSPACE.name(), TEST_SHARDED_KEYSPACE);
+                put(VitessConnectorConfig.GTID.name(), gtidCsv);
+                put(VitessConnectorConfig.TASKS_MAX_CONFIG, String.valueOf(maxTasks));
+                put(VitessConnectorConfig.OFFSET_STORAGE_PER_TASK.name(), "true");
+                put(VitessConnectorConfig.SNAPSHOT_MODE.name(), VitessConnectorConfig.SnapshotMode.NEVER.getValue());
+            }
+        };
+        Configuration config = Configuration.from(props);
+        Map<String, ConfigValue> results = connector.validateAllFields(config);
+        LOGGER.info("results: {}", results);
+        ConfigValue configValue = results.get(VitessConnectorConfig.GTID.name());
+        List<String> expectedErrorMessages = List.of("The 'vitess.gtid' value is invalid: If GTIDs are specified, there must be shards specified");
+        assertEquals(configValue.errorMessages(), expectedErrorMessages);
+    }
+
+    @Test
+    public void testTaskConfigsSingleTaskNoShardsNoGtidsMultipleTasks() {
+        VitessConnector connector = new VitessConnector();
+        int maxTasks = 2;
+        Map<String, String> props = new HashMap<>() {
+            {
+                put("key", "value");
+                put(VitessConnectorConfig.KEYSPACE.name(), TEST_SHARDED_KEYSPACE);
+                put(VitessConnectorConfig.TASKS_MAX_CONFIG, String.valueOf(maxTasks));
+                put(VitessConnectorConfig.OFFSET_STORAGE_PER_TASK.name(), "true");
+                put(VitessConnectorConfig.SNAPSHOT_MODE.name(), VitessConnectorConfig.SnapshotMode.NEVER.getValue());
+            }
+        };
+        Configuration config = Configuration.from(props);
+        Map<String, ConfigValue> results = connector.validateAllFields(config);
+        LOGGER.info("results: {}", results);
+        ConfigValue configValue = results.get(VitessConnectorConfig.GTID.name());
+        assertTrue(configValue != null && configValue.errorMessages() != null && configValue.errorMessages().size() == 0);
     }
 
     @Test
@@ -330,16 +370,12 @@ public class VitessConnectorTest {
                 put(VitessConnectorConfig.SNAPSHOT_MODE.name(), VitessConnectorConfig.SnapshotMode.NEVER.getValue());
             }
         };
-        connector.start(props);
-        try {
-            List<Map<String, String>> taskConfigs = connector.taskConfigs(1, shards);
-            fail("Should not reach here because shards and gtids have mismatched length, props:"
-                    + props);
-        }
-        catch (IllegalArgumentException ex) {
-            // This is expected();
-            LOGGER.info("Expected exception: ", ex);
-        }
+        Configuration config = Configuration.from(props);
+        Map<String, ConfigValue> results = connector.validateAllFields(config);
+        LOGGER.info("results: {}", results);
+        ConfigValue configValue = results.get(VitessConnectorConfig.GTID.name());
+        List<String> expectedErrorMessages = List.of("The 'vitess.gtid' value is invalid: If GTIDs are specified must be specified for all shards");
+        assertEquals(configValue.errorMessages(), expectedErrorMessages);
     }
 
     @Test
@@ -480,7 +516,7 @@ public class VitessConnectorTest {
         connector.start(props);
         try {
             List<String> shards = Arrays.asList("s1", "s2");
-            List<Map<String, String>> taskProps = connector.taskConfigs(2, shards);
+            List<Map<String, String>> taskProps = connector.taskConfigs(2, null);
             fail("Should not reach here because prev.num.tasks and num.tasks are the same, taskProps:"
                     + taskProps);
         }
@@ -680,6 +716,55 @@ public class VitessConnectorTest {
         Map<String, String> vgtids = getOffsetFromStorage(numTasks, shards, gen + 1, 1, null, prevVgtids);
         Testing.print(String.format("vgtids: %s", vgtids));
         assertEquals(vgtids.size(), 2);
+        assertArrayEquals(vgtids.values().toArray(), expectedVgtids.values().toArray());
+    }
+
+    @Test
+    public void testExpandingShards() {
+        final int gen = 0;
+        final int prevNumTasks = 1;
+        Vgtid vgtid = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE,
+                Arrays.asList("s0", "s1"), Arrays.asList("gt0", "gt1"));
+        final Map<String, Object> prevVgtids = Collect.hashMapOf(
+                VitessConnector.getTaskKeyName(0, prevNumTasks, gen), vgtid.toString());
+
+        final int numTasks = 2;
+        final List<String> shards = Arrays.asList("s0", "s1", "s2", "s3");
+        Vgtid vgtid0 = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE,
+                Arrays.asList("s0", "s2"), Arrays.asList("gt0", "current"));
+        Vgtid vgtid1 = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE,
+                Arrays.asList("s1", "s3"), Arrays.asList("gt1", "current"));
+
+        // We still expect the code will use the current db shards: s0, s1, s2, s3
+        final Map<String, Object> expectedVgtids = Collect.hashMapOf(
+                VitessConnector.getTaskKeyName(0, numTasks, gen + 1), vgtid0.toString(),
+                VitessConnector.getTaskKeyName(1, numTasks, gen + 1), vgtid1.toString());
+        Map<String, String> vgtids = getOffsetFromStorage(numTasks, shards, gen + 1, 1, null, prevVgtids);
+        Testing.print(String.format("vgtids: %s", vgtids));
+        assertEquals(vgtids.size(), 2);
+        assertArrayEquals(vgtids.values().toArray(), expectedVgtids.values().toArray());
+    }
+
+    @Test
+    public void testContractingShards() {
+        final int gen = 0;
+        final int prevNumTasks = 1;
+        Vgtid vgtid0 = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE,
+                Arrays.asList("s0", "s1", "s2", "s3"), Arrays.asList("gt0", "gt1", "current", "current"));
+        // We still expect the code will use the current db shards: s0, s1, s2, s3
+        final Map<String, Object> prevVgtids = Collect.hashMapOf(
+                VitessConnector.getTaskKeyName(0, prevNumTasks, gen), vgtid0.toString());
+
+        final int numTasks = 1;
+        final List<String> shards = Arrays.asList("s0", "s1");
+        Vgtid vgtid = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE,
+                Arrays.asList("s0", "s1", "s2", "s3"), Arrays.asList("gt0", "gt1", "current", "current"));
+        final Map<String, Object> expectedVgtids = Collect.hashMapOf(
+                VitessConnector.getTaskKeyName(0, numTasks, gen + 1), vgtid.toString());
+
+        Map<String, String> vgtids = getOffsetFromStorage(numTasks, shards, gen + 1, 1, null, prevVgtids);
+        Testing.print(String.format("vgtids: %s", vgtids));
+        assertEquals(vgtids.size(), 1);
         assertArrayEquals(vgtids.values().toArray(), expectedVgtids.values().toArray());
     }
 

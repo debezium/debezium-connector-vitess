@@ -21,6 +21,7 @@ import binlogdata.Binlogdata;
 /** Vitess source position coordinates. */
 public class Vgtid {
     public static final String CURRENT_GTID = "current";
+    public static final String EMPTY_GTID = "";
     public static final String KEYSPACE_KEY = "keyspace";
     public static final String SHARD_KEY = "shard";
     public static final String GTID_KEY = "gtid";

@@ -23,6 +23,7 @@ import io.debezium.config.ConfigDefinition;
 import io.debezium.config.Configuration;
 import io.debezium.config.EnumeratedValue;
 import io.debezium.config.Field;
+import io.debezium.config.Field.ValidationOutput;
 import io.debezium.connector.SourceInfoStructMaker;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.jdbc.JdbcConfiguration;
@@ -35,8 +36,9 @@ import io.debezium.relational.RelationalDatabaseConnectorConfig;
  */
 public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
-    public static final List<String> EMPTY_GTID_LIST = List.of("");
+    public static final List<String> EMPTY_GTID_LIST = List.of(Vgtid.EMPTY_GTID);
     public static final List<String> DEFAULT_GTID_LIST = List.of(Vgtid.CURRENT_GTID);
+    public static final String CSV_DELIMITER = ",";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessConnectorConfig.class);
 
@@ -229,6 +231,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withWidth(Width.LONG)
             .withDefault(Vgtid.CURRENT_GTID)
             .withImportance(ConfigDef.Importance.HIGH)
+            .withValidation(VitessConnectorConfig::validateGtids)
             .withDescription(
                     "Single GTID from where to start reading from for a given shard."
                             + " It has to be set together with vitess.shard."
@@ -452,15 +455,34 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     }
 
     public List<String> getShard() {
-        return getConfig().getStrings(SHARD, ",");
+        return getConfig().getStrings(SHARD, CSV_DELIMITER);
     }
 
     public List<String> getGtid() {
         if (getSnapshotMode() == SnapshotMode.INITIAL) {
             return EMPTY_GTID_LIST;
         }
-        List<String> value = getConfig().getStrings(GTID, ",");
+        List<String> value = getConfig().getStrings(GTID, CSV_DELIMITER);
         return (value != null && !GTID.defaultValueAsString().equals(value)) ? value : DEFAULT_GTID_LIST;
+    }
+
+    private static int validateGtids(Configuration config, Field field, ValidationOutput problems) {
+        // Get the GTID as a string so that the default value is used if GTID is not set
+        String gtid = config.getString(GTID);
+        List<String> gtids = List.of(gtid.split(CSV_DELIMITER));
+        if (gtids.equals(VitessConnectorConfig.DEFAULT_GTID_LIST) || gtids.equals(VitessConnectorConfig.EMPTY_GTID_LIST)) {
+            return 0;
+        }
+        List<String> shards = config.getStrings(SHARD, CSV_DELIMITER);
+        if (shards == null && gtids != null) {
+            problems.accept(field, gtids, "If GTIDs are specified, there must be shards specified");
+            return 1;
+        }
+        if (shards != null && shards.size() != gtids.size()) {
+            problems.accept(field, gtids, "If GTIDs are specified must be specified for all shards");
+            return 1;
+        }
+        return 0;
     }
 
     public String getVtgateHost() {
@@ -500,7 +522,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
         Map<String, String> grpcHeadersMap = new HashMap<>();
 
-        for (String header : grpcHeaders.split(",")) {
+        for (String header : grpcHeaders.split(CSV_DELIMITER)) {
             String[] keyAndValue = header.split(":");
             if (keyAndValue.length == 2) {
                 grpcHeadersMap.put(keyAndValue[0], keyAndValue[1]);
@@ -538,7 +560,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     }
 
     public List<String> getVitessTaskKeyShards() {
-        return getConfig().getStrings(VITESS_TASK_SHARDS_CONFIG, ",");
+        return getConfig().getStrings(VITESS_TASK_SHARDS_CONFIG, CSV_DELIMITER);
     }
 
     public Vgtid getVitessTaskVgtid() {

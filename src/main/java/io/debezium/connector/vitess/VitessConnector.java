@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -97,7 +98,13 @@ public class VitessConnector extends RelationalBaseSourceConnector {
     @Override
     public List<Map<String, String>> taskConfigs(int maxTasks) {
         LOGGER.info("Calculating taskConfigs for {} tasks", maxTasks);
-        List<String> shards = connectorConfig.offsetStoragePerTask() ? getVitessShards(connectorConfig) : null;
+        List<String> shards = null;
+        if (connectorConfig.offsetStoragePerTask()) {
+            List<String> shard = connectorConfig.getShard();
+            if (shard == null) {
+                shards = getVitessShards(connectorConfig);
+            }
+        }
         return taskConfigs(maxTasks, shards);
     }
 
@@ -124,41 +131,43 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         if (connectorConfig.offsetStoragePerTask()) {
             final int prevNumTasks = connectorConfig.getPrevNumTasks();
             final int gen = connectorConfig.getOffsetStorageTaskKeyGen();
-            int tasks = Math.min(maxTasks, currentShards.size());
+            int tasks = Math.min(maxTasks, currentShards == null ? Integer.MAX_VALUE : currentShards.size());
             LOGGER.info("There are {} vitess shards for maxTasks: {}, we will use {} tasks",
-                    currentShards.size(), maxTasks, tasks);
-            if (gen > 0 && tasks == prevNumTasks) {
-                throw new IllegalArgumentException(String.format(
-                        "Previous num.tasks: %s and current num.tasks: %s are the same. "
-                                + "Please choose different tasks.max or have different number of vitess shards "
-                                + "if you want to change the task parallelism.  "
-                                + "Otherwise please reset the offset.storage.task.key.gen config to its original value",
-                        prevNumTasks, tasks));
-            }
+                    currentShards == null ? null : currentShards.size(), maxTasks, tasks);
             // Check the task offsets persisted from previous gen, we expect the offsets are saved
             Map<String, String> prevGtidsPerShard = gen > 0 ? getGtidPerShardFromStorage(prevNumTasks, gen - 1, true) : null;
             LOGGER.info("Previous gtids Per shard: {}", prevGtidsPerShard);
+            Set<String> previousShards = prevGtidsPerShard != null ? prevGtidsPerShard.keySet() : null;
+            if (gen > 0 && tasks == prevNumTasks && hasSameShards(previousShards, currentShards)) {
+                throw new IllegalArgumentException(String.format(
+                        "Previous num.tasks: %s and current num.tasks: %s are the same. "
+                                + "And previous shards: %s and current shards: %s are the same. "
+                                + "Please choose different tasks.max or have different number of vitess shards "
+                                + "if you want to change the task parallelism.  "
+                                + "Otherwise please reset the offset.storage.task.key.gen config to its original value",
+                        prevNumTasks, tasks, previousShards, currentShards));
+            }
             if (prevGtidsPerShard != null && !hasSameShards(prevGtidsPerShard.keySet(), currentShards)) {
                 LOGGER.warn("Some shards for the previous generation {} are not persisted.  Expected shards: {}",
                         prevGtidsPerShard.keySet(), currentShards);
+                if (prevGtidsPerShard.keySet().containsAll(currentShards)) {
+                    LOGGER.warn("Previous shards: %s is the superset of current shards: %s.  "
+                            + "We will lose gtid positions for some shards if we continue",
+                            prevGtidsPerShard.keySet(), currentShards);
+                }
             }
             final String keyspace = connectorConfig.getKeyspace();
-            // Check the configs in case there is a user specified GTID override
-            verifyShardGtidConfig();
-            Map<String, String> gtidsPerShard = getGtidsPerShardFromConfig();
             // Check the task offsets for the current gen, the offset might not be persisted if this gen just turned on
-            if (gtidsPerShard == null) {
-                gtidsPerShard = getGtidPerShardFromStorage(tasks, gen, false);
-                if (gtidsPerShard != null && !hasSameShards(gtidsPerShard.keySet(), currentShards)) {
-                    LOGGER.warn("Some shards for the current generation {} are not persisted.  Expected shards: {}",
+            Map<String, String> gtidsPerShard = getGtidPerShardFromStorage(tasks, gen, false);
+            if (gtidsPerShard != null && !hasSameShards(gtidsPerShard.keySet(), currentShards)) {
+                LOGGER.warn("Some shards for the current generation {} are not persisted.  Expected shards: {}",
+                        gtidsPerShard.keySet(), currentShards);
+                if (!currentShards.containsAll(gtidsPerShard.keySet())) {
+                    LOGGER.warn("Shards from persisted offset: {} not contained within current db shards: {}",
                             gtidsPerShard.keySet(), currentShards);
-                    if (!currentShards.containsAll(gtidsPerShard.keySet())) {
-                        LOGGER.warn("Shards from persisted offset: {} not contained within current db shards: {}",
-                                gtidsPerShard.keySet(), currentShards);
-                        // gtidsPerShard has shards not present in the current db shards, we have to rely on the shards
-                        // from gtidsPerShard and we have to require all task offsets are persisted.
-                        gtidsPerShard = getGtidPerShardFromStorage(tasks, gen, true);
-                    }
+                    // gtidsPerShard has shards not present in the current db shards, we have to rely on the shards
+                    // from gtidsPerShard and we have to require all task offsets are persisted.
+                    gtidsPerShard = getGtidPerShardFromStorage(tasks, gen, true);
                 }
             }
             // Use the shards from task offsets persisted in the offset storage if it's not empty.
@@ -170,7 +179,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
             List<String> shards = null;
             if (gtidsPerShard != null && gtidsPerShard.size() == 0) {
                 // if there is no offset persisted for current gen, look for previous gen
-                if (prevGtidsPerShard != null && prevGtidsPerShard.size() != 0) {
+                if (prevGtidsPerShard != null && prevGtidsPerShard.size() != 0 && !currentShards.containsAll(prevGtidsPerShard.keySet())) {
                     LOGGER.info("Using shards from persisted offset from prev gen: {}", prevGtidsPerShard.keySet());
                     shards = new ArrayList<>(prevGtidsPerShard.keySet());
                 }
@@ -188,6 +197,8 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                 LOGGER.warn("Current db shards is the superset of persisted offset, using current shards from db: {}", currentShards);
                 shards = currentShards;
             }
+            // Read GTIDs from config for initial run, only fallback to using this if no stored previous GTIDs, no current GTIDs
+            Map<String, String> configGtidsPerShard = getConfigGtidsPerShard(shards);
             shards.sort(Comparator.naturalOrder());
             Map<Integer, List<String>> shardsPerTask = new HashMap<>();
             int taskId = 0;
@@ -202,7 +213,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                 List<String> taskShards = shardsPerTask.get(tid);
                 Map<String, String> taskProps = new HashMap<>(properties);
                 taskProps.put(VitessConnectorConfig.VITESS_TASK_KEY_CONFIG, getTaskKeyName(tid, tasks, gen));
-                taskProps.put(VitessConnectorConfig.VITESS_TASK_SHARDS_CONFIG, String.join(",", taskShards));
+                taskProps.put(VitessConnectorConfig.VITESS_TASK_SHARDS_CONFIG, String.join(VitessConnectorConfig.CSV_DELIMITER, taskShards));
                 List<Vgtid.ShardGtid> shardGtids = new ArrayList<>();
                 for (String shard : taskShards) {
                     String gtidStr = gtidsPerShard != null ? gtidsPerShard.get(shard) : null;
@@ -211,7 +222,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                         gtidStr = prevGtidsPerShard != null ? prevGtidsPerShard.get(shard) : null;
                     }
                     if (gtidStr == null) {
-                        gtidStr = connectorConfig.getGtid().get(0);
+                        gtidStr = configGtidsPerShard.get(shard);
                         LOGGER.warn("No previous gtid found either for shard: {}, fallback to '{}'", shard, gtidStr);
                     }
                     shardGtids.add(new Vgtid.ShardGtid(keyspace, shard, gtidStr));
@@ -226,30 +237,32 @@ public class VitessConnector extends RelationalBaseSourceConnector {
             if (maxTasks > 1) {
                 throw new IllegalArgumentException("Only a single connector task may be started");
             }
-            verifyShardGtidConfig();
             return Collections.singletonList(properties);
         }
     }
 
-    private Map<String, String> getGtidsPerShardFromConfig() {
-        Map<String, String> gtidsPerShard = null;
-        if (connectorConfig.getShard() != null && connectorConfig.getGtid().size() > 1) {
-            gtidsPerShard = IntStream.range(0, connectorConfig.getShard().size())
-                    .boxed()
-                    .collect(Collectors.toMap(connectorConfig.getShard()::get, connectorConfig.getGtid()::get));
-            LOGGER.info("Found GTIDs per shard in config {}", gtidsPerShard);
+    private Map<String, String> getConfigGtidsPerShard(List<String> shards) {
+        List<String> gtids = connectorConfig.getGtid();
+        Map<String, String> configGtidsPerShard = null;
+        if (shards != null && gtids.equals(VitessConnectorConfig.EMPTY_GTID_LIST)) {
+            Function<Integer, String> emptyGtid = x -> Vgtid.EMPTY_GTID;
+            configGtidsPerShard = buildMap(shards, emptyGtid);
         }
-        return gtidsPerShard;
+        else if (shards != null && gtids.equals(VitessConnectorConfig.DEFAULT_GTID_LIST)) {
+            Function<Integer, String> currentGtid = x -> Vgtid.CURRENT_GTID;
+            configGtidsPerShard = buildMap(shards, currentGtid);
+        }
+        else if (shards != null) {
+            configGtidsPerShard = buildMap(shards, gtids::get);
+        }
+        LOGGER.info("Found GTIDs per shard in config {}", configGtidsPerShard);
+        return configGtidsPerShard;
     }
 
-    private void verifyShardGtidConfig() {
-        final List<String> gtids = connectorConfig.getGtid();
-        if (connectorConfig.getShard() != null &&
-                gtids != VitessConnectorConfig.DEFAULT_GTID_LIST &&
-                gtids != VitessConnectorConfig.EMPTY_GTID_LIST &&
-                connectorConfig.getShard().size() != connectorConfig.getGtid().size()) {
-            throw new IllegalArgumentException("If GTIDs are specified must be specified for all shards");
-        }
+    private static Map<String, String> buildMap(List<String> keys, Function<Integer, String> function) {
+        return IntStream.range(0, keys.size())
+                .boxed()
+                .collect(Collectors.toMap(keys::get, function));
     }
 
     protected static final String getTaskKeyName(int tid, int numTasks, int gen) {

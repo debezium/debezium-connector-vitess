@@ -512,6 +512,20 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    public void shouldMultiShardMultiTaskConfigSubscriptionHaveMultiShardGtidsInVgtid() throws Exception {
+        final boolean hasMultipleShards = true;
+
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(Function.identity(), hasMultipleShards, true, 2, 0, 1, null, null, null);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TEST_SHARDED_KEYSPACE, TestHelper.PK_FIELD, hasMultipleShards);
+    }
+
+    @Test
     @FixFor("DBZ-2578")
     public void shouldUseMultiColumnPkAsRecordKey() throws Exception {
         final boolean hasMultipleShards = true;
@@ -971,7 +985,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
         start(VitessConnector.class, configBuilder.build());
         assertConnectorIsRunning();
-        String taskId = offsetStoragePerTask ? VitessConnector.getTaskKeyName(0, numTasks, gen) : null;
+        String taskId = offsetStoragePerTask ? VitessConnector.getTaskKeyName(0, 1, gen) : null;
         waitForStreamingRunning(taskId);
         waitForVStreamStarted(logInterceptor);
     }

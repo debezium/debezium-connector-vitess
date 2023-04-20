@@ -275,11 +275,13 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
 
     private static ObjectName getMetricsObjectNameWithTags(String connector, Map<String, String> tags) {
         try {
-            return new ObjectName("debezium." + connector + ":type=connector-metrics,"
-                    + tags.entrySet()
-                            .stream()
-                            .map(e -> e.getKey() + "=" + e.getValue())
-                            .collect(Collectors.joining(",")));
+            return new ObjectName(
+                    String.format("debezium.%s:%s,type=connector-metrics",
+                            connector,
+                            tags.entrySet()
+                                    .stream()
+                                    .map(e -> e.getKey() + "=" + e.getValue())
+                                    .collect(Collectors.joining(","))));
         }
         catch (MalformedObjectNameException e) {
             throw new RuntimeException(e);

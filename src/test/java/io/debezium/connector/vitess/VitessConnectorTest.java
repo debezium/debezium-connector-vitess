@@ -156,7 +156,7 @@ public class VitessConnectorTest {
             }
         };
         connector.start(props);
-        List<Map<String, String>> taskConfigs = connector.taskConfigs(1, shards);
+        List<Map<String, String>> taskConfigs = connector.taskConfigs(1);
         assertThat(taskConfigs.size() == 1);
         Map<String, String> firstConfig = taskConfigs.get(0);
         assertThat(firstConfig.size() == 3);
@@ -188,7 +188,7 @@ public class VitessConnectorTest {
             }
         };
         connector.start(props);
-        List<Map<String, String>> taskConfigs = connector.taskConfigs(maxTasks, shards);
+        List<Map<String, String>> taskConfigs = connector.taskConfigs(maxTasks);
         int expectedConfigSize = 9;
         assertEquals(taskConfigs.size(), maxTasks);
         Map<String, String> firstConfig = taskConfigs.get(0);
@@ -300,7 +300,7 @@ public class VitessConnectorTest {
             }
         };
         connector.start(props);
-        List<Map<String, String>> taskConfigs = connector.taskConfigs(maxTasks, shards);
+        List<Map<String, String>> taskConfigs = connector.taskConfigs(maxTasks);
         int expectedConfigSize = 10;
         assertEquals(taskConfigs.size(), maxTasks);
         Map<String, String> firstConfig = taskConfigs.get(0);

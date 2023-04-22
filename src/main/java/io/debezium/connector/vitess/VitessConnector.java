@@ -100,8 +100,8 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         LOGGER.info("Calculating taskConfigs for {} tasks", maxTasks);
         List<String> shards = null;
         if (connectorConfig.offsetStoragePerTask()) {
-            List<String> shard = connectorConfig.getShard();
-            if (shard == null) {
+            shards = connectorConfig.getShard();
+            if (shards == null) {
                 shards = getVitessShards(connectorConfig);
             }
         }

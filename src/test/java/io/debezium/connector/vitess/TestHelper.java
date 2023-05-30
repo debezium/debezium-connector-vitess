@@ -59,7 +59,7 @@ public class TestHelper {
             "CREATE TABLE t1 (id BIGINT NOT NULL AUTO_INCREMENT, int_col INT, PRIMARY KEY (id));");
 
     public static Configuration.Builder defaultConfig() {
-        return defaultConfig(false, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER, TEST_SHARD);
+        return defaultConfig(false, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER, TEST_SHARD, "", "");
     }
 
     /**
@@ -82,6 +82,8 @@ public class TestHelper {
                 prevNumTasks,
                 tableInclude,
                 snapshotMode,
+                "",
+                "",
                 "");
     }
 
@@ -93,6 +95,28 @@ public class TestHelper {
                                                       String tableInclude,
                                                       VitessConnectorConfig.SnapshotMode snapshotMode,
                                                       String shards) {
+        return defaultConfig(hasMultipleShards,
+                offsetStoragePerTask,
+                numTasks,
+                gen,
+                prevNumTasks,
+                tableInclude,
+                snapshotMode,
+                shards,
+                "",
+                "");
+    }
+
+    public static Configuration.Builder defaultConfig(boolean hasMultipleShards,
+                                                      boolean offsetStoragePerTask,
+                                                      int numTasks,
+                                                      int gen,
+                                                      int prevNumTasks,
+                                                      String tableInclude,
+                                                      VitessConnectorConfig.SnapshotMode snapshotMode,
+                                                      String shards,
+                                                      String grpcMaxInboundMessageSize,
+                                                      String eventProcessingFailureHandlingMode) {
         Configuration.Builder builder = Configuration.create();
         builder = builder
                 .with(CommonConnectorConfig.TOPIC_PREFIX, TEST_SERVER)
@@ -122,6 +146,12 @@ public class TestHelper {
         }
         if (snapshotMode != null) {
             builder = builder.with(VitessConnectorConfig.SNAPSHOT_MODE, snapshotMode.getValue());
+        }
+        if (grpcMaxInboundMessageSize != null) {
+            builder = builder.with(VitessConnectorConfig.GRPC_MAX_INBOUND_MESSAGE_SIZE, grpcMaxInboundMessageSize);
+        }
+        if (eventProcessingFailureHandlingMode != null) {
+            builder = builder.with(VitessConnectorConfig.EVENT_PROCESSING_FAILURE_HANDLING_MODE, eventProcessingFailureHandlingMode);
         }
         return builder;
     }

@@ -172,6 +172,49 @@ public class VitessReplicationConnectionIT {
     }
 
     @Test
+    public void shouldFailWhenErrorProcessingModeIsNotSet() throws Exception {
+        // setup fixture
+        final VitessConnectorConfig conf = new VitessConnectorConfig(
+                TestHelper.defaultConfig(false, false, 1, -1, -1,
+                        null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,
+                        "1", "").build());
+        final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
+
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema);
+        Vgtid startingVgtid = Vgtid.of(
+                Binlogdata.VGtid.newBuilder()
+                        .addShardGtids(
+                                Binlogdata.ShardGtid.newBuilder()
+                                        .setKeyspace(conf.getKeyspace())
+                                        .setShard(conf.getShard().get(0))
+                                        .setGtid(Vgtid.CURRENT_GTID)
+                                        .build())
+                        .build());
+
+        BlockingQueue<MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
+        AtomicBoolean started = new AtomicBoolean(false);
+        connection.startStreaming(
+                startingVgtid,
+                (message, vgtid, isLastRowEventOfTransaction) -> {
+                    if (!started.get()) {
+                        started.set(true);
+                    }
+                    consumedMessages.add(new MessageAndVgtid(message, vgtid));
+                },
+                error);
+        // Since we are using the "current" as the starting position, there is a race here
+        // if we execute INSERT_STMT before the vstream starts we will never receive the update
+        // therefore, we wait until the stream is setup and then do the insertion
+        Awaitility
+                .await()
+                .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                .until(() -> error.get() != null);
+        assertThat(error.get()).isNotNull();
+    }
+
+    @Test
     public void shouldHaveVgtidInResponse() throws Exception {
         // setup fixture
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());

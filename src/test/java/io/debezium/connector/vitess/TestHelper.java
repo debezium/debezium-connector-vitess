@@ -59,7 +59,7 @@ public class TestHelper {
             "CREATE TABLE t1 (id BIGINT NOT NULL AUTO_INCREMENT, int_col INT, PRIMARY KEY (id));");
 
     public static Configuration.Builder defaultConfig() {
-        return defaultConfig(false, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER, TEST_SHARD, "", "");
+        return defaultConfig(false, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER, TEST_SHARD, null, null);
     }
 
     /**
@@ -103,8 +103,8 @@ public class TestHelper {
                 tableInclude,
                 snapshotMode,
                 shards,
-                "",
-                "");
+                null,
+                null);
     }
 
     public static Configuration.Builder defaultConfig(boolean hasMultipleShards,

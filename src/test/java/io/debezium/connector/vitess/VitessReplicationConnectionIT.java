@@ -30,12 +30,14 @@ import org.slf4j.LoggerFactory;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.doc.FixFor;
+import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.schema.DefaultTopicNamingStrategy;
 import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
 
 import binlogdata.Binlogdata;
+import ch.qos.logback.classic.Level;
 
 public class VitessReplicationConnectionIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessReplicationConnectionIT.class);
@@ -51,6 +53,8 @@ public class VitessReplicationConnectionIT {
     @Test
     public void shouldNotErrorOutWhenSkipEnabled() throws Exception {
         // setup fixture
+        final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
+        logInterceptor.setLoggerLevel(VitessReplicationConnection.class, Level.DEBUG);
         final VitessConnectorConfig conf = new VitessConnectorConfig(
                 TestHelper.defaultConfig(false, false, 1, -1, -1,
                         null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,
@@ -84,13 +88,17 @@ public class VitessReplicationConnectionIT {
         // Since we are using the "current" as the starting position, there is a race here
         // if we execute INSERT_STMT before the vstream starts we will never receive the update
         // therefore, we wait until the stream is setup and then do the insertion
-        Thread.sleep(1000);
+        Awaitility
+                .await()
+                .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                .until(() -> logInterceptor.containsMessage("VStream streaming onError"));
         assertThat(error.get()).isNull();
     }
 
     @Test
     public void shouldNotErrorOutWhenWarnEnabled() throws Exception {
         // setup fixture
+        final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
         final VitessConnectorConfig conf = new VitessConnectorConfig(
                 TestHelper.defaultConfig(false, false, 1, -1, -1,
                         null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,
@@ -124,7 +132,10 @@ public class VitessReplicationConnectionIT {
         // Since we are using the "current" as the starting position, there is a race here
         // if we execute INSERT_STMT before the vstream starts we will never receive the update
         // therefore, we wait until the stream is setup and then do the insertion
-        Thread.sleep(1000);
+        Awaitility
+                .await()
+                .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                .until(() -> logInterceptor.containsWarnMessage("VStream streaming onError"));
         assertThat(error.get()).isNull();
     }
 
@@ -177,7 +188,8 @@ public class VitessReplicationConnectionIT {
         final VitessConnectorConfig conf = new VitessConnectorConfig(
                 TestHelper.defaultConfig(false, false, 1, -1, -1,
                         null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,
-                        "1", "").build());
+                        "1", null).build());
+        conf.getEventProcessingFailureHandlingMode();
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
                 conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
 

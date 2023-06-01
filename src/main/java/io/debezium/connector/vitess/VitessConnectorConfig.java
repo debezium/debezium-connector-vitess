@@ -175,15 +175,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         }
     }
 
-    public EventProcessingFailureHandlingMode getEventProcessingFailureHandlingMode() {
-        if (super.getEventProcessingFailureHandlingMode() == null) {
-            return EventProcessingFailureHandlingMode.FAIL;
-        }
-        else {
-            return super.getEventProcessingFailureHandlingMode();
-        }
-    }
-
     public static final Field VTGATE_HOST = Field.create(DATABASE_CONFIG_PREFIX + JdbcConfiguration.HOSTNAME)
             .withDisplayName("Vitess database hostname")
             .withType(Type.STRING)

@@ -223,20 +223,28 @@ public class VitessReplicationConnection implements ReplicationConnection {
 
             @Override
             public void onError(Throwable t) {
-                switch (config.getEventProcessingFailureHandlingMode()) {
-                    case FAIL:
-                        LOGGER.error("VStream streaming onError. Status: " + Status.fromThrowable(t), t);
-                        // Only propagate the first error
-                        error.compareAndSet(null, t);
-                        reset();
-                        break;
-                    case WARN:
-                        LOGGER.warn("VStream streaming onError. Status: " + Status.fromThrowable(t), t);
-                        break;
-                    case SKIP:
-                    case IGNORE:
-                        LOGGER.debug("VStream streaming onError. Status: " + Status.fromThrowable(t), t);
-                        break;
+                if (Status.fromThrowable(t).getDescription().matches("gRPC message exceeds maximum size.*")) {
+                    switch (config.getEventProcessingFailureHandlingMode()) {
+                        case FAIL:
+                            LOGGER.error("VStream streaming onError. Status: " + Status.fromThrowable(t), t);
+                            // Only propagate the first error
+                            error.compareAndSet(null, t);
+                            reset();
+                            break;
+                        case WARN:
+                            LOGGER.warn("VStream streaming onError. Status: " + Status.fromThrowable(t), t);
+                            break;
+                        case SKIP:
+                        case IGNORE:
+                            LOGGER.debug("VStream streaming onError. Status: " + Status.fromThrowable(t), t);
+                            break;
+                    }
+                }
+                else {
+                    LOGGER.error("VStream streaming onError. Status: " + Status.fromThrowable(t), t);
+                    // Only propagate the first error
+                    error.compareAndSet(null, t);
+                    reset();
                 }
             }
 

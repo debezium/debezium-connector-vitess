@@ -228,22 +228,22 @@ public class VitessReplicationConnection implements ReplicationConnection {
                         status.getDescription().matches("gRPC message exceeds maximum size.*")) {
                     switch (config.getEventProcessingFailureHandlingMode()) {
                         case FAIL:
-                            LOGGER.error("VStream streaming onError. Status: " + status, t);
+                            LOGGER.error("VStream streaming onError. Status: {}", status, t);
                             // Only propagate the first error
                             error.compareAndSet(null, t);
                             reset();
                             break;
                         case WARN:
-                            LOGGER.warn("VStream streaming onError. Status: " + status, t);
+                            LOGGER.warn("VStream streaming onError. Status: {}", status, t);
                             break;
                         case SKIP:
                         case IGNORE:
-                            LOGGER.debug("VStream streaming onError. Status: " + status, t);
+                            LOGGER.debug("VStream streaming onError. Status: {}", status, t);
                             break;
                     }
                 }
                 else {
-                    LOGGER.error("VStream streaming onError. Status: " + status, t);
+                    LOGGER.error("VStream streaming onError. Status: {}", status, t);
                     // Only propagate the first error
                     error.compareAndSet(null, t);
                     reset();

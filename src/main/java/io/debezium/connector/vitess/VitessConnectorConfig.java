@@ -19,6 +19,7 @@ import org.apache.kafka.common.config.ConfigDef.Width;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.ConfigDefinition;
 import io.debezium.config.Configuration;
 import io.debezium.config.EnumeratedValue;
@@ -372,12 +373,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     + "'precise' represents values as precise (Java's 'BigDecimal') values;"
                     + "'long' represents values using Java's 'long', which may not offer the precision but will be far easier to use in consumers.");
 
-    public static final Field SOURCE_INFO_STRUCT_MAKER = Field.create("sourceinfo.struct.maker")
-            .withDisplayName("Source info struct maker class")
-            .withType(Type.CLASS)
-            .withWidth(Width.MEDIUM)
-            .withImportance(ConfigDef.Importance.LOW)
-            .withDescription("The name of the SourceInfoStructMaker class that returns SourceInfo schema and struct.")
+    public static final Field SOURCE_INFO_STRUCT_MAKER = CommonConnectorConfig.SOURCE_INFO_STRUCT_MAKER
             .withDefault(VitessSourceInfoStructMaker.class.getName());
 
     protected static final ConfigDefinition CONFIG_DEFINITION = RelationalDatabaseConnectorConfig.CONFIG_DEFINITION
@@ -401,7 +397,9 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     OFFSET_STORAGE_PER_TASK,
                     OFFSET_STORAGE_TASK_KEY_GEN,
                     PREV_NUM_TASKS)
-            .events(INCLUDE_UNKNOWN_DATATYPES)
+            .events(
+                    INCLUDE_UNKNOWN_DATATYPES,
+                    SOURCE_INFO_STRUCT_MAKER)
             .connector(SNAPSHOT_MODE, BIGINT_UNSIGNED_HANDLING_MODE)
             .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST)
             .create();

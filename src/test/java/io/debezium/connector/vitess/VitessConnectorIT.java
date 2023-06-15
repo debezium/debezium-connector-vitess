@@ -31,6 +31,7 @@ import java.util.stream.IntStream;
 
 import org.apache.kafka.common.config.Config;
 import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -1133,7 +1134,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertThat(key.importance).isEqualTo(expected.importance());
         assertThat(key.documentation).isEqualTo(expected.description());
         assertThat(key.type).isEqualTo(expected.type());
-        if (expected.equals(CommonConnectorConfig.TOPIC_NAMING_STRATEGY)) {
+        if (expected.type() == Type.CLASS) {
             assertThat(((Class<?>) key.defaultValue).getName()).isEqualTo((String) expected.defaultValue());
         }
         else if (expected.type() == ConfigDef.Type.LIST && key.defaultValue != null) {

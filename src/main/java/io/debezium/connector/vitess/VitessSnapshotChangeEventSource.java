@@ -12,6 +12,7 @@ import java.util.Set;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.jdbc.MainConnectionProvidingConnectionFactory;
 import io.debezium.pipeline.EventDispatcher;
+import io.debezium.pipeline.notification.NotificationService;
 import io.debezium.pipeline.source.spi.SnapshotProgressListener;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.RelationalSnapshotChangeEventSource;
@@ -29,14 +30,16 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
                                            EventDispatcher<VitessPartition, TableId> dispatcher,
                                            VitessDatabaseSchema schema,
                                            Clock clock,
-                                           SnapshotProgressListener<VitessPartition> snapshotProgressListener) {
+                                           SnapshotProgressListener<VitessPartition> snapshotProgressListener,
+                                           NotificationService<VitessPartition, VitessOffsetContext> notificationService) {
         super(
                 connectorConfig,
                 connectionFactory,
                 schema,
                 dispatcher,
                 clock,
-                snapshotProgressListener);
+                snapshotProgressListener,
+                notificationService);
     }
 
     @Override
@@ -90,7 +93,7 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     @Override
     protected SnapshotContext<VitessPartition, VitessOffsetContext> prepare(VitessPartition partition)
             throws Exception {
-        return null;
+        return new RelationalSnapshotContext<>(partition, "");
     }
 
     @Override

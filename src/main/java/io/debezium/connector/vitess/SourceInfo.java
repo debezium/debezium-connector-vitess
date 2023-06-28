@@ -19,6 +19,7 @@ import io.debezium.relational.TableId;
 public class SourceInfo extends BaseSourceInfo {
     public static final String VGTID_KEY = "vgtid";
     public static final String KEYSPACE_NAME_KEY = "keyspace";
+    public static final String SHARD_KEY = "shard";
 
     private final String keyspace;
 
@@ -28,6 +29,7 @@ public class SourceInfo extends BaseSourceInfo {
     private Instant timestamp;
     // kafka offset topic stores restartVgtid, it is the previous commited transaction vgtid
     private Vgtid restartVgtid;
+    private String shard;
 
     public SourceInfo(VitessConnectorConfig config) {
         super(config);
@@ -47,6 +49,14 @@ public class SourceInfo extends BaseSourceInfo {
 
     protected String keyspace() {
         return keyspace;
+    }
+
+    public String shard() {
+        return shard;
+    }
+
+    public void setShard(String shard) {
+        this.shard = shard;
     }
 
     public TableId getTableId() {

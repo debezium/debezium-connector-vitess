@@ -99,6 +99,7 @@ public class VitessBigIntUnsignedTest {
                 AnonymousValue.getString(),
                 new TableId(null, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE)
                         .toDoubleQuotedString(),
+                TestHelper.TEST_SHARD,
                 null,
                 defaultRelationMessageColumns(mode));
 

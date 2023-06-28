@@ -42,6 +42,11 @@ public class DdlMessage implements ReplicationMessage {
     }
 
     @Override
+    public String getShard() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public List<Column> getOldTupleList() {
         throw new UnsupportedOperationException();
     }

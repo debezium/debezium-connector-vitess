@@ -148,6 +148,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         else {
             String schemaName = schemaTableTuple[0];
             String tableName = schemaTableTuple[1];
+            String shard = rowEvent.getShard();
             int numOfRowChanges = rowEvent.getRowChangesCount();
             int numOfRowChangesEventSeen = 0;
             for (int i = 0; i < numOfRowChanges; i++) {
@@ -155,14 +156,14 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                 numOfRowChangesEventSeen++;
                 boolean isLastRowOfTransaction = isLastRowEventOfTransaction && numOfRowChangesEventSeen == numOfRowChanges ? true : false;
                 if (rowChange.hasAfter() && !rowChange.hasBefore()) {
-                    decodeInsert(rowChange.getAfter(), schemaName, tableName, processor, newVgtid, isLastRowOfTransaction);
+                    decodeInsert(rowChange.getAfter(), schemaName, tableName, shard, processor, newVgtid, isLastRowOfTransaction);
                 }
                 else if (rowChange.hasAfter() && rowChange.hasBefore()) {
                     decodeUpdate(
-                            rowChange.getBefore(), rowChange.getAfter(), schemaName, tableName, processor, newVgtid, isLastRowOfTransaction);
+                            rowChange.getBefore(), rowChange.getAfter(), schemaName, tableName, shard, processor, newVgtid, isLastRowOfTransaction);
                 }
                 else if (!rowChange.hasAfter() && rowChange.hasBefore()) {
-                    decodeDelete(rowChange.getBefore(), schemaName, tableName, processor, newVgtid, isLastRowOfTransaction);
+                    decodeDelete(rowChange.getBefore(), schemaName, tableName, shard, processor, newVgtid, isLastRowOfTransaction);
                 }
                 else {
                     LOGGER.error("{} decodeRow skipped.", vEvent);
@@ -175,6 +176,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                               Row row,
                               String schemaName,
                               String tableName,
+                              String shard,
                               ReplicationMessageProcessor processor,
                               Vgtid newVgtid,
                               boolean isLastRowEventOfTransaction)
@@ -200,6 +202,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                         commitTimestamp,
                         transactionId,
                         tableId.toDoubleQuotedString(),
+                        shard,
                         null,
                         columns),
                 newVgtid,
@@ -211,6 +214,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                               Row newRow,
                               String schemaName,
                               String tableName,
+                              String shard,
                               ReplicationMessageProcessor processor,
                               Vgtid newVgtid,
                               boolean isLastRowEventOfTransaction)
@@ -238,6 +242,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                         commitTimestamp,
                         transactionId,
                         tableId.toDoubleQuotedString(),
+                        shard,
                         oldColumns,
                         newColumns),
                 newVgtid,
@@ -248,6 +253,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                               Row row,
                               String schemaName,
                               String tableName,
+                              String shard,
                               ReplicationMessageProcessor processor,
                               Vgtid newVgtid,
                               boolean isLastRowOfTransaction)
@@ -274,6 +280,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                         commitTimestamp,
                         transactionId,
                         tableId.toDoubleQuotedString(),
+                        shard,
                         columns,
                         null),
                 newVgtid,

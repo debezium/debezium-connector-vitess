@@ -279,6 +279,7 @@ public class TestHelper {
                         Binlogdata.RowEvent.newBuilder()
                                 .addRowChanges(Binlogdata.RowChange.newBuilder().setAfter(row).build())
                                 .setTableName(TEST_VITESS_FULL_TABLE)
+                                .setShard(TEST_SHARD)
                                 .build())
                 .setTimestamp(AnonymousValue.getLong())
                 .build();

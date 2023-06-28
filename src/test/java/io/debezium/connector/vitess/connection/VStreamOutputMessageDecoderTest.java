@@ -231,6 +231,7 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
                     assertThat(message.getOperation()).isEqualTo(ReplicationMessage.Operation.INSERT);
                     assertThat(message.getOldTupleList()).isNull();
+                    assertThat(message.getShard()).isEqualTo(TestHelper.TEST_SHARD);
                     assertThat(message.getNewTupleList().size()).isEqualTo(TestHelper.defaultNumOfColumns());
                     processed[0] = true;
                 },

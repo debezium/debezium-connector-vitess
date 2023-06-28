@@ -73,6 +73,8 @@ public interface ReplicationMessage {
 
     String getTable();
 
+    String getShard();
+
     List<Column> getOldTupleList();
 
     List<Column> getNewTupleList();

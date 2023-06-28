@@ -18,6 +18,7 @@ public class VStreamOutputReplicationMessage implements ReplicationMessage {
     private final Instant commitTimestamp;
     private final String transactionId;
     private final String table;
+    private final String shard;
     private final List<Column> oldColumns;
     private final List<Column> newColumns;
 
@@ -26,12 +27,14 @@ public class VStreamOutputReplicationMessage implements ReplicationMessage {
                                            Instant commitTimestamp,
                                            String transactionId,
                                            String table,
+                                           String shard,
                                            List<Column> oldColumns,
                                            List<Column> newColumns) {
         this.op = op;
         this.commitTimestamp = commitTimestamp;
         this.transactionId = transactionId;
         this.table = table;
+        this.shard = shard;
         this.oldColumns = oldColumns;
         this.newColumns = newColumns;
     }
@@ -54,6 +57,11 @@ public class VStreamOutputReplicationMessage implements ReplicationMessage {
     @Override
     public String getTable() {
         return table;
+    }
+
+    @Override
+    public String getShard() {
+        return shard;
     }
 
     @Override

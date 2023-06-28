@@ -59,6 +59,7 @@ public class SourceInfoTest {
                                 new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2))),
                 Instant.ofEpochMilli(1000));
         source.setTableId(new TableId("c", "s", "t"));
+        source.setShard(TEST_SHARD);
         source.setSnapshot(SnapshotRecord.FALSE);
     }
 
@@ -82,6 +83,11 @@ public class SourceInfoTest {
     @Test
     public void vgtidKeyspaceIsPresent() {
         assertThat(source.struct().getString(SourceInfo.VGTID_KEY)).isEqualTo(VGTID_JSON);
+    }
+
+    @Test
+    public void shardIsPresent() {
+        assertThat(source.struct().getString(SourceInfo.SHARD_KEY)).isEqualTo(TEST_SHARD);
     }
 
     @Test
@@ -123,6 +129,7 @@ public class SourceInfoTest {
                 .field("sequence", Schema.OPTIONAL_STRING_SCHEMA)
                 .field("keyspace", Schema.STRING_SCHEMA)
                 .field("table", Schema.STRING_SCHEMA)
+                .field("shard", Schema.STRING_SCHEMA)
                 .field("vgtid", Schema.STRING_SCHEMA)
                 .build();
 

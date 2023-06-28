@@ -69,6 +69,10 @@ public class VitessOffsetContext extends CommonOffsetContext<SourceInfo> {
         return sourceInfo.getRestartVgtid();
     }
 
+    public void setShard(String shard) {
+        sourceInfo.setShard(shard);
+    }
+
     /**
      * Calculate and return the offset that will be used to create the {@link SourceRecord}.
      *

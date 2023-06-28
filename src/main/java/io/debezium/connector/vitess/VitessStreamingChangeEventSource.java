@@ -114,6 +114,7 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
                 Objects.requireNonNull(tableId);
 
                 offsetContext.event(tableId, message.getCommitTime());
+                offsetContext.setShard(message.getShard());
                 if (isLastRowOfTransaction) {
                     // Right before processing the last row, reset the previous offset to the new vgtid so the last row has the new vgtid as offset.
                     offsetContext.resetVgtid(newVgtid, message.getCommitTime());

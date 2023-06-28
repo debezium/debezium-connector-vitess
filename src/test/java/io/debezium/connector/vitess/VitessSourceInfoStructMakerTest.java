@@ -42,6 +42,8 @@ public class VitessSourceInfoStructMakerTest {
 
         assertThat(structMaker.schema().field(SourceInfo.KEYSPACE_NAME_KEY).schema())
                 .isEqualTo(Schema.STRING_SCHEMA);
+        assertThat(structMaker.schema().field(SourceInfo.SHARD_KEY).schema())
+                .isEqualTo(Schema.STRING_SCHEMA);
         assertThat(structMaker.schema().field(SourceInfo.TABLE_NAME_KEY).schema())
                 .isEqualTo(Schema.STRING_SCHEMA);
         assertThat(structMaker.schema().field(SourceInfo.VGTID_KEY).schema())
@@ -54,6 +56,7 @@ public class VitessSourceInfoStructMakerTest {
         // setup fixture
         String schemaName = "test_schema";
         String tableName = "test_table";
+        String shard = TEST_SHARD;
         SourceInfo sourceInfo = new SourceInfo(new VitessConnectorConfig(TestHelper.defaultConfig().build()));
         sourceInfo.resetVgtid(
                 Vgtid.of(
@@ -62,6 +65,7 @@ public class VitessSourceInfoStructMakerTest {
                                 new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2))),
                 AnonymousValue.getInstant());
         sourceInfo.setTableId(new TableId(null, schemaName, tableName));
+        sourceInfo.setShard(shard);
         sourceInfo.setTimestamp(AnonymousValue.getInstant());
 
         // exercise SUT
@@ -76,6 +80,7 @@ public class VitessSourceInfoStructMakerTest {
         // verify outcome
         assertThat(struct.getString(SourceInfo.KEYSPACE_NAME_KEY)).isEqualTo(TestHelper.TEST_UNSHARDED_KEYSPACE);
         assertThat(struct.getString(SourceInfo.TABLE_NAME_KEY)).isEqualTo(tableName);
+        assertThat(struct.getString(SourceInfo.SHARD_KEY)).isEqualTo(shard);
         assertThat(struct.getString(SourceInfo.VGTID_KEY)).isEqualTo(VGTID_JSON);
     }
 }

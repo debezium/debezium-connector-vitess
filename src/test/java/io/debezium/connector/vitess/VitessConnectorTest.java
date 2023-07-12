@@ -28,7 +28,6 @@ import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.source.SourceConnectorContext;
 import org.apache.kafka.connect.source.SourceTaskContext;
 import org.apache.kafka.connect.storage.Converter;
-import org.apache.kafka.connect.storage.MemoryOffsetBackingStore;
 import org.apache.kafka.connect.storage.OffsetBackingStore;
 import org.apache.kafka.connect.storage.OffsetStorageReader;
 import org.apache.kafka.connect.storage.OffsetStorageReaderImpl;
@@ -40,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import io.debezium.config.Configuration;
 import io.debezium.connector.common.OffsetReader;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
+import io.debezium.embedded.KafkaConnectUtil;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.spi.Offsets;
 import io.debezium.util.Collect;
@@ -992,7 +992,7 @@ public class VitessConnectorTest {
 
     private Map<String, String> getOffsetFromStorage(int numTasks, List<String> shards, int gen, int prevNumTasks,
                                                      String serverVgtid, Map<String, Object> prevVgtids) {
-        final OffsetBackingStore offsetStore = new MemoryOffsetBackingStore();
+        final OffsetBackingStore offsetStore = KafkaConnectUtil.memoryOffsetBackingStore();
         offsetStore.start();
 
         storeOffsets(offsetStore, serverVgtid, prevVgtids);

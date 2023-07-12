@@ -288,7 +288,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
             List<String> includedTables = VitessConnector.getIncludedTables(config.getKeyspace(),
                     config.tableIncludeList(), allTables);
             for (String table : includedTables) {
-                String sql = "select * from " + table;
+                String sql = "select * from `" + table + "`";
                 // See rule in: https://github.com/vitessio/vitess/blob/release-14.0/go/vt/vttablet/tabletserver/vstreamer/planbuilder.go#L316
                 Binlogdata.Rule rule = Binlogdata.Rule.newBuilder().setMatch(table).setFilter(sql).build();
                 LOGGER.info("Add vstream table filtering: {}", rule.getMatch());

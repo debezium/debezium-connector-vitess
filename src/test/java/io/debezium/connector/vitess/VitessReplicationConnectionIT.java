@@ -12,6 +12,7 @@ import static org.junit.Assert.fail;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -442,6 +443,66 @@ public class VitessReplicationConnectionIT {
             if (error.get() != null) {
                 LOGGER.error("Error during streaming", error.get());
             }
+        }
+    }
+
+    @Test
+    public void shouldNotFailWhenTableNameIsReservedKeyword() throws Exception {
+
+        // setup fixture
+        TestHelper.execute(Arrays.asList(
+                "DROP TABLE IF EXISTS `schemas`;",
+                "CREATE TABLE `schemas` (id BIGINT NOT NULL AUTO_INCREMENT, int_col INT, PRIMARY KEY (id));"));
+        TestHelper.execute("INSERT INTO `schemas` (int_col) VALUES (1);");
+
+        String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + "schemas";
+
+        final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig()
+                .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude).build());
+        final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
+
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
+            Vgtid startingVgtid = Vgtid.of(
+                    Binlogdata.VGtid.newBuilder()
+                            .addShardGtids(
+                                    Binlogdata.ShardGtid.newBuilder()
+                                            .setKeyspace(conf.getKeyspace())
+                                            .setShard(conf.getShard().get(0))
+                                            .setGtid("")
+                                            .build())
+                            .build());
+
+            BlockingQueue<MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
+            connection.startStreaming(
+                    startingVgtid,
+                    (message, vgtid, isLastRowEventOfTransaction) -> {
+                        consumedMessages.add(new MessageAndVgtid(message, vgtid));
+                    },
+                    error);
+
+            int expectedNumOfMessages = 3;
+            List<MessageAndVgtid> messages = awaitMessages(
+                    TestHelper.waitTimeForRecords(),
+                    SECONDS,
+                    expectedNumOfMessages,
+                    () -> {
+                        try {
+                            return consumedMessages.poll(pollTimeoutInMs, TimeUnit.MILLISECONDS);
+                        }
+                        catch (InterruptedException e) {
+                            return null;
+                        }
+                    });
+
+            // verify outcome from the copy operation
+            messages.forEach(m -> assertValidVgtid(m.getVgtid(), conf.getKeyspace(), conf.getShard().get(0)));
+            assertThat(messages.get(0).getMessage().getOperation().name()).isEqualTo("BEGIN");
+            assertThat(messages.get(1).getMessage().getOperation().name()).isEqualTo("INSERT");
+            assertThat(messages.get(2).getMessage().getOperation().name()).isEqualTo("COMMIT");
+
+            assertThat(error.get()).isNull();
         }
     }
 

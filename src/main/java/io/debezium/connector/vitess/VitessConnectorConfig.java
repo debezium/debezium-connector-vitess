@@ -295,6 +295,16 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                             + "'false' (the default) omits the fields; "
                             + "'true' converts the field into an implementation dependent binary representation.");
 
+    public static final Field ENABLE_TRANSACTION_TOPIC = Field.create("enable.transaction.topic")
+            .withDisplayName("Disable publishing to transaction topic")
+            .withType(Type.BOOLEAN)
+            .withDefault(true)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription(
+                    "When 'provide.transaaction.metadata' is true, this setting toggles publishing transaction " +
+                            "metadata to the topic in 'topic.transactoin'");
+
     public static final Field OFFSET_STORAGE_PER_TASK = Field.create(VITESS_CONFIG_GROUP_PREFIX + "offset.storage.per.task")
             .withDisplayName("Store offsets per task")
             .withType(Type.BOOLEAN)
@@ -549,6 +559,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return getConfig().getBoolean(INCLUDE_UNKNOWN_DATATYPES);
     }
 
+    public boolean isTransactionTopicEnabled() {
+        return getConfig().getBoolean(ENABLE_TRANSACTION_TOPIC);
+    }
+
     public boolean offsetStoragePerTask() {
         return getConfig().getBoolean(OFFSET_STORAGE_PER_TASK);
     }
@@ -582,4 +596,5 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return BigIntUnsignedHandlingMode.parse(getConfig().getString(BIGINT_UNSIGNED_HANDLING_MODE),
                 BIGINT_UNSIGNED_HANDLING_MODE.defaultValueAsString());
     }
+
 }

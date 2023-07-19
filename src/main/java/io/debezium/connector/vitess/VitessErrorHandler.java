@@ -15,8 +15,8 @@ import io.grpc.StatusRuntimeException;
 public class VitessErrorHandler extends ErrorHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessErrorHandler.class);
 
-    public VitessErrorHandler(VitessConnectorConfig connectorConfig, ChangeEventQueue<?> queue) {
-        super(VitessConnector.class, connectorConfig, queue);
+    public VitessErrorHandler(VitessConnectorConfig connectorConfig, ChangeEventQueue<?> queue, ErrorHandler replacedErrorHandler) {
+        super(VitessConnector.class, connectorConfig, queue, replacedErrorHandler);
     }
 
     @Override

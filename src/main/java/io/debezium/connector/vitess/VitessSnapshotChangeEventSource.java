@@ -84,7 +84,7 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     }
 
     @Override
-    protected SnapshottingTask getSnapshottingTask(VitessPartition partition, VitessOffsetContext previousOffset) {
+    protected SnapshottingTask getSnapshottingTask(VitessPartition partition, VitessOffsetContext previousOffset, boolean isBlockingSnapshot) {
         boolean snapshotSchema = false;
         boolean snapshotData = false;
         return new SnapshottingTask(snapshotSchema, snapshotData);

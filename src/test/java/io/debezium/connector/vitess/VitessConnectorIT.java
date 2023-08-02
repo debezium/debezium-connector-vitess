@@ -593,6 +593,46 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
     @Test
     @FixFor("DBZ-2578")
+    public void shouldConvertVarcharCharacterSetCollateColumnToString() throws Exception {
+        final boolean hasMultipleShards = true;
+
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(hasMultipleShards);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        String varcharCharacterSetCollateColumnAsciiBin = "varchar_character_set_ascii_collate_ascii_bin_col";
+        String varcharCharacterSetCollateColumnAscii = "varchar_character_set_ascii_collate_ascii_col";
+        String varcharCharacterSetCollateColumnLatin1Bin = "varchar_character_set_ascii_collate_latin1_bin_col";
+        String varcharColumn = "varchar_col";
+        String varbinaryColumn = "varbinary_col";
+        String expectedVarchar = "foo";
+        String query = String.format("INSERT INTO character_set_collate_table (%s, %s, %s, %s, %s) VALUES (\"%s\", \"%s\", \"%s\", \"%s\", \"%s\");",
+            varcharCharacterSetCollateColumnAsciiBin,
+            varcharCharacterSetCollateColumnAscii,
+            varcharCharacterSetCollateColumnLatin1Bin,
+            varcharColumn,
+            varbinaryColumn,
+            expectedVarchar,
+            expectedVarchar,
+            expectedVarchar,
+            expectedVarchar,
+            expectedVarchar);
+        SourceRecord record = assertInsert(query, null, TEST_SHARDED_KEYSPACE, null, hasMultipleShards);
+        Struct recordValueStruct = (Struct) record.value();
+        Struct afterStruct = (Struct) recordValueStruct.get("after");
+        Object actualVarchar = afterStruct.get(varcharColumn);
+        assertThat(actualVarchar).isEqualTo(expectedVarchar);
+        assertThat(afterStruct.get(varcharCharacterSetCollateColumnAsciiBin)).isEqualTo(actualVarchar);
+        assertThat(afterStruct.get(varcharCharacterSetCollateColumnAscii)).isEqualTo(actualVarchar);
+        assertThat(afterStruct.get(varcharCharacterSetCollateColumnLatin1Bin)).isEqualTo(actualVarchar);
+        assertThat(afterStruct.get(varbinaryColumn).getClass()).isNotEqualTo(actualVarchar);
+    }
+
+    @Test
+    @FixFor("DBZ-2578")
     public void shouldPrioritizePrimaryKeyAsRecordKey() throws Exception {
         final boolean hasMultipleShards = true;
 
@@ -757,7 +797,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // Remove system tables starts with _
         tables = tables.stream().filter(t -> !t.startsWith("_")).collect(Collectors.toSet());
         List<String> expectedTables = Arrays.asList("my_seq", "t1",
-                "numeric_table", "string_table", "enum_table", "set_table", "time_table",
+                "numeric_table", "string_table","character_set_collate_table","enum_table", "set_table", "time_table",
                 "no_pk_table", "pk_single_unique_key_table", "no_pk_multi_unique_keys_table",
                 "no_pk_multi_comp_unique_keys_table", "comp_pk_table");
         assertEquals(new HashSet<>(expectedTables), tables);

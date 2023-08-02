@@ -125,6 +125,18 @@
         "column": "id",
         "sequence": "my_seq"
       }
+    },
+    "character_set_collate_table": {
+      "columnVindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ],
+      "autoIncrement": {
+        "column": "id",
+        "sequence": "my_seq"
+      }
     }
   }
 }

@@ -98,6 +98,11 @@ public class VitessType {
             case "BLOB":
                 return new VitessType(type, Types.BLOB);
             case "VARBINARY":
+                if (field.getColumnType().toUpperCase().contains("VARCHAR")) {
+                    return new VitessType(type, Types.VARCHAR);
+                } else {
+                    return new VitessType(type, Types.BINARY);
+                }
             case "BINARY":
                 return new VitessType(type, Types.BINARY);
             case "UINT64":

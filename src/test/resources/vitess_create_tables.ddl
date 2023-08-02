@@ -116,3 +116,15 @@ CREATE TABLE comp_pk_table
     int_col2        INT,
     PRIMARY KEY (id, int_col)
 );
+
+
+DROP TABLE IF EXISTS character_set_collate_table;
+CREATE TABLE character_set_collate_table
+(
+    id                                                   BIGINT NOT NULL,
+    `varchar_character_set_ascii_collate_ascii_bin_col`      VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    `varchar_character_set_ascii_collate_ascii_col`          VARCHAR(32) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+    `varchar_character_set_ascii_collate_latin1_bin_col`     VARCHAR(32) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
+    `varchar_col`                                            VARCHAR(32) NOT NULL,
+    `varbinary_col`                                          VARBINARY(32) NOT NULL
+);

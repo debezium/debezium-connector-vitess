@@ -100,7 +100,8 @@ public class VitessType {
             case "VARBINARY":
                 if (field.getColumnType().toUpperCase().contains("VARCHAR")) {
                     return new VitessType(type, Types.VARCHAR);
-                } else {
+                }
+                else {
                     return new VitessType(type, Types.BINARY);
                 }
             case "BINARY":

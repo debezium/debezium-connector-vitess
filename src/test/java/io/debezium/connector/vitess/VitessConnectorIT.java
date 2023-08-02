@@ -610,16 +610,16 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         String varbinaryColumn = "varbinary_col";
         String expectedVarchar = "foo";
         String query = String.format("INSERT INTO character_set_collate_table (%s, %s, %s, %s, %s) VALUES (\"%s\", \"%s\", \"%s\", \"%s\", \"%s\");",
-            varcharCharacterSetCollateColumnAsciiBin,
-            varcharCharacterSetCollateColumnAscii,
-            varcharCharacterSetCollateColumnLatin1Bin,
-            varcharColumn,
-            varbinaryColumn,
-            expectedVarchar,
-            expectedVarchar,
-            expectedVarchar,
-            expectedVarchar,
-            expectedVarchar);
+                varcharCharacterSetCollateColumnAsciiBin,
+                varcharCharacterSetCollateColumnAscii,
+                varcharCharacterSetCollateColumnLatin1Bin,
+                varcharColumn,
+                varbinaryColumn,
+                expectedVarchar,
+                expectedVarchar,
+                expectedVarchar,
+                expectedVarchar,
+                expectedVarchar);
         SourceRecord record = assertInsert(query, null, TEST_SHARDED_KEYSPACE, null, hasMultipleShards);
         Struct recordValueStruct = (Struct) record.value();
         Struct afterStruct = (Struct) recordValueStruct.get("after");
@@ -797,7 +797,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // Remove system tables starts with _
         tables = tables.stream().filter(t -> !t.startsWith("_")).collect(Collectors.toSet());
         List<String> expectedTables = Arrays.asList("my_seq", "t1",
-                "numeric_table", "string_table","character_set_collate_table","enum_table", "set_table", "time_table",
+                "numeric_table", "string_table", "character_set_collate_table", "enum_table", "set_table", "time_table",
                 "no_pk_table", "pk_single_unique_key_table", "no_pk_multi_unique_keys_table",
                 "no_pk_multi_comp_unique_keys_table", "comp_pk_table");
         assertEquals(new HashSet<>(expectedTables), tables);

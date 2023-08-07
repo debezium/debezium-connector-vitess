@@ -30,6 +30,7 @@ import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageColumn;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.relational.TableId;
 import io.vitess.proto.Query;
 import io.vitess.proto.Query.Field;
 
@@ -252,11 +253,22 @@ public class TestHelper {
         return newFieldEvent(defaultColumnValues());
     }
 
+    public static Binlogdata.VEvent defaultFieldEvent(String shard, String keyspace) {
+        return newFieldEvent(defaultColumnValues(), shard, keyspace);
+    }
+
     public static Binlogdata.VEvent newFieldEvent(List<ColumnValue> columnValues) {
-        Binlogdata.FieldEvent.Builder fieldEventBuilder = Binlogdata.FieldEvent.newBuilder().setTableName(TEST_VITESS_FULL_TABLE);
+        return newFieldEvent(columnValues, TEST_SHARD, TEST_UNSHARDED_KEYSPACE);
+    }
+
+    public static Binlogdata.VEvent newFieldEvent(List<ColumnValue> columnValues, String shard, String keyspace) {
+        Binlogdata.FieldEvent.Builder fieldEventBuilder = Binlogdata.FieldEvent.newBuilder()
+                .setTableName(getFullTableName(keyspace, TEST_TABLE));
         for (Field field : newFields(columnValues)) {
             fieldEventBuilder.addFields(field);
         }
+        fieldEventBuilder.setShard(shard);
+        fieldEventBuilder.setKeyspace(keyspace);
 
         return Binlogdata.VEvent.newBuilder()
                 .setType(Binlogdata.VEventType.FIELD)
@@ -265,11 +277,23 @@ public class TestHelper {
                 .build();
     }
 
-    public static Binlogdata.VEvent defaultInsertEvent() {
-        return newInsertEvent(defaultColumnValues());
+    private static String getFullTableName(String keyspace, String table) {
+        return keyspace + "." + table;
     }
 
-    public static Binlogdata.VEvent newInsertEvent(List<ColumnValue> columnValues) {
+    public static Binlogdata.VEvent defaultInsertEvent() {
+        return newInsertEvent(defaultColumnValues(), TEST_SHARD, TEST_UNSHARDED_KEYSPACE);
+    }
+
+    public static Binlogdata.VEvent insertEvent(List<ColumnValue> columnValues) {
+        return newInsertEvent(columnValues, TEST_SHARD, TEST_UNSHARDED_KEYSPACE);
+    }
+
+    public static Binlogdata.VEvent insertEvent(List<ColumnValue> columnValues, String shard, String keyspace) {
+        return newInsertEvent(columnValues, shard, keyspace);
+    }
+
+    public static Binlogdata.VEvent newInsertEvent(List<ColumnValue> columnValues, String shard, String keyspace) {
         List<byte[]> rawValues = newRawValues(columnValues);
         Query.Row row = newRow(rawValues);
 
@@ -278,8 +302,8 @@ public class TestHelper {
                 .setRowEvent(
                         Binlogdata.RowEvent.newBuilder()
                                 .addRowChanges(Binlogdata.RowChange.newBuilder().setAfter(row).build())
-                                .setTableName(TEST_VITESS_FULL_TABLE)
-                                .setShard(TEST_SHARD)
+                                .setTableName(getFullTableName(keyspace, TEST_TABLE))
+                                .setShard(shard)
                                 .build())
                 .setTimestamp(AnonymousValue.getLong())
                 .build();
@@ -299,6 +323,7 @@ public class TestHelper {
                         Binlogdata.RowEvent.newBuilder()
                                 .addRowChanges(Binlogdata.RowChange.newBuilder().setBefore(row).build())
                                 .setTableName(TEST_VITESS_FULL_TABLE)
+                                .setShard(TEST_SHARD)
                                 .build())
                 .setTimestamp(AnonymousValue.getLong())
                 .build();
@@ -321,6 +346,7 @@ public class TestHelper {
                         Binlogdata.RowEvent.newBuilder()
                                 .addRowChanges(Binlogdata.RowChange.newBuilder().setBefore(beforeRow).setAfter(afterRow).build())
                                 .setTableName(TEST_VITESS_FULL_TABLE)
+                                .setShard(TEST_SHARD)
                                 .build())
                 .setTimestamp(AnonymousValue.getLong())
                 .build();
@@ -334,8 +360,19 @@ public class TestHelper {
                 new ColumnValue("string_col", Query.Type.VARBINARY, Types.VARCHAR, "test".getBytes(), "test"));
     }
 
+    public static List<ColumnValue> columnValuesSubset() {
+        return Arrays.asList(
+                new ColumnValue("bool_col", Query.Type.INT8, Types.SMALLINT, "1".getBytes(), (short) 1),
+                new ColumnValue("int_col", Query.Type.INT32, Types.INTEGER, null, null),
+                new ColumnValue("string_col", Query.Type.VARBINARY, Types.VARCHAR, "test".getBytes(), "test"));
+    }
+
     public static List<byte[]> defaultRawValues() {
         return newRawValues(defaultColumnValues());
+    }
+
+    public static TableId defaultTableId() {
+        return new TableId(TestHelper.TEST_SHARD, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE);
     }
 
     public static List<byte[]> newRawValues(List<ColumnValue> columnValues) {
@@ -344,6 +381,10 @@ public class TestHelper {
 
     public static int defaultNumOfColumns() {
         return defaultColumnValues().size();
+    }
+
+    public static int columnSubsetNumOfColumns() {
+        return columnValuesSubset().size();
     }
 
     public static Query.Row defaultRow() {
@@ -363,6 +404,10 @@ public class TestHelper {
 
     public static List<Field> defaultFields() {
         return newFields(defaultColumnValues());
+    }
+
+    public static List<Field> fieldsSubset() {
+        return newFields(columnValuesSubset());
     }
 
     public static List<Field> newFields(List<ColumnValue> columnValues) {

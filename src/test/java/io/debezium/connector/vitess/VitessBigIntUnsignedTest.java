@@ -24,7 +24,6 @@ import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.connector.vitess.connection.VStreamOutputReplicationMessage;
 import io.debezium.data.Envelope;
 import io.debezium.relational.Table;
-import io.debezium.relational.TableId;
 import io.debezium.relational.TableSchema;
 import io.debezium.schema.DefaultTopicNamingStrategy;
 import io.debezium.schema.SchemaNameAdjuster;
@@ -89,7 +88,7 @@ public class VitessBigIntUnsignedTest {
         decoder = new VStreamOutputMessageDecoder(schema);
         // initialize schema by FIELD event
         decoder.processMessage(TestHelper.newFieldEvent(defaultColumnValues(mode)), null, null, false);
-        Table table = schema.tableFor(new TableId(null, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE));
+        Table table = schema.tableFor(TestHelper.defaultTableId());
         assertThat(table.columnWithName("bigint_unsigned_col").jdbcType() == Types.BIGINT);
 
         // setup fixture
@@ -97,8 +96,7 @@ public class VitessBigIntUnsignedTest {
                 ReplicationMessage.Operation.INSERT,
                 AnonymousValue.getInstant(),
                 AnonymousValue.getString(),
-                new TableId(null, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE)
-                        .toDoubleQuotedString(),
+                TestHelper.defaultTableId().toDoubleQuotedString(),
                 TestHelper.TEST_SHARD,
                 null,
                 defaultRelationMessageColumns(mode));

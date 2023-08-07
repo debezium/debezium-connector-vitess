@@ -84,4 +84,18 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
     public static TableId parse(String table) {
         return TableId.parse(table, false);
     }
+
+    /**
+     * Create a TableId where we use the shard name as the catalog name.
+     * This is needed to ensure that schema updates are applied to each shard individually.
+     * This is used in conjunction with {@link VitessTableIdToStringMapper} which excludes the shard/catalog name when
+     * determining if a table is in the include/exclude list.
+     * @param shard The shard of the table ID to build
+     * @param keyspace The keyspace of the table ID to build
+     * @param table The table name of the tbale ID to build
+     * @return TableId with shard (as catalog), keyspace (as schema), and table
+     */
+    public static TableId buildTableId(String shard, String keyspace, String table) {
+        return new TableId(shard, keyspace, table);
+    }
 }

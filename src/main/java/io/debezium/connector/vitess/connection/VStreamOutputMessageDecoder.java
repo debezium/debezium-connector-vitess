@@ -23,6 +23,7 @@ import io.debezium.annotation.VisibleForTesting;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.debezium.connector.vitess.VitessType;
+import io.debezium.connector.vitess.connection.ReplicationMessage.Column;
 import io.debezium.connector.vitess.connection.ReplicationMessage.Operation;
 import io.debezium.relational.ColumnEditor;
 import io.debezium.relational.Table;
@@ -181,13 +182,13 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                               Vgtid newVgtid,
                               boolean isLastRowEventOfTransaction)
             throws InterruptedException {
-        Optional<Table> resolvedTable = resolveRelation(schemaName, tableName);
+        Optional<Table> resolvedTable = resolveRelation(shard, schemaName, tableName);
 
         TableId tableId;
         List<Column> columns = null;
         if (!resolvedTable.isPresent()) {
             LOGGER.trace("Row insert for {}.{} is filtered out", schemaName, tableName);
-            tableId = new TableId(null, schemaName, tableName);
+            tableId = VitessDatabaseSchema.buildTableId(shard, schemaName, tableName);
             // no need for columns because the event will be filtered out
         }
         else {
@@ -219,14 +220,14 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                               Vgtid newVgtid,
                               boolean isLastRowEventOfTransaction)
             throws InterruptedException {
-        Optional<Table> resolvedTable = resolveRelation(schemaName, tableName);
+        Optional<Table> resolvedTable = resolveRelation(shard, schemaName, tableName);
 
         TableId tableId;
         List<Column> oldColumns = null;
         List<Column> newColumns = null;
         if (!resolvedTable.isPresent()) {
             LOGGER.trace("Row update for {}.{} is filtered out", schemaName, tableName);
-            tableId = new TableId(null, schemaName, tableName);
+            tableId = VitessDatabaseSchema.buildTableId(shard, schemaName, tableName);
             // no need for oldColumns and newColumns because the event will be filtered out
         }
         else {
@@ -258,14 +259,14 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                               Vgtid newVgtid,
                               boolean isLastRowOfTransaction)
             throws InterruptedException {
-        Optional<Table> resolvedTable = resolveRelation(schemaName, tableName);
+        Optional<Table> resolvedTable = resolveRelation(shard, schemaName, tableName);
 
         TableId tableId;
         List<Column> columns = null;
 
         if (!resolvedTable.isPresent()) {
             LOGGER.trace("Row delete for {}.{} is filtered out", schemaName, tableName);
-            tableId = new TableId(null, schemaName, tableName);
+            tableId = VitessDatabaseSchema.buildTableId(shard, schemaName, tableName);
             // no need for columns because the event will be filtered out
         }
         else {
@@ -288,8 +289,8 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     }
 
     /** Resolve table from a prior FIELD message or empty when the table is filtered */
-    private Optional<Table> resolveRelation(String schemaName, String tableName) {
-        return Optional.ofNullable(schema.tableFor(new TableId(null, schemaName, tableName)));
+    private Optional<Table> resolveRelation(String shard, String schemaName, String tableName) {
+        return Optional.ofNullable(schema.tableFor(VitessDatabaseSchema.buildTableId(shard, schemaName, tableName)));
     }
 
     /** Resolve the vEvent data to a list of replication message columns (with values). */
@@ -299,7 +300,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         if (tableColumns.size() != numberOfColumns) {
             throw new IllegalStateException(
                     String.format(
-                            "The number of columns in the ROW event {} is different from the in-memory table schema {}.",
+                            "The number of columns in the ROW event %s is different from the in-memory table schema %s.",
                             row,
                             table));
         }
@@ -343,6 +344,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                 LOGGER.debug("Handling FIELD VEvent: {}", fieldEvent);
                 String schemaName = schemaTableTuple[0];
                 String tableName = schemaTableTuple[1];
+                String shard = fieldEvent.getShard();
                 int columnCount = fieldEvent.getFieldsCount();
 
                 List<ColumnMetaData> columns = new ArrayList<>(columnCount);
@@ -366,15 +368,16 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                     columns.add(new ColumnMetaData(columnName, vitessType, optional, keyMetaData));
                 }
 
-                Table table = resolveTable(schemaName, tableName, columns);
+                Table table = resolveTable(shard, schemaName, tableName, columns);
                 LOGGER.debug("Number of columns in the resolved table: {}", table.columns().size());
 
                 schema.applySchemaChangesForTable(table);
+                return;
             }
         }
     }
 
-    private Table resolveTable(String schemaName, String tableName, List<ColumnMetaData> columns) {
+    private Table resolveTable(String shard, String schemaName, String tableName, List<ColumnMetaData> columns) {
         List<String> pkColumnNames = new ArrayList<>();
         String uniqueKeyColumnName = null;
         List<io.debezium.relational.Column> cols = new ArrayList<>(columns.size());
@@ -407,7 +410,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         TableEditor tableEditor = Table
                 .editor()
                 .addColumns(cols)
-                .tableId(new TableId(null, schemaName, tableName));
+                .tableId(VitessDatabaseSchema.buildTableId(shard, schemaName, tableName));
 
         if (!pkColumnNames.isEmpty()) {
             tableEditor = tableEditor.setPrimaryKeyNames(pkColumnNames);

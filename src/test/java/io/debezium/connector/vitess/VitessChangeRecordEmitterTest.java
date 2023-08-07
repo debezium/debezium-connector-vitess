@@ -17,7 +17,6 @@ import io.debezium.connector.vitess.connection.TransactionalMessage;
 import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.connector.vitess.connection.VStreamOutputReplicationMessage;
 import io.debezium.data.Envelope;
-import io.debezium.relational.TableId;
 import io.debezium.schema.DefaultTopicNamingStrategy;
 import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
@@ -49,8 +48,7 @@ public class VitessChangeRecordEmitterTest {
                 ReplicationMessage.Operation.INSERT,
                 AnonymousValue.getInstant(),
                 AnonymousValue.getString(),
-                new TableId(null, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE)
-                        .toDoubleQuotedString(),
+                TestHelper.defaultTableId().toDoubleQuotedString(),
                 AnonymousValue.getString(),
                 null,
                 TestHelper.defaultRelationMessageColumns());
@@ -77,8 +75,7 @@ public class VitessChangeRecordEmitterTest {
                 ReplicationMessage.Operation.DELETE,
                 AnonymousValue.getInstant(),
                 AnonymousValue.getString(),
-                new TableId(null, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE)
-                        .toDoubleQuotedString(),
+                TestHelper.defaultTableId().toDoubleQuotedString(),
                 AnonymousValue.getString(),
                 TestHelper.defaultRelationMessageColumns(),
                 null);
@@ -105,8 +102,7 @@ public class VitessChangeRecordEmitterTest {
                 ReplicationMessage.Operation.UPDATE,
                 AnonymousValue.getInstant(),
                 AnonymousValue.getString(),
-                new TableId(null, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE)
-                        .toDoubleQuotedString(),
+                TestHelper.defaultTableId().toDoubleQuotedString(),
                 AnonymousValue.getString(),
                 TestHelper.defaultRelationMessageColumns(),
                 TestHelper.defaultRelationMessageColumns());

@@ -28,8 +28,8 @@ public class Filters {
         // Define the filter using the include/exclude list for table names ...
         this.tableFilter = Tables.TableFilter.fromPredicate(
                 Selectors.tableSelector()
-                        .includeTables(config.tableIncludeList())
-                        .excludeTables(config.tableExcludeList())
+                        .includeTables(config.tableIncludeList(), new VitessTableIdToStringMapper())
+                        .excludeTables(config.tableExcludeList(), new VitessTableIdToStringMapper())
                         .excludeSchemas(SYSTEM_SCHEMA_EXCLUDE_LIST)
                         .build());
     }

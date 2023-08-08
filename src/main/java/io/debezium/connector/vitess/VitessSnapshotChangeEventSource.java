@@ -6,6 +6,7 @@
 package io.debezium.connector.vitess;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -13,6 +14,7 @@ import io.debezium.jdbc.JdbcConnection;
 import io.debezium.jdbc.MainConnectionProvidingConnectionFactory;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.notification.NotificationService;
+import io.debezium.pipeline.source.SnapshottingTask;
 import io.debezium.pipeline.source.spi.SnapshotProgressListener;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.RelationalSnapshotChangeEventSource;
@@ -43,38 +45,32 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     }
 
     @Override
-    protected Set<TableId> getAllTableIds(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext)
-            throws Exception {
+    protected Set<TableId> getAllTableIds(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext) {
         return null;
     }
 
     @Override
     protected void lockTablesForSchemaSnapshot(
-                                               ChangeEventSourceContext sourceContext, RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext)
-            throws Exception {
+                                               ChangeEventSourceContext sourceContext, RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext) {
     }
 
     @Override
-    protected void determineSnapshotOffset(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext, VitessOffsetContext offsetContext)
-            throws Exception {
+    protected void determineSnapshotOffset(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext, VitessOffsetContext offsetContext) {
     }
 
     @Override
     protected void readTableStructure(ChangeEventSourceContext sourceContext,
                                       RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext,
-                                      VitessOffsetContext offsetContext)
-            throws Exception {
+                                      VitessOffsetContext offsetContext) {
     }
 
     @Override
-    protected void releaseSchemaSnapshotLocks(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext)
-            throws Exception {
+    protected void releaseSchemaSnapshotLocks(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext) {
     }
 
     @Override
     protected SchemaChangeEvent getCreateTableEvent(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext,
-                                                    Table table)
-            throws Exception {
+                                                    Table table) {
         return null;
     }
 
@@ -84,10 +80,10 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     }
 
     @Override
-    protected SnapshottingTask getSnapshottingTask(VitessPartition partition, VitessOffsetContext previousOffset, boolean isBlockingSnapshot) {
+    public SnapshottingTask getSnapshottingTask(VitessPartition partition, VitessOffsetContext previousOffset) {
         boolean snapshotSchema = false;
         boolean snapshotData = false;
-        return new SnapshottingTask(snapshotSchema, snapshotData);
+        return new SnapshottingTask(snapshotSchema, snapshotData, List.of(), Map.of());
     }
 
     @Override

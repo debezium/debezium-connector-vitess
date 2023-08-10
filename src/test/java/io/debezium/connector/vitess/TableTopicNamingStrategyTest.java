@@ -6,13 +6,14 @@
 
 package io.debezium.connector.vitess;
 
-import io.debezium.relational.TableId;
-import io.debezium.spi.topic.TopicNamingStrategy;
-import org.junit.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Properties;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.Test;
+
+import io.debezium.relational.TableId;
+import io.debezium.spi.topic.TopicNamingStrategy;
 
 public class TableTopicNamingStrategyTest {
 
@@ -22,7 +23,7 @@ public class TableTopicNamingStrategyTest {
         final Properties props = new Properties();
         props.put("topic.delimiter", ".");
         props.put("topic.prefix", "prefix");
-        TopicNamingStrategy strategy =  new TableTopicNamingStrategy(props);
+        TopicNamingStrategy strategy = new TableTopicNamingStrategy(props);
         String topicName = strategy.dataChangeTopic(tableId);
         assertThat(topicName).isEqualTo("prefix.table");
     }

@@ -5,12 +5,12 @@
  */
 package io.debezium.connector.vitess;
 
+import java.util.Properties;
+
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.relational.TableId;
 import io.debezium.schema.AbstractTopicNamingStrategy;
 import io.debezium.util.Collect;
-
-import java.util.Properties;
 
 /**
  * Topic naming strategy where only the table name is added. This is used to avoid including

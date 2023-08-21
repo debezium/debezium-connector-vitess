@@ -185,11 +185,11 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 // We only proceed when we receive a complete transaction after seeing both BEGIN and COMMIT events,
                 // OR if sendNow flag is true (meaning we should process buffered events immediately).
                 if ((!beginEventSeen || !commitEventSeen) && !sendNow) {
-                    LOGGER.info("Received partial transaction: number of responses so far is {}", numResponses);
+                    LOGGER.debug("Received partial transaction: number of responses so far is {}", numResponses);
                     return;
                 }
                 if (numResponses > 1) {
-                    LOGGER.info("Processing multi-response transaction: number of responses is {}", numResponses);
+                    LOGGER.debug("Processing multi-response transaction: number of responses is {}", numResponses);
                 }
                 if (newVgtid == null) {
                     LOGGER.warn("Skipping because no vgtid is found in buffered event types: {}",

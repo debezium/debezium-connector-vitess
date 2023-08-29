@@ -149,10 +149,10 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @Test
     public void shouldConsumeEventsWithTruncatedColumn() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
-        startConnector(Function.identity(), false,
+        startConnector(builder -> builder.with("column.truncate.to.1.chars",
+                        TEST_UNSHARDED_KEYSPACE + ".string_table.mediumtext_col"), false,
                 false, 1, -1, -1, null,
-                VitessConnectorConfig.SnapshotMode.NEVER, "",
-                Map.of("column.truncate.to.1.chars", TEST_UNSHARDED_KEYSPACE + ".string_table.mediumtext_col"));
+                VitessConnectorConfig.SnapshotMode.NEVER, "");
         assertConnectorIsRunning();
 
         int expectedRecordsCount = 1;
@@ -1015,13 +1015,13 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig,
                                 boolean hasMultipleShards)
             throws InterruptedException {
-        startConnector(customConfig, hasMultipleShards, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER, "", Collections.emptyMap());
+        startConnector(customConfig, hasMultipleShards, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER, "");
     }
 
     private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig,
                                 boolean hasMultipleShards, String shards)
             throws InterruptedException {
-        startConnector(customConfig, hasMultipleShards, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER, shards, Collections.emptyMap());
+        startConnector(customConfig, hasMultipleShards, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER, shards);
     }
 
     private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig,
@@ -1029,7 +1029,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                                 int numTasks, int gen, int prevNumTasks, String tableInclude, String shards)
             throws InterruptedException {
         startConnector(customConfig, hasMultipleShards, offsetStoragePerTask, numTasks, gen, prevNumTasks,
-                tableInclude, VitessConnectorConfig.SnapshotMode.NEVER, shards, Collections.emptyMap());
+                tableInclude, VitessConnectorConfig.SnapshotMode.NEVER, shards);
     }
 
     private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig,
@@ -1037,19 +1037,8 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                                 int numTasks, int gen, int prevNumTasks, String tableInclude,
                                 VitessConnectorConfig.SnapshotMode snapshotMode, String shards)
             throws InterruptedException {
-        startConnector(customConfig, hasMultipleShards, offsetStoragePerTask, numTasks, gen, prevNumTasks,
-                tableInclude, VitessConnectorConfig.SnapshotMode.NEVER, shards, Collections.emptyMap());
-    }
-
-    private void startConnector(Function<Configuration.Builder, Configuration.Builder> customConfig,
-                                boolean hasMultipleShards, boolean offsetStoragePerTask,
-                                int numTasks, int gen, int prevNumTasks, String tableInclude,
-                                VitessConnectorConfig.SnapshotMode snapshotMode, String shards,
-                                Map<String, String> truncateColumns)
-            throws InterruptedException {
         Configuration.Builder configBuilder = customConfig.apply(TestHelper.defaultConfig(
-                hasMultipleShards, offsetStoragePerTask, numTasks, gen, prevNumTasks, tableInclude, snapshotMode,
-                shards, truncateColumns));
+                hasMultipleShards, offsetStoragePerTask, numTasks, gen, prevNumTasks, tableInclude, snapshotMode, shards));
         final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
         start(VitessConnector.class, configBuilder.build());
         assertConnectorIsRunning();

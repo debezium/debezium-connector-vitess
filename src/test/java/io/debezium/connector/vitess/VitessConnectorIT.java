@@ -150,7 +150,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     public void shouldConsumeEventsWithTruncatedColumn() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         startConnector(builder -> builder.with("column.truncate.to.1.chars",
-                        TEST_UNSHARDED_KEYSPACE + ".string_table.mediumtext_col"), false,
+                TEST_UNSHARDED_KEYSPACE + ".string_table.mediumtext_col"), false,
                 false, 1, -1, -1, null,
                 VitessConnectorConfig.SnapshotMode.NEVER, "");
         assertConnectorIsRunning();

@@ -17,6 +17,7 @@ import java.sql.Types;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -105,7 +106,30 @@ public class TestHelper {
                 snapshotMode,
                 shards,
                 null,
-                null);
+                null,
+                Collections.emptyMap());
+    }
+
+    public static Configuration.Builder defaultConfig(boolean hasMultipleShards,
+                                                      boolean offsetStoragePerTask,
+                                                      int numTasks,
+                                                      int gen,
+                                                      int prevNumTasks,
+                                                      String tableInclude,
+                                                      VitessConnectorConfig.SnapshotMode snapshotMode,
+                                                      String shards,
+                                                      Map<String, String> truncateColumns) {
+        return defaultConfig(hasMultipleShards,
+                offsetStoragePerTask,
+                numTasks,
+                gen,
+                prevNumTasks,
+                tableInclude,
+                snapshotMode,
+                shards,
+                null,
+                null,
+                truncateColumns);
     }
 
     public static Configuration.Builder defaultConfig(boolean hasMultipleShards,
@@ -118,6 +142,30 @@ public class TestHelper {
                                                       String shards,
                                                       String grpcMaxInboundMessageSize,
                                                       String eventProcessingFailureHandlingMode) {
+        return defaultConfig(hasMultipleShards,
+                offsetStoragePerTask,
+                numTasks,
+                gen,
+                prevNumTasks,
+                tableInclude,
+                snapshotMode,
+                shards,
+                null,
+                null,
+                Collections.emptyMap());
+    }
+
+    public static Configuration.Builder defaultConfig(boolean hasMultipleShards,
+                                                      boolean offsetStoragePerTask,
+                                                      int numTasks,
+                                                      int gen,
+                                                      int prevNumTasks,
+                                                      String tableInclude,
+                                                      VitessConnectorConfig.SnapshotMode snapshotMode,
+                                                      String shards,
+                                                      String grpcMaxInboundMessageSize,
+                                                      String eventProcessingFailureHandlingMode,
+                                                      Map<String, String> truncateColumns) {
         Configuration.Builder builder = Configuration.create();
         builder = builder
                 .with(CommonConnectorConfig.TOPIC_PREFIX, TEST_SERVER)
@@ -137,6 +185,9 @@ public class TestHelper {
         }
         if (shards != null && !shards.isEmpty()) {
             builder.with(VitessConnectorConfig.SHARD, shards);
+        }
+        for (Map.Entry<String, String> entry : truncateColumns.entrySet()) {
+            builder.with(entry.getKey(), entry.getValue());
         }
 
         if (offsetStoragePerTask) {

@@ -223,31 +223,10 @@ public class VitessReplicationConnection implements ReplicationConnection {
 
             @Override
             public void onError(Throwable t) {
-                Status status = Status.fromThrowable(t);
-                if (status.getCode().equals(Status.Code.RESOURCE_EXHAUSTED) &&
-                        status.getDescription().matches("gRPC message exceeds maximum size.*")) {
-                    switch (config.getEventProcessingFailureHandlingMode()) {
-                        case FAIL:
-                            LOGGER.error("VStream streaming onError. Status: {}", status, t);
-                            // Only propagate the first error
-                            error.compareAndSet(null, t);
-                            reset();
-                            break;
-                        case WARN:
-                            LOGGER.warn("VStream streaming onError. Status: {}", status, t);
-                            break;
-                        case SKIP:
-                        case IGNORE:
-                            LOGGER.debug("VStream streaming onError. Status: {}", status, t);
-                            break;
-                    }
-                }
-                else {
-                    LOGGER.error("VStream streaming onError. Status: {}", status, t);
-                    // Only propagate the first error
-                    error.compareAndSet(null, t);
-                    reset();
-                }
+                LOGGER.info("VStream streaming onError. Status: " + Status.fromThrowable(t), t);
+                // Only propagate the first error
+                error.compareAndSet(null, t);
+                reset();
             }
 
             @Override

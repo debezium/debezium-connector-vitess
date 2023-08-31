@@ -52,7 +52,7 @@ public class VitessReplicationConnectionIT {
     }
 
     @Test
-    public void shouldNotErrorOutWhenSkipEnabled() throws Exception {
+    public void shouldErrorOutWhenSkipEnabled() throws Exception {
         // setup fixture
         final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
         logInterceptor.setLoggerLevel(VitessReplicationConnection.class, Level.DEBUG);
@@ -92,12 +92,12 @@ public class VitessReplicationConnectionIT {
         Awaitility
                 .await()
                 .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
-                .until(() -> logInterceptor.containsMessage("VStream streaming onError"));
-        assertThat(error.get()).isNull();
+                .until(() -> error.get() != null);
+        assertThat(error.get()).isNotNull();
     }
 
     @Test
-    public void shouldNotErrorOutWhenWarnEnabled() throws Exception {
+    public void shouldErrorOutWhenWarnEnabled() throws Exception {
         // setup fixture
         final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
         final VitessConnectorConfig conf = new VitessConnectorConfig(
@@ -136,8 +136,8 @@ public class VitessReplicationConnectionIT {
         Awaitility
                 .await()
                 .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
-                .until(() -> logInterceptor.containsWarnMessage("VStream streaming onError"));
-        assertThat(error.get()).isNull();
+                .until(() -> error.get() != null);
+        assertThat(error.get()).isNotNull();
     }
 
     @Test

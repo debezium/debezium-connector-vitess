@@ -61,7 +61,7 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     @Override
     protected void readTableStructure(ChangeEventSourceContext sourceContext,
                                       RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext,
-                                      VitessOffsetContext offsetContext) {
+                                      VitessOffsetContext offsetContext, SnapshottingTask snapshottingTask) {
     }
 
     @Override
@@ -83,12 +83,11 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     public SnapshottingTask getSnapshottingTask(VitessPartition partition, VitessOffsetContext previousOffset) {
         boolean snapshotSchema = false;
         boolean snapshotData = false;
-        return new SnapshottingTask(snapshotSchema, snapshotData, List.of(), Map.of());
+        return new SnapshottingTask(snapshotSchema, snapshotData, List.of(), Map.of(), false);
     }
 
     @Override
-    protected SnapshotContext<VitessPartition, VitessOffsetContext> prepare(VitessPartition partition)
-            throws Exception {
+    protected SnapshotContext<VitessPartition, VitessOffsetContext> prepare(VitessPartition partition) {
         return new RelationalSnapshotContext<>(partition, "");
     }
 

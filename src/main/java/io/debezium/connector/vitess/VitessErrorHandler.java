@@ -33,6 +33,11 @@ public class VitessErrorHandler extends ErrorHandler {
                         return true;
                     }
                     return false;
+                case NOT_FOUND:
+                    if (description != null && description.contains("either down or nonexistent")) {
+                        return true;
+                    }
+                    return false;
                 case UNAVAILABLE:
                     return true;
                 case UNKNOWN:

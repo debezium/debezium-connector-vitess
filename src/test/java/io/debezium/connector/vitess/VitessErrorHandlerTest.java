@@ -27,8 +27,8 @@ public class VitessErrorHandlerTest {
         StatusRuntimeException notFoundException = new StatusRuntimeException(status);
         VitessErrorHandler vitessErrorHandler = new VitessErrorHandler(null, null, null);
         vitessErrorHandler.isRetriable(notFoundException);
-        assertThat(logInterceptor.containsMessage(expectedStatusCodeString)).isTrue();
-        assertThat(logInterceptor.containsMessage(expectedDescription)).isTrue();
+        assertThat(logInterceptor.containsErrorMessage(expectedStatusCodeString)).isTrue();
+        assertThat(logInterceptor.containsErrorMessage(expectedDescription)).isTrue();
     }
 
     @Test

@@ -23,7 +23,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -665,16 +664,11 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @Test
     @FixFor("DBZ-2836")
     public void shouldTaskFailIfColumnNameInvalid() throws Exception {
+        final LogInterceptor logInterceptor = new LogInterceptor(VitessErrorHandler.class);
         TestHelper.executeDDL("vitess_create_tables.ddl");
 
-        CountDownLatch latch = new CountDownLatch(1);
         EmbeddedEngine.CompletionCallback completionCallback = (success, message, error) -> {
-            if (error != null) {
-                latch.countDown();
-            }
-            else {
-                fail("A controlled exception was expected....");
-            }
+            fail("The task is expected to keep retrying and not complete");
         };
         start(VitessConnector.class, TestHelper.defaultConfig().build(), completionCallback);
         assertConnectorIsRunning();
@@ -683,9 +677,10 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // Connector receives a row whose column name is not valid, task should fail
         TestHelper.execute("ALTER TABLE numeric_table ADD `@1` INT;");
         TestHelper.execute(INSERT_NUMERIC_TYPES_STMT);
-        if (!latch.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS)) {
-            fail("did not reach stop condition in time");
-        }
+        // Connector should still be running & retrying
+        assertConnectorIsRunning();
+        stopConnector();
+        assertThat(logInterceptor.containsErrorMessage("Illegal prefix '@' for column: @1")).isTrue();
     }
 
     @Test

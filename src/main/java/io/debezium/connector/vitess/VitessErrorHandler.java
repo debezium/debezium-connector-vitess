@@ -23,34 +23,9 @@ public class VitessErrorHandler extends ErrorHandler {
     protected boolean isRetriable(Throwable throwable) {
         if (throwable instanceof StatusRuntimeException) {
             final StatusRuntimeException exception = (StatusRuntimeException) throwable;
-            final String description = exception.getStatus().getDescription();
-            LOGGER.info("Exception code: {} and description: {}", exception.getStatus().getCode(), description);
-            switch (exception.getStatus().getCode()) {
-                case CANCELLED:
-                    // Try to match this description string:
-                    // description=target: byuser.-4000.master: vttablet: rpc error: code = Canceled desc = grpc: the client connection is closing
-                    if (description != null && description.contains("client connection is closing")) {
-                        return true;
-                    }
-                    return false;
-                case NOT_FOUND:
-                    if (description != null && description.contains("either down or nonexistent")) {
-                        return true;
-                    }
-                    return false;
-                case UNAVAILABLE:
-                    return true;
-                case UNKNOWN:
-                    // Stream timeout error due to idle VStream or vstream ended unexpectedly.
-                    if (description != null &&
-                            (description.equals("stream timeout") ||
-                                    description.contains("vstream ended unexpectedly") ||
-                                    description.contains("unexpected server EOF"))) {
-                        return true;
-                    }
-                    return false;
-            }
+            LOGGER.error("Exception status: {}", exception.getStatus(), exception);
+            return true;
         }
-        return false;
+        return super.isRetriable(throwable);
     }
 }

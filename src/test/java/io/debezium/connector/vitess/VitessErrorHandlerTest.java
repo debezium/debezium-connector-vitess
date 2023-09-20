@@ -7,12 +7,43 @@ package io.debezium.connector.vitess;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.IOException;
+
 import org.junit.Test;
 
+import io.debezium.junit.logging.LogInterceptor;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 
 public class VitessErrorHandlerTest {
+
+    @Test
+    public void shouldLogMessageWithCodeAndDescription() {
+        String expectedDescription = "target: byuser.-4000.master: vttablet: rpc error: code = " +
+                "Canceled desc = grpc: the client connection is closing";
+        String expectedStatusCodeString = "CANCELLED";
+        final LogInterceptor logInterceptor = new LogInterceptor(VitessErrorHandler.class);
+        Status status = Status.CANCELLED.withDescription(expectedDescription);
+        StatusRuntimeException notFoundException = new StatusRuntimeException(status);
+        VitessErrorHandler vitessErrorHandler = new VitessErrorHandler(null, null, null);
+        vitessErrorHandler.isRetriable(notFoundException);
+        assertThat(logInterceptor.containsMessage(expectedStatusCodeString)).isTrue();
+        assertThat(logInterceptor.containsMessage(expectedDescription)).isTrue();
+    }
+
+    @Test
+    public void shouldRetryIOException() {
+        IOException ioException = new IOException();
+        VitessErrorHandler vitessErrorHandler = new VitessErrorHandler(null, null, null);
+        assertThat(vitessErrorHandler.isRetriable(ioException)).isTrue();
+    }
+
+    @Test
+    public void shouldNotRetryNonIONonStatusRuntimeExceptions() {
+        IllegalStateException illegalStateException = new IllegalStateException();
+        VitessErrorHandler vitessErrorHandler = new VitessErrorHandler(null, null, null);
+        assertThat(vitessErrorHandler.isRetriable(illegalStateException)).isFalse();
+    }
 
     @Test
     public void shouldRetryCancelledOnClosedClient() {
@@ -24,19 +55,19 @@ public class VitessErrorHandlerTest {
     }
 
     @Test
-    public void shouldNotRetryCancelledWithOtherDescription() {
+    public void shouldRetryCancelledWithOtherDescription() {
         Status status = Status.CANCELLED.withDescription("any other cancel");
         StatusRuntimeException notFoundException = new StatusRuntimeException(status);
         VitessErrorHandler vitessErrorHandler = new VitessErrorHandler(null, null, null);
-        assertThat(vitessErrorHandler.isRetriable(notFoundException)).isFalse();
+        assertThat(vitessErrorHandler.isRetriable(notFoundException)).isTrue();
     }
 
     @Test
-    public void shouldNotRetryCancelled() {
+    public void shouldRetryCancelled() {
         Status status = Status.CANCELLED;
         StatusRuntimeException notFoundException = new StatusRuntimeException(status);
         VitessErrorHandler vitessErrorHandler = new VitessErrorHandler(null, null, null);
-        assertThat(vitessErrorHandler.isRetriable(notFoundException)).isFalse();
+        assertThat(vitessErrorHandler.isRetriable(notFoundException)).isTrue();
     }
 
     @Test
@@ -48,10 +79,10 @@ public class VitessErrorHandlerTest {
     }
 
     @Test
-    public void shouldNotRetryNotFound() {
+    public void shouldRetryNotFound() {
         StatusRuntimeException notFoundException = new StatusRuntimeException(Status.NOT_FOUND);
         VitessErrorHandler vitessErrorHandler = new VitessErrorHandler(null, null, null);
-        assertThat(vitessErrorHandler.isRetriable(notFoundException)).isFalse();
+        assertThat(vitessErrorHandler.isRetriable(notFoundException)).isTrue();
     }
 
     @Test
@@ -78,11 +109,11 @@ public class VitessErrorHandlerTest {
     }
 
     @Test
-    public void shouldNotRetryUnknown() {
+    public void shouldRetryUnknown() {
         Status status = Status.UNKNOWN;
         StatusRuntimeException notFoundException = new StatusRuntimeException(status);
         VitessErrorHandler vitessErrorHandler = new VitessErrorHandler(null, null, null);
-        assertThat(vitessErrorHandler.isRetriable(notFoundException)).isFalse();
+        assertThat(vitessErrorHandler.isRetriable(notFoundException)).isTrue();
     }
 
 }

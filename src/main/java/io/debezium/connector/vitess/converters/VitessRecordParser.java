@@ -7,11 +7,10 @@ package io.debezium.connector.vitess.converters;
 
 import java.util.Set;
 
-import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.DataException;
 
 import io.debezium.connector.vitess.SourceInfo;
+import io.debezium.converters.recordandmetadata.RecordAndMetadata;
 import io.debezium.converters.spi.RecordParser;
 import io.debezium.data.Envelope;
 import io.debezium.util.Collect;
@@ -25,8 +24,8 @@ public class VitessRecordParser extends RecordParser {
 
     private static final Set<String> VITESS_SOURCE_FIELD = Collect.unmodifiableSet(SourceInfo.VGTID_KEY, SourceInfo.KEYSPACE_NAME_KEY);
 
-    public VitessRecordParser(Schema schema, Struct record) {
-        super(schema, record, Envelope.FieldName.BEFORE, Envelope.FieldName.AFTER);
+    public VitessRecordParser(RecordAndMetadata recordAndMetadata) {
+        super(recordAndMetadata, Envelope.FieldName.BEFORE, Envelope.FieldName.AFTER);
     }
 
     @Override

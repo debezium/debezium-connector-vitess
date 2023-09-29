@@ -39,8 +39,8 @@ echo "add $cell CellInfo"
 set +e
 # shellcheck disable=SC2086
 vtctl $TOPOLOGY_FLAGS AddCellInfo \
-  -root /vitess/$cell \
-  -server_address "${ETCD_SERVER}" \
+  --root /vitess/$cell \
+  --server_address "${ETCD_SERVER}" \
   $cell
 set -e
 

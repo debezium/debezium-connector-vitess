@@ -246,7 +246,7 @@ public class TestHelper {
     }
 
     public static int waitTimeForRecords() {
-        return Integer.parseInt(System.getProperty(TEST_PROPERTY_PREFIX + "records.waittime", "80"));
+        return Integer.parseInt(System.getProperty(TEST_PROPERTY_PREFIX + "records.waittime", "60"));
     }
 
     public static Binlogdata.VEvent defaultFieldEvent() {

@@ -56,6 +56,8 @@ vttablet \
  --vtctld_addr http://$hostname:$vtctld_web_port/ \
  > $VTDATAROOT/$tablet_dir/vttablet.out 2>&1 &
 
+vtctldclient --grpc_auth_static_client_creds grpc_static_client_auth.json SetKeyspaceDurabilityPolicy --durability-policy=semi_sync $keyspace
+
 # Block waiting for the tablet to be listening
 # Not the same as healthy
 

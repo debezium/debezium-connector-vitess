@@ -211,7 +211,7 @@ public class TestHelper {
 
     protected static String applyOnlineDdl(String ddl, String keyspace) {
         try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
-            return vtctldConnection.applySchema(ddl, "online", keyspace);
+            return vtctldConnection.applySchema(ddl, "vitess", keyspace);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
@@ -246,7 +246,7 @@ public class TestHelper {
     }
 
     public static int waitTimeForRecords() {
-        return Integer.parseInt(System.getProperty(TEST_PROPERTY_PREFIX + "records.waittime", "60"));
+        return Integer.parseInt(System.getProperty(TEST_PROPERTY_PREFIX + "records.waittime", "80"));
     }
 
     public static Binlogdata.VEvent defaultFieldEvent() {

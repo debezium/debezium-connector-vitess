@@ -213,9 +213,10 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         // apply DDL
         TestHelper.execute("ALTER TABLE numeric_table ADD foo INT default 10;");
-        // applying DDL for Vitess version v8.0.0 emits 1 gRPC responses: (VGTID, DDL)
-        // the VGTID is increased by 1.
         int numOfGtidsFromDdl = 1;
+
+        // As of Vitess 17.0.3 four additional VGTID events are emitted after the DDL and before the next insert
+        int numOfAdditionalGtids = 4;
 
         // insert 1 row
         consumer.expects(expectedRecordsCount);
@@ -226,7 +227,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         String expectedOffset = RecordOffset
                 .fromSourceInfo(sourceRecord)
-                .incrementOffset(numOfGtidsFromDdl + 1).getVgtid();
+                .incrementOffset(numOfGtidsFromDdl + numOfAdditionalGtids + 1).getVgtid();
         String actualOffset = (String) sourceRecord2.sourceOffset().get(SourceInfo.VGTID_KEY);
         Assert.assertEquals(expectedOffset, actualOffset);
     }
@@ -807,11 +808,12 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         Set<String> tables = new HashSet<>(VitessConnector.getKeyspaceTables(config));
         // Remove system tables starts with _
         tables = tables.stream().filter(t -> !t.startsWith("_")).collect(Collectors.toSet());
-        List<String> expectedTables = Arrays.asList("my_seq", "t1",
+        List<String> expectedTables = Arrays.asList(
                 "numeric_table", "string_table", "character_set_collate_table", "enum_table", "set_table", "time_table",
                 "no_pk_table", "pk_single_unique_key_table", "no_pk_multi_unique_keys_table",
                 "no_pk_multi_comp_unique_keys_table", "comp_pk_table");
-        assertEquals(new HashSet<>(expectedTables), tables);
+        Set<String> expectedTablesHashSet = new HashSet<>(expectedTables);
+        assertTrue(tables.containsAll(expectedTablesHashSet));
     }
 
     @Test

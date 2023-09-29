@@ -93,13 +93,13 @@ public class VtctldConnection implements AutoCloseable {
      */
     public void applyVSchema(String vschema, String keyspace) {
         String command = "ApplyVSchema";
-        List<String> args = Arrays.asList(command, "-" + VSCHEMA_FLAG + "=" + vschema, keyspace);
+        List<String> args = Arrays.asList(command, "--" + VSCHEMA_FLAG + "=" + vschema, keyspace);
         List<String> results = execVtctl(args, vtctldHost, vtctldPort);
         LOGGER.info("Vschema {} is applied. Result: {}", vschema, results);
     }
 
     protected String applySchema(String sql, String strategy, String keyspace) {
-        List<String> args = Arrays.asList("ApplySchema", "-ddl_strategy=" + strategy, "-sql=" + sql, keyspace);
+        List<String> args = Arrays.asList("ApplySchema", "--ddl_strategy=" + strategy, "--sql=" + sql, keyspace);
         List<String> results = execVtctl(args, vtctldHost, vtctldPort);
         LOGGER.info("Schema {} is applied. Result: {}", sql, results);
         return results.get(0).trim();

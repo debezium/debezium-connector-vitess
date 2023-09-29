@@ -390,7 +390,7 @@ public class VitessReplicationConnectionIT {
                                             .build())
                             .build());
 
-            BlockingQueue<MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
+            BlockingQueue<MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(200);
             AtomicBoolean started = new AtomicBoolean(false);
             connection.startStreaming(
                     startingVgtid,

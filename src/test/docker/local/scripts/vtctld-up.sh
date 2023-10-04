@@ -14,7 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source ./env.sh
+# This is an example script that starts vtctld.
+
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/../env.sh"
 
 cell=${CELL:-'test'}
 grpc_port=15999
@@ -31,14 +33,14 @@ vtctld \
  --port $vtctld_web_port \
  --grpc_port $grpc_port \
  --pid_file $VTDATAROOT/tmp/vtctld.pid \
- --grpc_auth_mode static\
- --grpc_auth_static_password_file grpc_static_auth.json\
   > $VTDATAROOT/tmp/vtctld.out 2>&1 &
 
-
-echo "Waiting for vtctld to be up..."
-while true; do
- curl -I "http://$hostname:$vtctld_web_port/debug/status" >/dev/null 2>&1 && break
+for _ in {0..300}; do
+ curl -I "http://${hostname}:${vtctld_web_port}/debug/status" &>/dev/null && break
  sleep 0.1
-done;
-echo "vtctld is up!"
+done
+
+# check one last time
+curl -I "http://${hostname}:${vtctld_web_port}/debug/status" &>/dev/null || fail "vtctld could not be started!"
+
+echo -e "vtctld is running!"

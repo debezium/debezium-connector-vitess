@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source ./env.sh
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/../env.sh"
 
 cell=${CELL:-'test'}
 keyspace=${KEYSPACE:-'test_keyspace'}
@@ -34,6 +34,7 @@ if [[ "${uid: -1}" -gt 1 ]]; then
 fi
 
 echo "Starting vttablet for $alias..."
+
 # shellcheck disable=SC2086
 vttablet \
  $TOPOLOGY_FLAGS \
@@ -45,7 +46,6 @@ vttablet \
  --init_shard $shard \
  --init_tablet_type $tablet_type \
  --health_check_interval 5s \
- --enable_replication_reporter \
  --backup_storage_implementation file \
  --file_backup_storage_root $VTDATAROOT/backups \
  --restore_from_backup \
@@ -53,10 +53,10 @@ vttablet \
  --grpc_port $grpc_port \
  --service_map 'grpc-queryservice,grpc-tabletmanager,grpc-updatestream' \
  --pid_file $VTDATAROOT/$tablet_dir/vttablet.pid \
- --vtctld_addr http://$hostname:$vtctld_web_port/ \
+ --heartbeat_enable \
+ --heartbeat_interval=250ms \
+ --heartbeat_on_demand_duration=5s \
  > $VTDATAROOT/$tablet_dir/vttablet.out 2>&1 &
-
-vtctldclient --grpc_auth_static_client_creds grpc_static_client_auth.json SetKeyspaceDurabilityPolicy --durability-policy=semi_sync $keyspace
 
 # Block waiting for the tablet to be listening
 # Not the same as healthy
@@ -68,3 +68,5 @@ done
 
 # check one last time
 curl -I "http://$hostname:$port/debug/status" || fail "tablet could not be started!"
+
+echo -e "vttablet for $alias is running!"

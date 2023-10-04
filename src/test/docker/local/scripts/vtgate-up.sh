@@ -14,7 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source ./env.sh
+# This is an example script that starts a single vtgate.
+
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/../env.sh"
 
 cell=${CELL:-'test'}
 web_port=15001
@@ -22,7 +24,7 @@ grpc_port=15991
 mysql_server_port=15306
 mysql_server_socket_path="/tmp/mysql.sock"
 
-# Start vtgate.
+echo "Starting vtgate..."
 # shellcheck disable=SC2086
 vtgate \
   $TOPOLOGY_FLAGS \
@@ -37,15 +39,13 @@ vtgate \
   --tablet_types_to_wait PRIMARY,REPLICA \
   --service_map 'grpc-vtgateservice' \
   --pid_file $VTDATAROOT/tmp/vtgate.pid \
+  --enable_buffer \
   --mysql_auth_server_impl none \
-  --grpc_auth_mode static \
-  --grpc_auth_static_password_file grpc_static_auth.json \
   > $VTDATAROOT/tmp/vtgate.out 2>&1 &
 
 # Block waiting for vtgate to be listening
 # Not the same as healthy
 
-echo "Waiting for vtgate to be up..."
 while true; do
  curl -I "http://$hostname:$web_port/debug/status" >/dev/null 2>&1 && break
  sleep 0.1

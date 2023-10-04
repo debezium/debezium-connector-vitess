@@ -14,7 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source ./env.sh
+# This is an example script that creates a single shard vttablet deployment.
+
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/../env.sh"
 
 cell=${CELL:-'test'}
 uid=$TABLET_UID
@@ -38,3 +40,5 @@ mysqlctl \
  --tablet_uid $uid \
  --mysql_port $mysql_port \
  $action
+
+echo -e "MySQL for tablet $alias is running!"

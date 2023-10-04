@@ -25,11 +25,11 @@
         <vitess.image>vitess/test-database</vitess.image>
         <!--suppress UnresolvedMavenProperty -->
         <vitess.vtgate.host>${docker.host.address}</vitess.vtgate.host>
-        <vitess.vtgate.grpc.port>15991</vitess.vtgate.grpc.port>
-        <vitess.vtgate.mysql.port>15306</vitess.vtgate.mysql.port>
+        <vitess.vtgate.grpc.port>16991</vitess.vtgate.grpc.port>
+        <vitess.vtgate.mysql.port>16306</vitess.vtgate.mysql.port>
         <!--suppress UnresolvedMavenProperty -->
         <vitess.vtctld.host>${docker.host.address}</vitess.vtctld.host>
-        <vitess.vtctld.grpc.port>15999</vitess.vtctld.grpc.port>
+        <vitess.vtctld.grpc.port>16999</vitess.vtctld.grpc.port>
 
         <docker.dbs>${vitess.image}</docker.dbs>
         <docker.filter>${docker.dbs}</docker.filter>

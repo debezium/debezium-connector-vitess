@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.vitess.connection;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -23,16 +24,16 @@ import io.debezium.connector.vitess.VitessConnector;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.debezium.util.Strings;
+import io.grpc.Grpc;
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import io.grpc.Metadata;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.grpc.TlsChannelCredentials;
 import io.grpc.stub.AbstractStub;
 import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 import io.vitess.client.Proto;
-import io.vitess.client.grpc.StaticAuthCredentials;
 import io.vitess.proto.Topodata;
 import io.vitess.proto.Vtgate;
 import io.vitess.proto.grpc.VitessGrpc;
@@ -64,7 +65,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
      * @throws StatusRuntimeException if the connection is not valid, or SQL statement can not be successfully exected
      */
     public Vtgate.ExecuteResponse execute(String sqlStatement) {
-        LOGGER.info("Executing sqlStament {}", sqlStatement);
+        LOGGER.info("PHANI :: Should skip Executing sqlStament {}", sqlStatement);
         ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize());
         managedChannel.compareAndSet(null, channel);
 
@@ -302,18 +303,28 @@ public class VitessReplicationConnection implements ReplicationConnection {
 
     private <T extends AbstractStub<T>> T withCredentials(T stub) {
         if (config.getVtgateUsername() != null && config.getVtgatePassword() != null) {
-            LOGGER.info("Use authenticated vtgate grpc.");
-            stub = stub.withCallCredentials(new StaticAuthCredentials(config.getVtgateUsername(), config.getVtgatePassword()));
+            LOGGER.info("NOT Using authenticated vtgate grpc.");
+            // stub = stub.withCallCredentials(new StaticAuthCredentials(config.getVtgateUsername(), config.getVtgatePassword()));
         }
         return stub;
     }
 
     private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize) {
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(vtgateHost, vtgatePort)
-                .usePlaintext()
+        System.out.println("PHANI :: Connecting to vtgate to execute VStream");
+        TlsChannelCredentials.Builder tlsBuilder = TlsChannelCredentials.newBuilder();
+        try {
+            tlsBuilder.trustManager(new File("/Users/phaniraj/ps/edge-gateway/testcerts/gateway-cert.pem"));
+        }
+        catch (java.io.IOException fe) {
+            System.out.printf("failed to load certificates : %s", fe);
+        }
+
+        ManagedChannel channel = Grpc.newChannelBuilderForAddress(vtgateHost, vtgatePort, tlsBuilder.build())
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .keepAliveTime(config.getKeepaliveInterval().toMillis(), TimeUnit.MILLISECONDS)
+                .intercept(new AuthTokenProvideInterceptor())
                 .build();
+        System.out.println(channel.getClass().getName());
         return channel;
     }
 

@@ -346,7 +346,6 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 .keepAliveTime(config.getKeepaliveInterval().toMillis(), TimeUnit.MILLISECONDS)
                 .intercept(new AuthTokenProvideInterceptor(username, password))
                 .build();
-        System.out.println(channel.getClass().getName());
         return channel;
     }
 

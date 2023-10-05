@@ -360,14 +360,13 @@ public class VitessConnector extends RelationalBaseSourceConnector {
     }
 
     public static List<String> getVitessShards(VitessConnectorConfig connectionConfig) {
-        // String query = String.format("SHOW VITESS_SHARDS LIKE '%s/%%'", connectionConfig.getKeyspace());
-        // List<String> rows = getRowsFromQuery(connectionConfig, query);
-        // List<String> shards = rows.stream().map(fieldValue -> {
-        // String[] parts = fieldValue.split("/");
-        // assert parts != null && parts.length == 2 : String.format("Wrong field format: %s", fieldValue);
-        // return parts[1];
-        // }).collect(Collectors.toList());
-        List<String> shards = Arrays.asList("-");
+        String query = String.format("SHOW VITESS_SHARDS LIKE '%s/%%'", connectionConfig.getKeyspace());
+        List<String> rows = getRowsFromQuery(connectionConfig, query);
+        List<String> shards = rows.stream().map(fieldValue -> {
+            String[] parts = fieldValue.split("/");
+            assert parts != null && parts.length == 2 : String.format("Wrong field format: %s", fieldValue);
+            return parts[1];
+        }).collect(Collectors.toList());
         LOGGER.info("Shards: {}", shards);
         return shards;
     }

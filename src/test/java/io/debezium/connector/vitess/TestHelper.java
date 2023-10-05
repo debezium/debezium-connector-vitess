@@ -12,6 +12,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.sql.Connection;
 import java.sql.Types;
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,7 +38,7 @@ import binlogdata.Binlogdata;
 
 public class TestHelper {
     protected static final String TEST_SERVER = "test_server";
-    public static final String TEST_UNSHARDED_KEYSPACE = "employees";
+    public static final String TEST_UNSHARDED_KEYSPACE = "test_unsharded_keyspace";
     public static final String TEST_SHARDED_KEYSPACE = "test_sharded_keyspace";
     public static final String TEST_SHARD = "0";
     public static final String TEST_GTID = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-1513";
@@ -47,11 +48,11 @@ public class TestHelper {
     private static final String TEST_PROPERTY_PREFIX = "debezium.test.";
     private static final String VTCTLD_HOST = "localhost";
     private static final int VTCTLD_PORT = 15999;
-    private static final String VTGATE_HOST = "127.0.0.1";
-    private static final int VTGATE_PORT = 8080;
+    private static final String VTGATE_HOST = "localhost";
+    private static final int VTGATE_PORT = 15991;
     // Use the same username and password for vtgate and vtctld
-    private static final String USERNAME = "prodvstream";
-    private static final String PASSWORD = "bar";
+    private static final String USERNAME = "vitess";
+    private static final String PASSWORD = "vitess_password";
 
     protected static final String INSERT_STMT = "INSERT INTO t1 (int_col) VALUES (1);";
     protected static final List<String> SETUP_TABLES_STMT = Arrays.asList(
@@ -167,18 +168,19 @@ public class TestHelper {
      * @param database   Keyspace
      */
     public static void execute(List<String> statements, String database) {
-        // try (MySQLConnection connection = MySQLConnection.forTestDatabase(database)) {
-        // connection.setAutoCommit(false);
-        // Connection jdbcConn = null;
-        // for (String statement : statements) {
-        // connection.executeWithoutCommitting(statement);
-        // jdbcConn = connection.connection();
-        // }
-        // jdbcConn.commit();
-        // }
-        // catch (Exception e) {
-        // throw new RuntimeException(e);
-        // }
+
+        try (MySQLConnection connection = MySQLConnection.forTestDatabase(database)) {
+            connection.setAutoCommit(false);
+            Connection jdbcConn = null;
+            for (String statement : statements) {
+                connection.executeWithoutCommitting(statement);
+                jdbcConn = connection.connection();
+            }
+            jdbcConn.commit();
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static void execute(String statement) {
@@ -190,7 +192,7 @@ public class TestHelper {
     }
 
     protected static void executeDDL(String ddlFile) throws Exception {
-        // executeDDL(ddlFile, TEST_UNSHARDED_KEYSPACE);
+        executeDDL(ddlFile, TEST_UNSHARDED_KEYSPACE);
     }
 
     protected static void executeDDL(String ddlFile, String database) throws Exception {

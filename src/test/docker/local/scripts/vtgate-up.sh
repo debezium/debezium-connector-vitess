@@ -16,7 +16,7 @@
 
 # This is an example script that starts a single vtgate.
 
-source "$(dirname "${BASH_SOURCE[0]:-$0}")/../env.sh"
+source ./env.sh
 
 cell=${CELL:-'test'}
 web_port=15001
@@ -39,13 +39,15 @@ vtgate \
   --tablet_types_to_wait PRIMARY,REPLICA \
   --service_map 'grpc-vtgateservice' \
   --pid_file $VTDATAROOT/tmp/vtgate.pid \
-  --enable_buffer \
   --mysql_auth_server_impl none \
+  --grpc_auth_mode static \
+  --grpc_auth_static_password_file grpc_static_auth.json \
   > $VTDATAROOT/tmp/vtgate.out 2>&1 &
 
 # Block waiting for vtgate to be listening
 # Not the same as healthy
 
+echo "Waiting for vtgate to be up..."
 while true; do
  curl -I "http://$hostname:$web_port/debug/status" >/dev/null 2>&1 && break
  sleep 0.1

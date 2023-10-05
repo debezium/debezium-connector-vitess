@@ -6,6 +6,7 @@
 package io.debezium.connector.vitess.connection;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -65,7 +66,6 @@ public class VitessReplicationConnection implements ReplicationConnection {
      * @throws StatusRuntimeException if the connection is not valid, or SQL statement can not be successfully exected
      */
     public Vtgate.ExecuteResponse execute(String sqlStatement) {
-        LOGGER.info("PHANI :: Should skip Executing sqlStament {}", sqlStatement);
         ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(),
                 config.getRootCaCertificate(), config.getClientCertificate(), config.getClientCertificatePrivateKey(), config.getVtgateUsername(),
                 config.getVtgatePassword());
@@ -268,12 +268,21 @@ public class VitessReplicationConnection implements ReplicationConnection {
         // Add filtering for whitelist tables
         Binlogdata.Filter.Builder filterBuilder = Binlogdata.Filter.newBuilder();
         if (!Strings.isNullOrEmpty(config.tableIncludeList())) {
+
             final String keyspace = config.getKeyspace();
             final List<String> allTables = VitessConnector.getKeyspaceTables(config);
             List<String> includedTables = VitessConnector.getIncludedTables(config.getKeyspace(),
                     config.tableIncludeList(), allTables);
+
             for (String table : includedTables) {
                 String sql = "select * from `" + table + "`";
+                if (config.isColumnsFiltered()) {
+                    List<String> allColumns = VitessConnector.getTableColumns(config, table);
+                    List<String> includedColumns = VitessConnector.getColumnsForTable(config.getKeyspace(), config.getColumnFilter(), allColumns, table);
+                    sql = String.format("select %s from `%s`", String.join(",", includedColumns), table);
+                }
+
+                LOGGER.info("Running Sql Query: {}", sql);
                 // See rule in: https://github.com/vitessio/vitess/blob/release-14.0/go/vt/vttablet/tabletserver/vstreamer/planbuilder.go#L316
                 Binlogdata.Rule rule = Binlogdata.Rule.newBuilder().setMatch(table).setFilter(sql).build();
                 LOGGER.info("Add vstream table filtering: {}", rule.getMatch());
@@ -314,17 +323,17 @@ public class VitessReplicationConnection implements ReplicationConnection {
         return stub;
     }
 
-    private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize, String rootCaCert, String mtlsClientCertificate,
+    private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize, String rootCaCertPath, String mtlsClientCertificate,
                                       String mtlsClientCertificatePrivateKey, String username, String password) {
-        System.out.println("PHANI :: Connecting to vtgate to execute VStream");
         TlsChannelCredentials.Builder tlsBuilder = TlsChannelCredentials.newBuilder();
 
         try {
-            if (!rootCaCert.isEmpty()) {
-                tlsBuilder.trustManager(new ByteArrayInputStream(rootCaCert.getBytes()));
+            if (rootCaCertPath != null && !rootCaCertPath.isEmpty()) {
+                tlsBuilder.trustManager(new File(rootCaCertPath));
             }
 
-            if (!mtlsClientCertificate.isEmpty() && !mtlsClientCertificatePrivateKey.isEmpty()) {
+            if (mtlsClientCertificate != null && mtlsClientCertificatePrivateKey != null && !mtlsClientCertificate.isEmpty()
+                    && !mtlsClientCertificatePrivateKey.isEmpty()) {
                 tlsBuilder.keyManager(new ByteArrayInputStream(mtlsClientCertificate.getBytes()), new ByteArrayInputStream(mtlsClientCertificatePrivateKey.getBytes()));
             }
         }

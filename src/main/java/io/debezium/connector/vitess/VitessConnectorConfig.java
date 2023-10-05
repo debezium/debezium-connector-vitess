@@ -176,13 +176,13 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         }
     }
 
-    public static final Field ROOT_CA_CERT = Field.create(VITESS_CONFIG_GROUP_PREFIX + "root_ca_cert")
-            .withDisplayName("PEM encoded root CA certificate")
+    public static final Field ROOT_CA_CERT_PATH = Field.create(VITESS_CONFIG_GROUP_PREFIX + "root_ca_cert_path")
+            .withDisplayName("Path to PEM encoded root CA certificate")
             .withType(Type.STRING)
             .withWidth(Width.MEDIUM)
             .withImportance(ConfigDef.Importance.HIGH)
             .withDescription(
-                    "pem encoded root ca certificate.");
+                    "Path to  pem encoded root ca certificate.");
 
     public static final Field MTLS_CLIENT_CERTIFICATE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "mtls_client_certificate")
             .withDisplayName("PEM encoded Client Certificate")
@@ -403,7 +403,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .edit()
             .name("Vitess")
             .type(
-                    ROOT_CA_CERT,
+                    ROOT_CA_CERT_PATH,
                     MTLS_CLIENT_CERTIFICATE,
                     MTLS_CLIENT_CERTIFICATE_PRIVATE_KEY,
                     KEYSPACE,
@@ -522,7 +522,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     }
 
     public String getRootCaCertificate() {
-        return getConfig().getString(ROOT_CA_CERT);
+        return getConfig().getString(ROOT_CA_CERT_PATH);
     }
 
     public String getClientCertificate() {

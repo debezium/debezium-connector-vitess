@@ -33,6 +33,7 @@ import io.debezium.config.Configuration;
 import io.debezium.connector.common.RelationalBaseSourceConnector;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.relational.Tables;
 import io.debezium.util.Strings;
 import io.grpc.StatusRuntimeException;
 import io.vitess.proto.Query;
@@ -333,11 +334,29 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         return includedTables;
     }
 
+    public static List<String> getColumnsForTable(String keyspace, Tables.ColumnNameFilter columnFilter, List<String> allColumns, String tableName) {
+        List<String> includedColumns = new ArrayList<>();
+        for (String column : allColumns) {
+            if (columnFilter.matches(keyspace, keyspace, tableName, column)) {
+                includedColumns.add(column);
+            }
+        }
+        return includedColumns;
+    }
+
     public static List<String> getKeyspaceTables(VitessConnectorConfig connectionConfig) {
-        String query = String.format("SHOW TABLES FROM %s", connectionConfig.getKeyspace());
+        String query = String.format("SHOW TABLES FROM `%s`", connectionConfig.getKeyspace());
         List<String> tables = getRowsFromQuery(connectionConfig, query);
         LOGGER.info("All tables from keyspace {} are: {}", connectionConfig.getKeyspace(), tables);
         return tables;
+    }
+
+    public static List<String> getTableColumns(VitessConnectorConfig connectionConfig, String tableName) {
+        String query = String.format("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s'", connectionConfig.getKeyspace(),
+                tableName);
+        List<String> columns = getRowsFromQuery(connectionConfig, query);
+        LOGGER.info("All columns from table {} from keyspace {} are: {}", tableName, connectionConfig.getKeyspace(), columns);
+        return columns;
     }
 
     public static List<String> getVitessShards(VitessConnectorConfig connectionConfig) {

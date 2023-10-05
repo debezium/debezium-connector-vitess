@@ -30,14 +30,14 @@ function wait_for_shard_tablets() {
 	local wait_secs=180
 
 	for _ in $(seq 1 ${wait_secs}); do
-		cur_tablets=$(vtctldclient GetTablets --keyspace "${keyspace}" --shard "${shard}" | wc -l)
+		cur_tablets=$(vtctldclient --grpc_auth_static_client_creds grpc_static_client_auth.json GetTablets --keyspace "${keyspace}" --shard "${shard}" | wc -l)
 		if [[ ${cur_tablets} -eq ${num_tablets} ]]; then
 			break
 		fi
 		sleep 1
 	done;
 
-	cur_tablets=$(vtctldclient GetTablets --keyspace "${keyspace}" --shard "${shard}" | wc -l)
+	cur_tablets=$(vtctldclient --grpc_auth_static_client_creds grpc_static_client_auth.json GetTablets --keyspace "${keyspace}" --shard "${shard}" | wc -l)
 	if [[ ${cur_tablets} -lt ${num_tablets} ]]; then
 		fail "Timed out after ${wait_secs} seconds waiting for tablets to come up in ${keyspace}/${shard}"
 	fi
@@ -56,13 +56,13 @@ function wait_for_healthy_shard_primary() {
 	local wait_secs=180
 
 	for _ in $(seq 1 ${wait_secs}); do
-		if ! vtctldclient --server=localhost:15999 GetShard "${keyspace}/${shard}" | grep -qi "${unhealthy_indicator}"; then
+		if ! vtctldclient --grpc_auth_static_client_creds grpc_static_client_auth.json --server=localhost:15999 GetShard "${keyspace}/${shard}" | grep -qi "${unhealthy_indicator}"; then
 			break
 		fi
 		sleep 1
 	done;
 
-	if vtctldclient --server=localhost:15999 GetShard "${keyspace}/${shard}" | grep -qi "${unhealthy_indicator}"; then
+	if vtctldclient --grpc_auth_static_client_creds grpc_static_client_auth.json --server=localhost:15999 GetShard "${keyspace}/${shard}" | grep -qi "${unhealthy_indicator}"; then
 		fail "Timed out after ${wait_secs} seconds waiting for a primary tablet to be elected and become healthy in ${keyspace}/${shard}"
 	fi
 }
@@ -77,18 +77,18 @@ function wait_for_writeable_shard_primary() {
 	local shard=${2}
 	local wait_secs=30
 
-	PRIMARY_TABLET="$(vtctldclient --server=localhost:15999 GetTablets --keyspace "$keyspace" --shard "$shard" | grep -w "primary" | awk '{print $1}')"
+	PRIMARY_TABLET="$(vtctldclient --grpc_auth_static_client_creds grpc_static_client_auth.json --server=localhost:15999 GetTablets --keyspace "$keyspace" --shard "$shard" | grep -w "primary" | awk '{print $1}')"
 	if [ -z "$PRIMARY_TABLET" ] ; then
 		fail "Cannot determine primary tablet for keyspace/shard $keyspace/$shard"
 	fi
 
 	for _ in $(seq 1 ${wait_secs}); do
-		if vtctldclient --server=localhost:15999 GetFullStatus "$PRIMARY_TABLET" | grep "super_read_only" | grep --quiet "false" ; then
+		if vtctldclient --grpc_auth_static_client_creds grpc_static_client_auth.json --server=localhost:15999 GetFullStatus "$PRIMARY_TABLET" | grep "super_read_only" | grep --quiet "false" ; then
 			break
 		fi
 		sleep 1
 	done
-	if vtctldclient --server=localhost:15999 GetFullStatus "$PRIMARY_TABLET" | grep "super_read_only" | grep --quiet "true" ; then
+	if vtctldclient --grpc_auth_static_client_creds grpc_static_client_auth.json --server=localhost:15999 GetFullStatus "$PRIMARY_TABLET" | grep "super_read_only" | grep --quiet "true" ; then
 		fail "Timed out after ${wait_secs} seconds waiting for a primary tablet $PRIMARY_TABLET to be writeable in ${keyspace}/${shard}"
 	fi
 }
@@ -108,13 +108,13 @@ function wait_for_shard_vreplication_engine() {
         local wait_secs=90
 
         for _ in $(seq 1 ${wait_secs}); do
-                if vtctlclient --server=localhost:15999 Workflow -- "${keyspace}" listall &>/dev/null; then
+                if vtctlclient --grpc_auth_static_client_creds grpc_static_client_auth.json --server=localhost:15999 Workflow -- "${keyspace}" listall &>/dev/null; then
                         break
                 fi
                 sleep 1
         done;
 
-        if ! vtctlclient --server=localhost:15999 Workflow -- "${keyspace}" listall &>/dev/null; then
+        if ! vtctlclient --grpc_auth_static_client_creds grpc_static_client_auth.json --server=localhost:15999 Workflow -- "${keyspace}" listall &>/dev/null; then
                 fail "Timed out after ${wait_secs} seconds waiting for the primary tablet's VReplication engine to open in ${keyspace}/${shard}"
         fi
 }
@@ -154,7 +154,7 @@ function wait_for_workflow_running() {
     echo "Waiting for the ${workflow} workflow in the ${keyspace} keyspace to finish the copy phase..." 
 
     for _ in $(seq 1 ${wait_secs}); do
-        result=$(vtctldclient Workflow --keyspace="${keyspace}" show --workflow="${workflow}" 2>/dev/null | grep "Copy phase completed")
+        result=$(vtctldclient --grpc_auth_static_client_creds grpc_static_client_auth.json Workflow --keyspace="${keyspace}" show --workflow="${workflow}" 2>/dev/null | grep "Copy phase completed")
         if [[ ${result} != "" ]]; then
             break
         fi

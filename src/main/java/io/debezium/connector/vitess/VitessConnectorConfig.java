@@ -184,7 +184,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDescription(
                     "Path to  pem encoded root ca certificate.");
 
-    public static final Field MTLS_CLIENT_CERTIFICATE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "mtls_client_certificate")
+    public static final Field MTLS_CLIENT_CERTIFICATE_PATH = Field.create(VITESS_CONFIG_GROUP_PREFIX + "mtls_client_certificate_path")
             .withDisplayName("PEM encoded Client Certificate")
             .withType(Type.STRING)
             .withWidth(Width.MEDIUM)
@@ -192,7 +192,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDescription(
                     "pEM encoded client certificate for mutual TLS authentication.");
 
-    public static final Field MTLS_CLIENT_CERTIFICATE_PRIVATE_KEY = Field.create(VITESS_CONFIG_GROUP_PREFIX + "mtls_client_certificate_private_key")
+    public static final Field MTLS_CLIENT_CERTIFICATE_PRIVATE_KEY_PATH = Field.create(VITESS_CONFIG_GROUP_PREFIX + "mtls_client_certificate_private_key_path")
             .withDisplayName("PEM encoded Client Certificate Private Key")
             .withType(Type.STRING)
             .withWidth(Width.MEDIUM)
@@ -404,8 +404,8 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .name("Vitess")
             .type(
                     ROOT_CA_CERT_PATH,
-                    MTLS_CLIENT_CERTIFICATE,
-                    MTLS_CLIENT_CERTIFICATE_PRIVATE_KEY,
+                    MTLS_CLIENT_CERTIFICATE_PATH,
+                    MTLS_CLIENT_CERTIFICATE_PRIVATE_KEY_PATH,
                     KEYSPACE,
                     SHARD,
                     GTID,
@@ -521,16 +521,16 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return getConfig().getString(VTGATE_HOST);
     }
 
-    public String getRootCaCertificate() {
+    public String getRootCaCertificatePath() {
         return getConfig().getString(ROOT_CA_CERT_PATH);
     }
 
-    public String getClientCertificate() {
-        return getConfig().getString(MTLS_CLIENT_CERTIFICATE);
+    public String getClientCertificatePath() {
+        return getConfig().getString(MTLS_CLIENT_CERTIFICATE_PATH);
     }
 
-    public String getClientCertificatePrivateKey() {
-        return getConfig().getString(MTLS_CLIENT_CERTIFICATE_PRIVATE_KEY);
+    public String getClientCertificatePrivateKeyPath() {
+        return getConfig().getString(MTLS_CLIENT_CERTIFICATE_PRIVATE_KEY_PATH);
     }
 
     public int getVtgatePort() {

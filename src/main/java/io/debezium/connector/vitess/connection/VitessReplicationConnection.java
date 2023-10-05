@@ -5,7 +5,6 @@
  */
 package io.debezium.connector.vitess.connection;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -67,7 +66,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
      */
     public Vtgate.ExecuteResponse execute(String sqlStatement) {
         ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(),
-                config.getRootCaCertificate(), config.getClientCertificate(), config.getClientCertificatePrivateKey(), config.getVtgateUsername(),
+                config.getRootCaCertificatePath(), config.getClientCertificatePath(), config.getClientCertificatePrivateKeyPath(), config.getVtgateUsername(),
                 config.getVtgatePassword());
         managedChannel.compareAndSet(null, channel);
 
@@ -83,7 +82,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
         Objects.requireNonNull(vgtid);
 
         ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(),
-                config.getRootCaCertificate(), config.getClientCertificate(), config.getClientCertificatePrivateKey(), config.getVtgateUsername(),
+                config.getRootCaCertificatePath(), config.getClientCertificatePath(), config.getClientCertificatePrivateKeyPath(), config.getVtgateUsername(),
                 config.getVtgatePassword());
 
         managedChannel.compareAndSet(null, channel);
@@ -323,8 +322,8 @@ public class VitessReplicationConnection implements ReplicationConnection {
         return stub;
     }
 
-    private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize, String rootCaCertPath, String mtlsClientCertificate,
-                                      String mtlsClientCertificatePrivateKey, String username, String password) {
+    private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize, String rootCaCertPath, String mtlsClientCertificatePath,
+                                      String mtlsClientCertificatePrivateKeyPath, String username, String password) {
         TlsChannelCredentials.Builder tlsBuilder = TlsChannelCredentials.newBuilder();
 
         try {
@@ -332,9 +331,9 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 tlsBuilder.trustManager(new File(rootCaCertPath));
             }
 
-            if (mtlsClientCertificate != null && mtlsClientCertificatePrivateKey != null && !mtlsClientCertificate.isEmpty()
-                    && !mtlsClientCertificatePrivateKey.isEmpty()) {
-                tlsBuilder.keyManager(new ByteArrayInputStream(mtlsClientCertificate.getBytes()), new ByteArrayInputStream(mtlsClientCertificatePrivateKey.getBytes()));
+            if (mtlsClientCertificatePath != null && mtlsClientCertificatePrivateKeyPath != null && !mtlsClientCertificatePath.isEmpty()
+                    && !mtlsClientCertificatePrivateKeyPath.isEmpty()) {
+                tlsBuilder.keyManager(new File(mtlsClientCertificatePath), new File(mtlsClientCertificatePrivateKeyPath));
             }
         }
         catch (java.io.IOException fe) {

@@ -5,8 +5,10 @@
  */
 package io.debezium.connector.vitess;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -403,6 +405,39 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                         configName, VitessConnectorConfig.OFFSET_STORAGE_TASK_KEY_GEN.name()));
             }
         }
+
+        String configName = VitessConnectorConfig.ROOT_CA_CERT_PATH.name();
+        String result = validateFilePath(results, config, configName, tempConnectorConfig.getRootCaCertificatePath());
+        if (result != "") {
+            results.get(configName).addErrorMessage(result);
+        }
+
+        configName = VitessConnectorConfig.MTLS_CLIENT_CERTIFICATE_PATH.name();
+        result = validateFilePath(results, config, configName, tempConnectorConfig.getClientCertificatePath());
+        if (result != "") {
+            results.get(configName).addErrorMessage(result);
+        }
+
+        configName = VitessConnectorConfig.MTLS_CLIENT_CERTIFICATE_PRIVATE_KEY_PATH.name();
+        result = validateFilePath(results, config, configName, tempConnectorConfig.getClientCertificatePrivateKeyPath());
+        if (result != "") {
+            results.get(configName).addErrorMessage(result);
+        }
         return results;
+    }
+
+    protected String validateFilePath(Map<String, ConfigValue> results, Configuration config, String configName, String filePath) {
+        VitessConnectorConfig tempConnectorConfig = new VitessConnectorConfig(config);
+        String rootCaPath = tempConnectorConfig.getRootCaCertificatePath();
+        if (filePath != null && filePath != "") {
+            Path path = Paths.get(rootCaPath);
+            if (!Files.exists(path)) {
+                return String.format(
+                        "%s at path %s was not found",
+                        configName, filePath);
+            }
+        }
+
+        return "";
     }
 }

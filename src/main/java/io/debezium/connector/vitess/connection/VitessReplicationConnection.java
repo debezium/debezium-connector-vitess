@@ -5,7 +5,7 @@
  */
 package io.debezium.connector.vitess.connection;
 
-import java.io.File;
+import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -66,7 +66,9 @@ public class VitessReplicationConnection implements ReplicationConnection {
      */
     public Vtgate.ExecuteResponse execute(String sqlStatement) {
         LOGGER.info("PHANI :: Should skip Executing sqlStament {}", sqlStatement);
-        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize());
+        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(),
+                config.getRootCaCertificate(), config.getClientCertificate(), config.getClientCertificatePrivateKey(), config.getVtgateUsername(),
+                config.getVtgatePassword());
         managedChannel.compareAndSet(null, channel);
 
         Vtgate.ExecuteRequest request = Vtgate.ExecuteRequest.newBuilder()
@@ -80,7 +82,10 @@ public class VitessReplicationConnection implements ReplicationConnection {
                                Vgtid vgtid, ReplicationMessageProcessor processor, AtomicReference<Throwable> error) {
         Objects.requireNonNull(vgtid);
 
-        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize());
+        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(),
+                config.getRootCaCertificate(), config.getClientCertificate(), config.getClientCertificatePrivateKey(), config.getVtgateUsername(),
+                config.getVtgatePassword());
+
         managedChannel.compareAndSet(null, channel);
 
         VitessGrpc.VitessStub stub = newStub(channel);
@@ -309,11 +314,19 @@ public class VitessReplicationConnection implements ReplicationConnection {
         return stub;
     }
 
-    private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize) {
+    private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize, String rootCaCert, String mtlsClientCertificate,
+                                      String mtlsClientCertificatePrivateKey, String username, String password) {
         System.out.println("PHANI :: Connecting to vtgate to execute VStream");
         TlsChannelCredentials.Builder tlsBuilder = TlsChannelCredentials.newBuilder();
+
         try {
-            tlsBuilder.trustManager(new File("/Users/phaniraj/ps/edge-gateway/testcerts/gateway-cert.pem"));
+            if (!rootCaCert.isEmpty()) {
+                tlsBuilder.trustManager(new ByteArrayInputStream(rootCaCert.getBytes()));
+            }
+
+            if (!mtlsClientCertificate.isEmpty() && !mtlsClientCertificatePrivateKey.isEmpty()) {
+                tlsBuilder.keyManager(new ByteArrayInputStream(mtlsClientCertificate.getBytes()), new ByteArrayInputStream(mtlsClientCertificatePrivateKey.getBytes()));
+            }
         }
         catch (java.io.IOException fe) {
             System.out.printf("failed to load certificates : %s", fe);
@@ -322,7 +335,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
         ManagedChannel channel = Grpc.newChannelBuilderForAddress(vtgateHost, vtgatePort, tlsBuilder.build())
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .keepAliveTime(config.getKeepaliveInterval().toMillis(), TimeUnit.MILLISECONDS)
-                .intercept(new AuthTokenProvideInterceptor())
+                .intercept(new AuthTokenProvideInterceptor(username, password))
                 .build();
         System.out.println(channel.getClass().getName());
         return channel;

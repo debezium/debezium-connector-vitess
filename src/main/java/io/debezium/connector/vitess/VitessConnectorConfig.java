@@ -176,6 +176,29 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         }
     }
 
+    public static final Field ROOT_CA_CERT = Field.create(VITESS_CONFIG_GROUP_PREFIX + "root_ca_cert")
+            .withDisplayName("PEM encoded root CA certificate")
+            .withType(Type.STRING)
+            .withWidth(Width.MEDIUM)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withDescription(
+                    "pem encoded root ca certificate.");
+
+    public static final Field MTLS_CLIENT_CERTIFICATE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "mtls_client_certificate")
+            .withDisplayName("PEM encoded Client Certificate")
+            .withType(Type.STRING)
+            .withWidth(Width.MEDIUM)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withDescription(
+                    "pEM encoded client certificate for mutual TLS authentication.");
+
+    public static final Field MTLS_CLIENT_CERTIFICATE_PRIVATE_KEY = Field.create(VITESS_CONFIG_GROUP_PREFIX + "mtls_client_certificate_private_key")
+            .withDisplayName("PEM encoded Client Certificate Private Key")
+            .withType(Type.STRING)
+            .withWidth(Width.MEDIUM)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withDescription(
+                    "pEM encoded client certificate private key for mutual TLS authentication.");
     public static final Field VTGATE_HOST = Field.create(DATABASE_CONFIG_PREFIX + JdbcConfiguration.HOSTNAME)
             .withDisplayName("Vitess database hostname")
             .withType(Type.STRING)
@@ -380,6 +403,9 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .edit()
             .name("Vitess")
             .type(
+                    ROOT_CA_CERT,
+                    MTLS_CLIENT_CERTIFICATE,
+                    MTLS_CLIENT_CERTIFICATE_PRIVATE_KEY,
                     KEYSPACE,
                     SHARD,
                     GTID,
@@ -493,6 +519,18 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public String getVtgateHost() {
         return getConfig().getString(VTGATE_HOST);
+    }
+
+    public String getRootCaCertificate() {
+        return getConfig().getString(ROOT_CA_CERT);
+    }
+
+    public String getClientCertificate() {
+        return getConfig().getString(MTLS_CLIENT_CERTIFICATE);
+    }
+
+    public String getClientCertificatePrivateKey() {
+        return getConfig().getString(MTLS_CLIENT_CERTIFICATE_PRIVATE_KEY);
     }
 
     public int getVtgatePort() {

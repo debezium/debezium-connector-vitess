@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is an example script that creates a quorum of Etcd servers.
-
 source "$(dirname "${BASH_SOURCE[0]:-$0}")/../env.sh"
 
 cell=${CELL:-'test'}

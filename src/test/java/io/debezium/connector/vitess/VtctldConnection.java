@@ -109,7 +109,6 @@ public class VtctldConnection implements AutoCloseable {
         List<String> args = Arrays.asList("OnlineDDL", keyspace, "show", id);
         List<String> results = execVtctl(args, vtctldHost, vtctldPort);
         AtomicBoolean isCompleted = new AtomicBoolean(false);
-        LOGGER.info("Results: {}", results);
         results.forEach(s -> {
             if (s.trim().equals("complete")) {
                 isCompleted.set(true);

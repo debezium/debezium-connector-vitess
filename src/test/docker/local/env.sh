@@ -45,8 +45,8 @@ mkdir -p "${VTDATAROOT}/tmp"
 # such as ~/.my.cnf
 
 alias mysql="command mysql --no-defaults -h 127.0.0.1 -P 15306"
-alias vtctlclient="command vtctlclient --server localhost:15999 --log_dir ${VTDATAROOT}/tmp --alsologtostderr --config-file-not-found-handling=ignore"
-alias vtctldclient="command vtctldclient --server localhost:15999"
+alias vtctlclient="command vtctlclient --server localhost:15999 --log_dir ${VTDATAROOT}/tmp --alsologtostderr --config-file-not-found-handling=ignore --grpc_auth_static_client_creds grpc_static_client_auth.json "
+alias vtctldclient="command vtctldclient --server localhost:15999 --grpc_auth_static_client_creds grpc_static_client_auth.json "
 
 # Make sure aliases are expanded in non-interactive shell
 shopt -s expand_aliases

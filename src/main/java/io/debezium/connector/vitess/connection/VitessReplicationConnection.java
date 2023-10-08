@@ -5,7 +5,6 @@
  */
 package io.debezium.connector.vitess.connection;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -24,12 +23,7 @@ import io.debezium.connector.vitess.VitessConnector;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.debezium.util.Strings;
-import io.grpc.Grpc;
-import io.grpc.ManagedChannel;
-import io.grpc.Metadata;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import io.grpc.TlsChannelCredentials;
+import io.grpc.*;
 import io.grpc.stub.AbstractStub;
 import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
@@ -65,8 +59,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
      * @throws StatusRuntimeException if the connection is not valid, or SQL statement can not be successfully exected
      */
     public Vtgate.ExecuteResponse execute(String sqlStatement) {
-        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(),
-                config.getRootCaCertificatePath(), config.getClientCertificatePath(), config.getClientCertificatePrivateKeyPath(), config.getVtgateUsername(),
+        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(), config.getVtgateUsername(),
                 config.getVtgatePassword());
         managedChannel.compareAndSet(null, channel);
 
@@ -81,8 +74,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                                Vgtid vgtid, ReplicationMessageProcessor processor, AtomicReference<Throwable> error) {
         Objects.requireNonNull(vgtid);
 
-        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(),
-                config.getRootCaCertificatePath(), config.getClientCertificatePath(), config.getClientCertificatePrivateKeyPath(), config.getVtgateUsername(),
+        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(), config.getVtgateUsername(),
                 config.getVtgatePassword());
 
         managedChannel.compareAndSet(null, channel);
@@ -322,30 +314,17 @@ public class VitessReplicationConnection implements ReplicationConnection {
         return stub;
     }
 
-    private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize, String rootCaCertPath, String mtlsClientCertificatePath,
-                                      String mtlsClientCertificatePrivateKeyPath, String username, String password) {
-        TlsChannelCredentials.Builder tlsBuilder = TlsChannelCredentials.newBuilder();
+    private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize, String username, String password) {
+        TlsChannelCredentials.Builder tlsBuilder = config.getTlsBuilder();
 
-        try {
-            if (rootCaCertPath != null && !rootCaCertPath.isEmpty()) {
-                tlsBuilder.trustManager(new File(rootCaCertPath));
-            }
-
-            if (mtlsClientCertificatePath != null && mtlsClientCertificatePrivateKeyPath != null && !mtlsClientCertificatePath.isEmpty()
-                    && !mtlsClientCertificatePrivateKeyPath.isEmpty()) {
-                tlsBuilder.keyManager(new File(mtlsClientCertificatePath), new File(mtlsClientCertificatePrivateKeyPath));
-            }
-        }
-        catch (java.io.IOException fe) {
-            System.out.printf("failed to load certificates : %s", fe);
-        }
-
-        ManagedChannel channel = Grpc.newChannelBuilderForAddress(vtgateHost, vtgatePort, tlsBuilder.build())
+        ManagedChannelBuilder channelBuilder = Grpc.newChannelBuilderForAddress(vtgateHost, vtgatePort, tlsBuilder.build())
                 .maxInboundMessageSize(maxInboundMessageSize)
-                .keepAliveTime(config.getKeepaliveInterval().toMillis(), TimeUnit.MILLISECONDS)
-                .intercept(new AuthTokenProvideInterceptor(username, password))
-                .build();
-        return channel;
+                .keepAliveTime(config.getKeepaliveInterval().toMillis(), TimeUnit.MILLISECONDS);
+
+        if (config.isAuthenticated()) {
+            channelBuilder = channelBuilder.intercept(new AuthTokenProvideInterceptor(username, password));
+        }
+        return channelBuilder.build();
     }
 
     /** Close the gRPC connection to VStream */

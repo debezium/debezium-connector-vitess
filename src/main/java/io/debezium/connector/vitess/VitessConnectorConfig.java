@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.vitess;
 
+import java.io.File;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -30,6 +31,7 @@ import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.grpc.TlsChannelCredentials;
 
 /**
  * Vitess connector configuration, including its specific configurations and the common
@@ -545,6 +547,11 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return getConfig().getString(VTGATE_PASSWORD);
     }
 
+    public boolean isStringConfigSet(Field configName) {
+        String configValue = getConfig().getString(configName);
+        return configValue != null && !configValue.isEmpty();
+    }
+
     public String getTabletType() {
         return getConfig().getString(TABLET_TYPE);
     }
@@ -619,5 +626,33 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     public BigIntUnsignedHandlingMode getBigIntUnsgnedHandlingMode() {
         return BigIntUnsignedHandlingMode.parse(getConfig().getString(BIGINT_UNSIGNED_HANDLING_MODE),
                 BIGINT_UNSIGNED_HANDLING_MODE.defaultValueAsString());
+    }
+
+    public boolean isAuthenticated() {
+        return isStringConfigSet(VTGATE_USER) && isStringConfigSet(VTGATE_PASSWORD);
+    }
+
+    public TlsChannelCredentials.Builder getTlsBuilder() {
+        TlsChannelCredentials.Builder tlsBuilder = TlsChannelCredentials.newBuilder();
+
+        String rootCaCertPath = getRootCaCertificatePath();
+        String mtlsClientCertificatePath = getClientCertificatePath();
+        String mtlsClientCertificatePrivateKeyPath = getClientCertificatePrivateKeyPath();
+
+        try {
+            if (rootCaCertPath != null && !rootCaCertPath.isEmpty()) {
+                tlsBuilder.trustManager(new File(rootCaCertPath));
+            }
+
+            if (mtlsClientCertificatePath != null && mtlsClientCertificatePrivateKeyPath != null && !mtlsClientCertificatePath.isEmpty()
+                    && !mtlsClientCertificatePrivateKeyPath.isEmpty()) {
+                tlsBuilder.keyManager(new File(mtlsClientCertificatePath), new File(mtlsClientCertificatePrivateKeyPath));
+            }
+        }
+        catch (java.io.IOException fe) {
+            System.out.printf("failed to load certificates : %s", fe);
+        }
+
+        return tlsBuilder;
     }
 }

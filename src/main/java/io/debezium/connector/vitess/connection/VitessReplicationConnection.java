@@ -60,10 +60,10 @@ public class VitessReplicationConnection implements ReplicationConnection {
      */
     public Vtgate.ExecuteResponse execute(String sqlStatement) {
         ChannelCredentials tlsBuilder = config.getTLSChannelCredentials();
-        AuthTokenProvideInterceptor authTokenProvideInterceptor = config.getAuthTokenInterceptor();
+        BasicAuthenticationInterceptor basicAuthenticationInterceptor = config.getBasicAuthenticationInterceptor();
 
         ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(),
-                tlsBuilder, authTokenProvideInterceptor);
+                tlsBuilder, basicAuthenticationInterceptor);
         managedChannel.compareAndSet(null, channel);
 
         Vtgate.ExecuteRequest request = Vtgate.ExecuteRequest.newBuilder()
@@ -78,10 +78,10 @@ public class VitessReplicationConnection implements ReplicationConnection {
         Objects.requireNonNull(vgtid);
 
         ChannelCredentials tlsBuilder = config.getTLSChannelCredentials();
-        AuthTokenProvideInterceptor authTokenProvideInterceptor = config.getAuthTokenInterceptor();
+        BasicAuthenticationInterceptor basicAuthenticationInterceptor = config.getBasicAuthenticationInterceptor();
 
         ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(),
-                tlsBuilder, authTokenProvideInterceptor);
+                tlsBuilder, basicAuthenticationInterceptor);
 
         managedChannel.compareAndSet(null, channel);
 
@@ -321,14 +321,14 @@ public class VitessReplicationConnection implements ReplicationConnection {
     }
 
     private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize,
-                                      ChannelCredentials tlsChannelCredentials, AuthTokenProvideInterceptor authTokenProvideInterceptor) {
+                                      ChannelCredentials tlsChannelCredentials, BasicAuthenticationInterceptor basicAuthenticationInterceptor) {
 
         ManagedChannelBuilder channelBuilder = Grpc.newChannelBuilderForAddress(vtgateHost, vtgatePort, tlsChannelCredentials)
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .keepAliveTime(config.getKeepaliveInterval().toMillis(), TimeUnit.MILLISECONDS);
 
-        if (authTokenProvideInterceptor != null) {
-            channelBuilder = channelBuilder.intercept(authTokenProvideInterceptor);
+        if (basicAuthenticationInterceptor != null) {
+            channelBuilder = channelBuilder.intercept(basicAuthenticationInterceptor);
         }
         return channelBuilder.build();
     }

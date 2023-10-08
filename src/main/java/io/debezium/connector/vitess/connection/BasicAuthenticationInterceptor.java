@@ -11,12 +11,12 @@ import io.grpc.Metadata;
 import io.grpc.Metadata.Key;
 import io.grpc.MethodDescriptor;
 
-public class AuthTokenProvideInterceptor implements ClientInterceptor {
+public class BasicAuthenticationInterceptor implements ClientInterceptor {
 
     private final String username;
     private final String password;
 
-    public AuthTokenProvideInterceptor(String user, String pass) {
+    public BasicAuthenticationInterceptor(String user, String pass) {
         username = user;
         password = pass;
     }

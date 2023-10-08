@@ -27,7 +27,7 @@ import io.debezium.config.EnumeratedValue;
 import io.debezium.config.Field;
 import io.debezium.config.Field.ValidationOutput;
 import io.debezium.connector.SourceInfoStructMaker;
-import io.debezium.connector.vitess.connection.AuthTokenProvideInterceptor;
+import io.debezium.connector.vitess.connection.BasicAuthenticationInterceptor;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.relational.ColumnFilterMode;
@@ -634,12 +634,12 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return isStringConfigSet(VTGATE_USER) && isStringConfigSet(VTGATE_PASSWORD);
     }
 
-    public AuthTokenProvideInterceptor getAuthTokenInterceptor() {
+    public BasicAuthenticationInterceptor getBasicAuthenticationInterceptor() {
         if (!isAuthenticated()) {
             return null;
         }
 
-        return new AuthTokenProvideInterceptor(getVtgateUsername(), getVtgatePassword());
+        return new BasicAuthenticationInterceptor(getVtgateUsername(), getVtgatePassword());
     }
 
     public ChannelCredentials getTLSChannelCredentials() {

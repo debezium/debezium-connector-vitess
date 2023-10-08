@@ -188,6 +188,14 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDescription(
                     "Path to  pem encoded root ca certificate.");
 
+    public static final Field ADD_BASIC_AUTHENTICATION_GRPC_HEADER = Field.create(VITESS_CONFIG_GROUP_PREFIX + "set_basic_authentication_header")
+            .withDisplayName("Set to true if VTGate uses basic authentication")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withDescription(
+                    "Flag to add Basic : authorization header to requests sent to vtgate gRPC service.");
+
     public static final Field MTLS_CLIENT_CERTIFICATE_PATH = Field.create(VITESS_CONFIG_GROUP_PREFIX + "mtls_client_certificate_path")
             .withDisplayName("PEM encoded Client Certificate")
             .withType(Type.STRING)
@@ -533,6 +541,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return getConfig().getString(MTLS_CLIENT_CERTIFICATE_PATH);
     }
 
+    public boolean addBasicAuthenticationHeader() {
+        return getConfig().getBoolean(ADD_BASIC_AUTHENTICATION_GRPC_HEADER);
+    }
+
     public String getClientCertificatePrivateKeyPath() {
         return getConfig().getString(MTLS_CLIENT_CERTIFICATE_PRIVATE_KEY_PATH);
     }
@@ -635,7 +647,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     }
 
     public BasicAuthenticationInterceptor getBasicAuthenticationInterceptor() {
-        if (!isAuthenticated()) {
+        if (!isAuthenticated() || !addBasicAuthenticationHeader()) {
             return null;
         }
 

@@ -59,8 +59,11 @@ public class VitessReplicationConnection implements ReplicationConnection {
      * @throws StatusRuntimeException if the connection is not valid, or SQL statement can not be successfully exected
      */
     public Vtgate.ExecuteResponse execute(String sqlStatement) {
-        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(), config.getVtgateUsername(),
-                config.getVtgatePassword());
+        ChannelCredentials tlsBuilder = config.getTLSChannelCredentials();
+        AuthTokenProvideInterceptor authTokenProvideInterceptor = config.getAuthTokenInterceptor();
+
+        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(),
+                tlsBuilder, authTokenProvideInterceptor);
         managedChannel.compareAndSet(null, channel);
 
         Vtgate.ExecuteRequest request = Vtgate.ExecuteRequest.newBuilder()
@@ -74,8 +77,11 @@ public class VitessReplicationConnection implements ReplicationConnection {
                                Vgtid vgtid, ReplicationMessageProcessor processor, AtomicReference<Throwable> error) {
         Objects.requireNonNull(vgtid);
 
-        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(), config.getVtgateUsername(),
-                config.getVtgatePassword());
+        ChannelCredentials tlsBuilder = config.getTLSChannelCredentials();
+        AuthTokenProvideInterceptor authTokenProvideInterceptor = config.getAuthTokenInterceptor();
+
+        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(),
+                tlsBuilder, authTokenProvideInterceptor);
 
         managedChannel.compareAndSet(null, channel);
 
@@ -314,15 +320,15 @@ public class VitessReplicationConnection implements ReplicationConnection {
         return stub;
     }
 
-    private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize, String username, String password) {
-        TlsChannelCredentials.Builder tlsBuilder = config.getTlsBuilder();
+    private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize,
+                                      ChannelCredentials tlsChannelCredentials, AuthTokenProvideInterceptor authTokenProvideInterceptor) {
 
-        ManagedChannelBuilder channelBuilder = Grpc.newChannelBuilderForAddress(vtgateHost, vtgatePort, tlsBuilder.build())
+        ManagedChannelBuilder channelBuilder = Grpc.newChannelBuilderForAddress(vtgateHost, vtgatePort, tlsChannelCredentials)
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .keepAliveTime(config.getKeepaliveInterval().toMillis(), TimeUnit.MILLISECONDS);
 
-        if (config.isAuthenticated()) {
-            channelBuilder = channelBuilder.intercept(new AuthTokenProvideInterceptor(username, password));
+        if (authTokenProvideInterceptor != null) {
+            channelBuilder = channelBuilder.intercept(authTokenProvideInterceptor);
         }
         return channelBuilder.build();
     }

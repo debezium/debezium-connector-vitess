@@ -27,10 +27,12 @@ import io.debezium.config.EnumeratedValue;
 import io.debezium.config.Field;
 import io.debezium.config.Field.ValidationOutput;
 import io.debezium.connector.SourceInfoStructMaker;
+import io.debezium.connector.vitess.connection.AuthTokenProvideInterceptor;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.grpc.ChannelCredentials;
 import io.grpc.TlsChannelCredentials;
 
 /**
@@ -632,7 +634,15 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return isStringConfigSet(VTGATE_USER) && isStringConfigSet(VTGATE_PASSWORD);
     }
 
-    public TlsChannelCredentials.Builder getTlsBuilder() {
+    public AuthTokenProvideInterceptor getAuthTokenInterceptor() {
+        if (!isAuthenticated()) {
+            return null;
+        }
+
+        return new AuthTokenProvideInterceptor(getVtgateUsername(), getVtgatePassword());
+    }
+
+    public ChannelCredentials getTLSChannelCredentials() {
         TlsChannelCredentials.Builder tlsBuilder = TlsChannelCredentials.newBuilder();
 
         String rootCaCertPath = getRootCaCertificatePath();
@@ -653,6 +663,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             System.out.printf("failed to load certificates : %s", fe);
         }
 
-        return tlsBuilder;
+        return tlsBuilder.build();
     }
 }

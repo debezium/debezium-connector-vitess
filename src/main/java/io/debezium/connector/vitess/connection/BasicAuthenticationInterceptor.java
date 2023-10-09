@@ -11,6 +11,9 @@ import io.grpc.Metadata;
 import io.grpc.Metadata.Key;
 import io.grpc.MethodDescriptor;
 
+/**
+ * Interceptor to set the BASIC: authorization header for a gRPC call to VTGate service
+ */
 public class BasicAuthenticationInterceptor implements ClientInterceptor {
 
     private final String username;

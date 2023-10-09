@@ -28,6 +28,7 @@ import io.grpc.stub.AbstractStub;
 import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 import io.vitess.client.Proto;
+import io.vitess.client.grpc.StaticAuthCredentials;
 import io.vitess.proto.Topodata;
 import io.vitess.proto.Vtgate;
 import io.vitess.proto.grpc.VitessGrpc;
@@ -60,10 +61,8 @@ public class VitessReplicationConnection implements ReplicationConnection {
      */
     public Vtgate.ExecuteResponse execute(String sqlStatement) {
         ChannelCredentials tlsBuilder = config.getTLSChannelCredentials();
-        BasicAuthenticationInterceptor basicAuthenticationInterceptor = config.getBasicAuthenticationInterceptor();
-
         ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(),
-                tlsBuilder, basicAuthenticationInterceptor);
+                tlsBuilder);
         managedChannel.compareAndSet(null, channel);
 
         Vtgate.ExecuteRequest request = Vtgate.ExecuteRequest.newBuilder()
@@ -78,10 +77,8 @@ public class VitessReplicationConnection implements ReplicationConnection {
         Objects.requireNonNull(vgtid);
 
         ChannelCredentials tlsBuilder = config.getTLSChannelCredentials();
-        BasicAuthenticationInterceptor basicAuthenticationInterceptor = config.getBasicAuthenticationInterceptor();
-
         ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize(),
-                tlsBuilder, basicAuthenticationInterceptor);
+                tlsBuilder);
 
         managedChannel.compareAndSet(null, channel);
 
@@ -304,33 +301,38 @@ public class VitessReplicationConnection implements ReplicationConnection {
 
     private VitessGrpc.VitessStub newStub(ManagedChannel channel) {
         VitessGrpc.VitessStub stub = VitessGrpc.newStub(channel);
-        return withCredentials(stub);
+        return withBasicAuthentication(withCredentials(stub));
     }
 
     private VitessGrpc.VitessBlockingStub newBlockingStub(ManagedChannel channel) {
         VitessGrpc.VitessBlockingStub stub = VitessGrpc.newBlockingStub(channel);
-        return withCredentials(stub);
+        return withBasicAuthentication(withCredentials(stub));
     }
 
     private <T extends AbstractStub<T>> T withCredentials(T stub) {
         if (config.getVtgateUsername() != null && config.getVtgatePassword() != null) {
-            LOGGER.info("NOT Using authenticated vtgate grpc.");
-            // stub = stub.withCallCredentials(new StaticAuthCredentials(config.getVtgateUsername(), config.getVtgatePassword()));
+            LOGGER.info("Using authenticated vtgate grpc.");
+            stub = stub.withCallCredentials(new StaticAuthCredentials(config.getVtgateUsername(), config.getVtgatePassword()));
+        }
+        return stub;
+    }
+
+    private <T extends AbstractStub<T>> T withBasicAuthentication(T stub) {
+        BasicAuthenticationInterceptor authInterceptor = config.getBasicAuthenticationInterceptor();
+        if (authInterceptor != null) {
+            LOGGER.info("Using Basic authentication to vtgate grpc.");
+            stub = stub.withInterceptors(authInterceptor);
         }
         return stub;
     }
 
     private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize,
-                                      ChannelCredentials tlsChannelCredentials, BasicAuthenticationInterceptor basicAuthenticationInterceptor) {
+                                      ChannelCredentials tlsChannelCredentials) {
 
-        ManagedChannelBuilder channelBuilder = Grpc.newChannelBuilderForAddress(vtgateHost, vtgatePort, tlsChannelCredentials)
+        return Grpc.newChannelBuilderForAddress(vtgateHost, vtgatePort, tlsChannelCredentials)
                 .maxInboundMessageSize(maxInboundMessageSize)
-                .keepAliveTime(config.getKeepaliveInterval().toMillis(), TimeUnit.MILLISECONDS);
-
-        if (basicAuthenticationInterceptor != null) {
-            channelBuilder = channelBuilder.intercept(basicAuthenticationInterceptor);
-        }
-        return channelBuilder.build();
+                .keepAliveTime(config.getKeepaliveInterval().toMillis(), TimeUnit.MILLISECONDS)
+                .build();
     }
 
     /** Close the gRPC connection to VStream */

@@ -294,7 +294,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         final VitessConnectorConfig connectionConfig = new VitessConnectorConfig(config);
         VitessReplicationConnection connection = new VitessReplicationConnection(connectionConfig, null);
         try {
-            // connection.execute("SHOW DATABASES");
+            connection.execute("SHOW DATABASES");
             LOGGER.info("Successfully tested connection for {} with user '{}'", connection.connectionString(), connection.username());
         }
         catch (StatusRuntimeException e) {

@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.vitess;
 
+import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_TEMPLATE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.apache.kafka.connect.data.Schema;
@@ -21,10 +22,7 @@ public class VitessSourceInfoStructMakerTest {
     private static final String TEST_SHARD2 = "80-";
     private static final String TEST_GTID2 = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000b:1-1513";
     private static final String VGTID_JSON = String.format(
-            "[" +
-                    "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}," +
-                    "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}" +
-                    "]",
+            VGTID_JSON_TEMPLATE,
             TEST_KEYSPACE,
             TEST_SHARD,
             TEST_GTID,
@@ -61,8 +59,8 @@ public class VitessSourceInfoStructMakerTest {
         sourceInfo.resetVgtid(
                 Vgtid.of(
                         Collect.arrayListOf(
-                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID),
-                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2))),
+                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID, null),
+                                new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD2, TEST_GTID2, null))),
                 AnonymousValue.getInstant());
         sourceInfo.setTableId(new TableId(null, schemaName, tableName));
         sourceInfo.setShard(shard);

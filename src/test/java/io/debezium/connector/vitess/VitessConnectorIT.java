@@ -837,6 +837,82 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    public void testVgtidIncludesLastPkDuringTableCopy() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        int expectedSnapshotRecordsCount = 10;
+        final String tableName = "numeric_table";
+        for (int i = 1; i <= expectedSnapshotRecordsCount; i++) {
+            TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        }
+        String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + tableName + "," + TEST_UNSHARDED_KEYSPACE + "." + tableName;
+        startConnector(Function.identity(), false, false, 1,
+                -1, -1, tableInclude, VitessConnectorConfig.SnapshotMode.INITIAL, TestHelper.TEST_SHARD);
+
+        // We should receive a record written before starting the connector.
+        consumer = testConsumer(expectedSnapshotRecordsCount);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 1; i <= expectedSnapshotRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
+            assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, tableName);
+            assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
+
+            if (i == expectedSnapshotRecordsCount) {
+                Map<String, ?> prevOffset = record.sourceOffset();
+                Map<String, ?> prevPartition = record.sourcePartition();
+                Testing.print(String.format("Offset: %s, partition: %s", prevOffset, prevPartition));
+                final String vgtidStr = (String) prevOffset.get(SourceInfo.VGTID_KEY);
+                final String expectedJSONString = "[{\"keyspace\":\"test_unsharded_keyspace\",\"shard\":\"0\"," +
+                        "\"gtid\":\"MySQL56/6a18875e-6d37-11ee-ac9a-0242ac110002:1-224\"," +
+                        "\"table_p_ks\":[{\"table_name\":\"numeric_table\",\"lastpk\":" +
+                        "{\"fields\":[{\"name\":\"id\",\"type\":\"INT64\",\"charset\":63,\"flags\":49667}]," +
+                        "\"rows\":[{\"lengths\":[\"2\"],\"values\":\"10\"}]}}]}]";
+                Vgtid actualVgtid = Vgtid.of(vgtidStr);
+                Vgtid expectedVgtid = Vgtid.of(expectedJSONString);
+                assertThat(actualVgtid.getShardGtids().size()).isEqualTo(1);
+                assertThat(actualVgtid.getShardGtids().get(0).getTableLastPrimaryKeys()).isEqualTo(
+                        expectedVgtid.getShardGtids().get(0).getTableLastPrimaryKeys());
+            }
+        }
+
+    }
+
+    @Test
+    public void testResumeSnapshotOnLastPkSingleTable() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        int totalRecordsInTable = 10;
+        for (int i = 1; i <= totalRecordsInTable; i++) {
+            TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        }
+        String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + "numeric_table";
+        startConnector((builder) -> builder.with(
+                VitessConnectorConfig.VGTID,
+                        "[{\"keyspace\":\"test_unsharded_keyspace\",\"shard\":\"0\"," +
+                        "\"gtid\":\"current\"," +
+                        "\"table_p_ks\":[{\"table_name\":\"numeric_table\",\"lastpk\":{\"fields\":" +
+                        "[{\"name\":\"id\",\"type\":\"INT64\",\"charset\":63,\"flags\":49667}]," +
+                        "\"rows\":[{\"lengths\":[\"1\"],\"values\":\"5\"}]}}]}]"),
+                false, false, 1,
+                -1, -1, tableInclude, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD);
+
+        // We trigger a snapshot, but the previous GTID (specified in config) has a primary key value
+        // So we only expect the total records in the table (10) minus the Primary Key value (5) = 5
+        // records in total. Primary key value indicates the last primary key streamed.
+        int expectedSnapshotRecordsCount = 5;
+        consumer = testConsumer(expectedSnapshotRecordsCount);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 1; i <= expectedSnapshotRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
+            assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, "numeric_table");
+            assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
+        }
+
+        // We should receive additional record from numeric_table
+        int expectedStreamingRecordCount = 1;
+        consumer.expects(expectedStreamingRecordCount);
+        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
+    }
+
+    @Test
     public void testCopyNoRecordsAndReplicateTable() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
 
@@ -975,7 +1051,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     private void waitForGtidAcquiring(final LogInterceptor logInterceptor) {
         // The inserts must happen only after GTID to stream from is obtained
         Awaitility.await().atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
-                .until(() -> logInterceptor.containsMessage("set to the GTID [current] for keyspace"));
+                .until(() -> logInterceptor.containsMessage("set to the GTID current for keyspace"));
     }
 
     private void waitForShardedGtidAcquiring(final LogInterceptor logInterceptor) {

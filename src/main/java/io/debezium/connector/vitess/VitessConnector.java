@@ -242,18 +242,20 @@ public class VitessConnector extends RelationalBaseSourceConnector {
     }
 
     private Map<String, String> getConfigGtidsPerShard(List<String> shards) {
-        List<String> gtids = connectorConfig.getGtid();
+        String gtids = connectorConfig.getGtid();
         Map<String, String> configGtidsPerShard = null;
-        if (shards != null && gtids.equals(VitessConnectorConfig.EMPTY_GTID_LIST)) {
+        if (shards != null && gtids.equals(Vgtid.EMPTY_GTID)) {
             Function<Integer, String> emptyGtid = x -> Vgtid.EMPTY_GTID;
             configGtidsPerShard = buildMap(shards, emptyGtid);
         }
-        else if (shards != null && gtids.equals(VitessConnectorConfig.DEFAULT_GTID_LIST)) {
+        else if (shards != null && gtids.equals(VitessConnectorConfig.DEFAULT_GTID)) {
             Function<Integer, String> currentGtid = x -> Vgtid.CURRENT_GTID;
             configGtidsPerShard = buildMap(shards, currentGtid);
         }
         else if (shards != null) {
-            configGtidsPerShard = buildMap(shards, gtids::get);
+            List<Vgtid.ShardGtid> shardGtids = Vgtid.of(gtids).getShardGtids();
+            Function<Integer, String> shardGtid = (i -> shardGtids.get(i).getGtid());
+            configGtidsPerShard = buildMap(shards, shardGtid);
         }
         LOGGER.info("Found GTIDs per shard in config {}", configGtidsPerShard);
         return configGtidsPerShard;

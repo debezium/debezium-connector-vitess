@@ -54,6 +54,11 @@ public class TestHelper {
     private static final String USERNAME = "vitess";
     private static final String PASSWORD = "vitess_password";
 
+    protected static final String VGTID_JSON_TEMPLATE = "[" +
+                    "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\",\"table_p_ks\":[]}," +
+                    "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\",\"table_p_ks\":[]}" +
+                    "]";
+
     protected static final String INSERT_STMT = "INSERT INTO t1 (int_col) VALUES (1);";
     protected static final List<String> SETUP_TABLES_STMT = Arrays.asList(
             "DROP TABLE IF EXISTS t1;",

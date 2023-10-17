@@ -111,7 +111,7 @@ CREATE TABLE no_pk_multi_comp_unique_keys_table
 DROP TABLE IF EXISTS comp_pk_table;
 CREATE TABLE comp_pk_table
 (
-    id             BIGINT NOT NULL,
+    id             BIGINT NOT NULL AUTO_INCREMENT,
     int_col        INT,
     int_col2        INT,
     PRIMARY KEY (id, int_col)

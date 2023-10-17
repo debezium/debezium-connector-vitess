@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -26,15 +27,19 @@ public class Vgtid {
     public static final String SHARD_KEY = "shard";
     public static final String GTID_KEY = "gtid";
 
+    public static final String TABLE_P_KS_KEY = "table_p_ks";
+
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    @JsonIgnore
     private final Binlogdata.VGtid rawVgtid;
     private final List<ShardGtid> shardGtids = new ArrayList<>();
 
     private Vgtid(Binlogdata.VGtid rawVgtid) {
         this.rawVgtid = rawVgtid;
         for (Binlogdata.ShardGtid shardGtid : rawVgtid.getShardGtidsList()) {
-            shardGtids.add(new ShardGtid(shardGtid.getKeyspace(), shardGtid.getShard(), shardGtid.getGtid()));
+            TablePrimaryKeys tabletablePrimaryKeys = new TablePrimaryKeys(shardGtid.getTablePKsList());
+            shardGtids.add(new ShardGtid(shardGtid.getKeyspace(), shardGtid.getShard(), shardGtid.getGtid(), tabletablePrimaryKeys.getTableLastPrimaryKeys()));
         }
     }
 
@@ -43,11 +48,13 @@ public class Vgtid {
 
         Binlogdata.VGtid.Builder builder = Binlogdata.VGtid.newBuilder();
         for (ShardGtid shardGtid : shardGtids) {
+            TablePrimaryKeys tablePrimaryKeys = TablePrimaryKeys.createFromTableLastPrimaryKeys(shardGtid.getTableLastPrimaryKeys());
             builder.addShardGtids(
                     Binlogdata.ShardGtid.newBuilder()
                             .setKeyspace(shardGtid.getKeyspace())
                             .setShard(shardGtid.getShard())
                             .setGtid(shardGtid.getGtid())
+                            .addAllTablePKs(tablePrimaryKeys.getRawTableLastPrimaryKeys())
                             .build());
         }
         this.rawVgtid = builder.build();
@@ -112,17 +119,27 @@ public class Vgtid {
         return Objects.hash(rawVgtid, shardGtids);
     }
 
-    @JsonPropertyOrder({ KEYSPACE_KEY, SHARD_KEY, GTID_KEY })
+    @JsonPropertyOrder({ KEYSPACE_KEY, SHARD_KEY, GTID_KEY, TABLE_P_KS_KEY })
     public static class ShardGtid {
         private final String keyspace;
         private final String shard;
         private final String gtid;
 
-        @JsonCreator
+        private final List<TablePrimaryKeys.TableLastPrimaryKey> tableLastPrimaryKeys = new ArrayList<>();
+
         public ShardGtid(@JsonProperty(KEYSPACE_KEY) String keyspace, @JsonProperty(SHARD_KEY) String shard, @JsonProperty(GTID_KEY) String gtid) {
+            this(keyspace, shard, gtid, new ArrayList());
+        }
+
+        @JsonCreator
+        public ShardGtid(@JsonProperty(KEYSPACE_KEY) String keyspace, @JsonProperty(SHARD_KEY) String shard, @JsonProperty(GTID_KEY) String gtid,
+                         @JsonProperty(TABLE_P_KS_KEY) List<TablePrimaryKeys.TableLastPrimaryKey> tableLastPrimaryKeys) {
             this.keyspace = keyspace;
             this.shard = shard;
             this.gtid = gtid;
+            if (tableLastPrimaryKeys != null) {
+                this.tableLastPrimaryKeys.addAll(tableLastPrimaryKeys);
+            }
         }
 
         public String getKeyspace() {
@@ -137,6 +154,11 @@ public class Vgtid {
             return gtid;
         }
 
+        @JsonProperty(TABLE_P_KS_KEY)
+        public List<TablePrimaryKeys.TableLastPrimaryKey> getTableLastPrimaryKeys() {
+            return tableLastPrimaryKeys;
+        }
+
         @Override
         public boolean equals(Object o) {
             if (this == o) {
@@ -148,7 +170,8 @@ public class Vgtid {
             ShardGtid shardGtid = (ShardGtid) o;
             return Objects.equals(keyspace, shardGtid.keyspace) &&
                     Objects.equals(shard, shardGtid.shard) &&
-                    Objects.equals(gtid, shardGtid.gtid);
+                    Objects.equals(gtid, shardGtid.gtid) &&
+                    Objects.equals(tableLastPrimaryKeys, shardGtid.tableLastPrimaryKeys);
         }
 
         @Override

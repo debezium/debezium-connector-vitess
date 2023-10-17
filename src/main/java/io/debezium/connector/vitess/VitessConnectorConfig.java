@@ -12,6 +12,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.stream.Collectors;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Type;
@@ -37,8 +40,7 @@ import io.debezium.relational.RelationalDatabaseConnectorConfig;
  */
 public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
-    public static final List<String> EMPTY_GTID_LIST = List.of(Vgtid.EMPTY_GTID);
-    public static final List<String> DEFAULT_GTID_LIST = List.of(Vgtid.CURRENT_GTID);
+    public static final String DEFAULT_GTID = Vgtid.CURRENT_GTID;
     public static final String CSV_DELIMITER = ",";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessConnectorConfig.class);
@@ -222,22 +224,23 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withWidth(Width.MEDIUM)
             .withImportance(ConfigDef.Importance.HIGH)
             .withDescription(
-                    "Single shard of which keyspace to read data from."
-                            + "E.p. \"0\" for an unsharded keyspace. "
-                            + "Or \"-80\" for the -80 shard of the sharded keyspace.");
+                    "Shard(s) of which keyspace to read data from."
+                            + "E.g. \"0\" for an unsharded keyspace. "
+                            + "Or \"-80\" for the -80 shard of the sharded keyspace."
+                            + "Or \"-4000,4000-8000\" for two of the four shards of a sharded keyspace.");
 
-    public static final Field GTID = Field.create(VITESS_CONFIG_GROUP_PREFIX + "gtid")
-            .withDisplayName("gtid")
+    public static final Field VGTID = Field.create(VITESS_CONFIG_GROUP_PREFIX + "vgtid")
+            .withDisplayName("vgtid")
             .withType(Type.STRING)
             .withWidth(Width.LONG)
             .withDefault(Vgtid.CURRENT_GTID)
             .withImportance(ConfigDef.Importance.HIGH)
             .withValidation(VitessConnectorConfig::validateGtids)
             .withDescription(
-                    "Single GTID from where to start reading from for a given shard."
+                    "VGTID from where to start reading from for the given shard(s)."
                             + " It has to be set together with vitess.shard."
-                            + " If not configured, the connector streams changes from the latest position for the given shard."
-                            + " If snapshot.mode is INITIAL (default), the connector starts copying the tables for the given shard first regardless of gtid value.");
+                            + " If not configured, the connector streams changes from the latest position for the given shard(s)."
+                            + " If snapshot.mode is INITIAL (default), the connector starts copying the tables for the given shard(s) first regardless of gtid value.");
 
     public static final Field TABLET_TYPE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "tablet.type")
             .withDisplayName("Tablet type to get data-changes")
@@ -382,7 +385,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .type(
                     KEYSPACE,
                     SHARD,
-                    GTID,
+                    VGTID,
                     VTGATE_HOST,
                     VTGATE_PORT,
                     VTGATE_USER,
@@ -464,28 +467,34 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return getConfig().getStrings(SHARD, CSV_DELIMITER);
     }
 
-    public List<String> getGtid() {
+    public String getGtid() {
         if (getSnapshotMode() == SnapshotMode.INITIAL) {
-            return EMPTY_GTID_LIST;
+            return Vgtid.EMPTY_GTID;
         }
-        List<String> value = getConfig().getStrings(GTID, CSV_DELIMITER);
-        return (value != null && !GTID.defaultValueAsString().equals(value)) ? value : DEFAULT_GTID_LIST;
+        String value = getConfig().getString(VGTID);
+        return (value != null && !VGTID.defaultValueAsString().equals(value)) ? value : DEFAULT_GTID;
     }
 
     private static int validateGtids(Configuration config, Field field, ValidationOutput problems) {
         // Get the GTID as a string so that the default value is used if GTID is not set
-        String gtid = config.getString(GTID);
-        List<String> gtids = List.of(gtid.split(CSV_DELIMITER));
-        if (gtids.equals(VitessConnectorConfig.DEFAULT_GTID_LIST) || gtids.equals(VitessConnectorConfig.EMPTY_GTID_LIST)) {
+        String gtid = config.getString(VGTID);
+        if (gtid.equals(VitessConnectorConfig.DEFAULT_GTID) || gtid.equals(Vgtid.EMPTY_GTID)) {
             return 0;
         }
         List<String> shards = config.getStrings(SHARD, CSV_DELIMITER);
-        if (shards == null && gtids != null) {
-            problems.accept(field, gtids, "If GTIDs are specified, there must be shards specified");
+        Vgtid vgtid = Vgtid.of(gtid);
+        if (shards == null && vgtid.getShardGtids() != null) {
+            problems.accept(field, gtid, "If GTIDs are specified, there must be shards specified");
             return 1;
         }
-        if (shards != null && shards.size() != gtids.size()) {
-            problems.accept(field, gtids, "If GTIDs are specified must be specified for all shards");
+        if (shards != null && shards.size() != vgtid.getShardGtids().size()) {
+            problems.accept(field, gtid, "If GTIDs are specified must be specified for all shards");
+            return 1;
+        }
+        Set<String> configShards = new HashSet(shards);
+        Set<String> vgtidConfigShards = vgtid.getShardGtids().stream().map(shardGtid -> shardGtid.getShard()).collect(Collectors.toSet());
+        if (!configShards.equals(vgtidConfigShards)) {
+            problems.accept(field, gtid, "If GTIDs are specified must be specified for matching shards");
             return 1;
         }
         return 0;

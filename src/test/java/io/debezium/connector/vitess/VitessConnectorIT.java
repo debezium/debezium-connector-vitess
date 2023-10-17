@@ -886,7 +886,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + "numeric_table";
         startConnector((builder) -> builder.with(
                 VitessConnectorConfig.VGTID,
-                        "[{\"keyspace\":\"test_unsharded_keyspace\",\"shard\":\"0\"," +
+                "[{\"keyspace\":\"test_unsharded_keyspace\",\"shard\":\"0\"," +
                         "\"gtid\":\"current\"," +
                         "\"table_p_ks\":[{\"table_name\":\"numeric_table\",\"lastpk\":{\"fields\":" +
                         "[{\"name\":\"id\",\"type\":\"INT64\",\"charset\":63,\"flags\":49667}]," +

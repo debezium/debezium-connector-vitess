@@ -1,19 +1,20 @@
 package io.debezium.connector.vitess;
 
-import binlogdata.Binlogdata;
-import com.fasterxml.jackson.annotation.*;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.protobuf.ByteString;
-import io.vitess.proto.Query;
-
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+
+import com.fasterxml.jackson.annotation.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.ByteString;
+
+import io.vitess.proto.Query;
+
+import binlogdata.Binlogdata;
 
 public class TablePrimaryKeys {
 
@@ -35,7 +36,7 @@ public class TablePrimaryKeys {
     private final List<TableLastPrimaryKey> tableLastPrimaryKeys = new ArrayList<>();
 
     public TablePrimaryKeys(List<Binlogdata.TableLastPK> rawTableLastPrimaryKey) {
-        for (Binlogdata.TableLastPK tableLastPrimaryKey: rawTableLastPrimaryKey) {
+        for (Binlogdata.TableLastPK tableLastPrimaryKey : rawTableLastPrimaryKey) {
             this.rawTableLastPrimaryKeys.add(tableLastPrimaryKey);
             tableLastPrimaryKeys.add(new TableLastPrimaryKey(tableLastPrimaryKey.getTableName(), tableLastPrimaryKey.getLastpk()));
         }
@@ -43,14 +44,14 @@ public class TablePrimaryKeys {
 
     public static TablePrimaryKeys of(String tablePrimaryKeysJSON) {
         try {
-            List<TableLastPrimaryKey> tablePrimaryKeys = MAPPER.readValue(tablePrimaryKeysJSON, new TypeReference<List<TableLastPrimaryKey>>(){});
+            List<TableLastPrimaryKey> tablePrimaryKeys = MAPPER.readValue(tablePrimaryKeysJSON, new TypeReference<List<TableLastPrimaryKey>>() {
+            });
             return createFromTableLastPrimaryKeys(tablePrimaryKeys);
-        } catch (JsonProcessingException e) {
+        }
+        catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
         }
     }
-
-
 
     public static TablePrimaryKeys createFromRawTableLastPrimaryKey(List<Binlogdata.TableLastPK> rawTableLastPrimaryKeys) {
         return new TablePrimaryKeys(rawTableLastPrimaryKeys);
@@ -62,7 +63,7 @@ public class TablePrimaryKeys {
             return tablePrimaryKeys;
         }
         tablePrimaryKeys.tableLastPrimaryKeys.addAll(tableLastPrimaryKeys);
-        for (TableLastPrimaryKey tableLastPrimaryKey: tableLastPrimaryKeys) {
+        for (TableLastPrimaryKey tableLastPrimaryKey : tableLastPrimaryKeys) {
             Binlogdata.TableLastPK rawTableLastPrimaryKey = tableLastPrimaryKey.getRawTableLastPrimaryKey();
             tablePrimaryKeys.rawTableLastPrimaryKeys.add(rawTableLastPrimaryKey);
         }
@@ -77,7 +78,8 @@ public class TablePrimaryKeys {
         return tableLastPrimaryKeys;
     }
 
-    public TablePrimaryKeys() {}
+    public TablePrimaryKeys() {
+    }
 
     @Override
     public String toString() {
@@ -102,7 +104,7 @@ public class TablePrimaryKeys {
                 Objects.equals(tableLastPrimaryKeys, tablePrimaryKeys.tableLastPrimaryKeys);
     }
 
-    @JsonPropertyOrder({TABLE_NAME_KEY, LASTPK_KEY})
+    @JsonPropertyOrder({ TABLE_NAME_KEY, LASTPK_KEY })
     public static class TableLastPrimaryKey {
 
         @JsonProperty(TABLE_NAME_KEY)
@@ -152,7 +154,7 @@ public class TablePrimaryKeys {
         }
     }
 
-    @JsonPropertyOrder({FIELDS_KEY, ROWS_KEY})
+    @JsonPropertyOrder({ FIELDS_KEY, ROWS_KEY })
     public static class LastPrimaryKey {
         public List<Field> getFields() {
             return fields;
@@ -173,9 +175,9 @@ public class TablePrimaryKeys {
 
         public LastPrimaryKey(Query.QueryResult queryResult) {
             for (Query.Field field : queryResult.getFieldsList()) {
-               fields.add(new Field(field));
+                fields.add(new Field(field));
             }
-            for (Query.Row row: queryResult.getRowsList()) {
+            for (Query.Row row : queryResult.getRowsList()) {
                 rows.add(new Row(row));
             }
         }
@@ -202,7 +204,7 @@ public class TablePrimaryKeys {
         }
     }
 
-    @JsonPropertyOrder({NAME_KEY, TYPE_KEY, CHARSET_KEY, FLAGS_KEY})
+    @JsonPropertyOrder({ NAME_KEY, TYPE_KEY, CHARSET_KEY, FLAGS_KEY })
     public static class Field {
         private String name;
         private String type;
@@ -267,7 +269,7 @@ public class TablePrimaryKeys {
         }
     }
 
-    @JsonPropertyOrder({LENGTHS_KEY, VALUES_KEY})
+    @JsonPropertyOrder({ LENGTHS_KEY, VALUES_KEY })
     public static class Row {
         private List<String> lengths;
         private String values;
@@ -305,7 +307,8 @@ public class TablePrimaryKeys {
                 return Query.Row.newBuilder()
                         .addAllLengths(lengths.stream().map(lengthStr -> Long.valueOf(lengthStr)).collect(Collectors.toList()))
                         .setValues(ByteString.copyFrom(values, "UTF-8")).build();
-            } catch (UnsupportedEncodingException e) {
+            }
+            catch (UnsupportedEncodingException e) {
                 throw new RuntimeException(e);
             }
         }

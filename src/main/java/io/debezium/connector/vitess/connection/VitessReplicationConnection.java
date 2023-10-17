@@ -390,7 +390,8 @@ public class VitessReplicationConnection implements ReplicationConnection {
                         vgtidString == Vgtid.EMPTY_GTID) {
                     gtids = Collections.nCopies(shards.size(), vgtidString);
                     vgtid = buildVgtid(config.getKeyspace(), shards, gtids);
-                } else {
+                }
+                else {
                     vgtid = Vgtid.of(vgtidString);
                 }
                 LOGGER.info("VGTID '{}' is set to the GTID {} for keyspace: {} shard: {}",

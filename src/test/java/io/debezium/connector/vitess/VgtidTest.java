@@ -12,11 +12,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 
 import org.junit.Test;
+import org.skyscreamer.jsonassert.JSONAssert;
 
 import io.debezium.util.Collect;
 
 import binlogdata.Binlogdata;
-import org.skyscreamer.jsonassert.JSONAssert;
 
 public class VgtidTest {
     public static final String TEST_KEYSPACE = "test_keyspace";
@@ -37,7 +37,7 @@ public class VgtidTest {
     public static final String VGTID_JSON_WITH_LAST_PK_TEMPLATE = "[" +
             "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\",\"table_p_ks\":%s}," +
             "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\",\"table_p_ks\":%s}" +
-        "]";
+            "]";
     public static final String VGTID_JSON_WITH_LAST_PK = String.format(
             VGTID_JSON_WITH_LAST_PK_TEMPLATE,
             TEST_KEYSPACE,
@@ -106,7 +106,6 @@ public class VgtidTest {
 
         Vgtid vgtid = Vgtid.of(rawVgtid);
 
-
         assertThat(vgtid.getRawVgtid()).isEqualTo(rawVgtid);
         assertThat(vgtid.getShardGtids()).containsExactly(
                 new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID, getTestTablePKs()),
@@ -133,7 +132,6 @@ public class VgtidTest {
                 .build();
 
         Vgtid vgtid = Vgtid.of(rawVgtid);
-
 
         assertThat(vgtid.getRawVgtid()).isEqualTo(rawVgtid);
         assertThat(vgtid.getShardGtids()).containsExactly(

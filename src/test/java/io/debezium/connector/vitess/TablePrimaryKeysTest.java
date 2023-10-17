@@ -1,17 +1,19 @@
 package io.debezium.connector.vitess;
 
-import binlogdata.Binlogdata;
-import com.google.common.primitives.Ints;
-import com.google.protobuf.ByteString;
-import io.vitess.proto.Query;
-import org.junit.Test;
-import org.skyscreamer.jsonassert.JSONAssert;
-
 import static org.assertj.core.api.Assertions.assertThat;
-
 
 import java.io.UnsupportedEncodingException;
 import java.util.List;
+
+import org.junit.Test;
+import org.skyscreamer.jsonassert.JSONAssert;
+
+import com.google.common.primitives.Ints;
+import com.google.protobuf.ByteString;
+
+import io.vitess.proto.Query;
+
+import binlogdata.Binlogdata;
 
 public class TablePrimaryKeysTest {
 
@@ -33,12 +35,14 @@ public class TablePrimaryKeysTest {
                             .addLengths(2)
                             .addLengths(1)
                             .setValues(ByteString.copyFrom("101", "UTF-8"))
-                            .build()).build();
+                            .build())
+                    .build();
             Binlogdata.TableLastPK tableLastPK = Binlogdata.TableLastPK.newBuilder()
                     .setTableName("comp_pk_table")
                     .setLastpk(queryResult).build();
             return tableLastPK;
-        } catch (UnsupportedEncodingException e) {
+        }
+        catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
     }
@@ -55,12 +59,14 @@ public class TablePrimaryKeysTest {
                     .addRows(Query.Row.newBuilder()
                             .addLengths(1)
                             .setValues(ByteString.copyFrom("5", "UTF-8"))
-                            .build()).build();
+                            .build())
+                    .build();
             Binlogdata.TableLastPK tableLastPK = Binlogdata.TableLastPK.newBuilder()
                     .setTableName("numeric_table")
                     .setLastpk(queryResult).build();
             return tableLastPK;
-        } catch (UnsupportedEncodingException e) {
+        }
+        catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
     }
@@ -165,8 +171,7 @@ public class TablePrimaryKeysTest {
         assertThat(tablePrimaryKeys.getRawTableLastPrimaryKeys()).isEqualTo(rawTableLastPK);
         TablePrimaryKeys.LastPrimaryKey lastPK = new TablePrimaryKeys.LastPrimaryKey(queryResult);
         assertThat(tablePrimaryKeys.getTableLastPrimaryKeys()).containsExactly(
-                new TablePrimaryKeys.TableLastPrimaryKey(tableName, lastPK)
-        );
+                new TablePrimaryKeys.TableLastPrimaryKey(tableName, lastPK));
     }
 
     @Test

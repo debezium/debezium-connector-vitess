@@ -1,3 +1,8 @@
+/*
+ * Copyright Debezium Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package io.debezium.connector.vitess;
 
 import java.io.UnsupportedEncodingException;
@@ -6,7 +11,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.annotation.*;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -92,6 +100,11 @@ public class TablePrimaryKeys {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hash(rawTableLastPrimaryKeys, tableLastPrimaryKeys);
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
@@ -107,6 +120,9 @@ public class TablePrimaryKeys {
     @JsonPropertyOrder({ TABLE_NAME_KEY, LASTPK_KEY })
     public static class TableLastPrimaryKey {
 
+        private final String tableName;
+        private final LastPrimaryKey lastPrimaryKey;
+
         @JsonProperty(TABLE_NAME_KEY)
         public String getTableName() {
             return tableName;
@@ -116,10 +132,6 @@ public class TablePrimaryKeys {
         public LastPrimaryKey getLastPrimaryKey() {
             return lastPrimaryKey;
         }
-
-        private final String tableName;
-
-        private final LastPrimaryKey lastPrimaryKey;
 
         @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
         public TableLastPrimaryKey(@JsonProperty(TABLE_NAME_KEY) String tableName, @JsonProperty(LASTPK_KEY) LastPrimaryKey lastPrimaryKey) {
@@ -141,6 +153,11 @@ public class TablePrimaryKeys {
         }
 
         @Override
+        public int hashCode() {
+            return Objects.hash(tableName, lastPrimaryKey);
+        }
+
+        @Override
         public boolean equals(Object o) {
             if (this == o) {
                 return true;
@@ -156,6 +173,9 @@ public class TablePrimaryKeys {
 
     @JsonPropertyOrder({ FIELDS_KEY, ROWS_KEY })
     public static class LastPrimaryKey {
+        private final List<Field> fields = new ArrayList<>();
+        private final List<Row> rows = new ArrayList<>();
+
         public List<Field> getFields() {
             return fields;
         }
@@ -163,9 +183,6 @@ public class TablePrimaryKeys {
         public List<Row> getRows() {
             return rows;
         }
-
-        private final List<Field> fields = new ArrayList<>();
-        private final List<Row> rows = new ArrayList<>();
 
         @JsonCreator
         public LastPrimaryKey(@JsonProperty(FIELDS_KEY) List<Field> fields, @JsonProperty(ROWS_KEY) List<Row> rows) {
@@ -188,6 +205,11 @@ public class TablePrimaryKeys {
                     .addAllFields(fields.stream().map(field -> field.getRawField()).collect(Collectors.toList()))
                     .addAllRows(rows.stream().map(row -> row.getRawRow()).collect(Collectors.toList()))
                     .build();
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(fields, rows);
         }
 
         @Override
@@ -254,6 +276,11 @@ public class TablePrimaryKeys {
         }
 
         @Override
+        public int hashCode() {
+            return Objects.hash(name, type, charset, flags);
+        }
+
+        @Override
         public boolean equals(Object o) {
             if (this == o) {
                 return true;
@@ -314,6 +341,11 @@ public class TablePrimaryKeys {
         }
 
         @Override
+        public int hashCode() {
+            return Objects.hash(lengths, values);
+        }
+
+        @Override
         public boolean equals(Object o) {
             if (this == o) {
                 return true;
@@ -326,5 +358,4 @@ public class TablePrimaryKeys {
                     Objects.equals(values, row.values);
         }
     }
-
 }

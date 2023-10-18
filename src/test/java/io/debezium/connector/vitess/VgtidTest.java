@@ -5,7 +5,12 @@
  */
 package io.debezium.connector.vitess;
 
-import static io.debezium.connector.vitess.TablePrimaryKeysTest.*;
+import static io.debezium.connector.vitess.TablePrimaryKeysTest.TEST_LAST_PKS_JSON;
+import static io.debezium.connector.vitess.TablePrimaryKeysTest.TEST_MULTIPLE_TABLE_PKS_JSON;
+import static io.debezium.connector.vitess.TablePrimaryKeysTest.getCompPKRawTableLastPK;
+import static io.debezium.connector.vitess.TablePrimaryKeysTest.getNumericRawTableLastPK;
+import static io.debezium.connector.vitess.TablePrimaryKeysTest.getTestRawTableLastPKList;
+import static io.debezium.connector.vitess.TablePrimaryKeysTest.getTestTablePKs;
 import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_TEMPLATE;
 import static org.assertj.core.api.Assertions.assertThat;
 

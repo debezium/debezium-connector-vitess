@@ -54,6 +54,11 @@ public class TestHelper {
     private static final String USERNAME = "vitess";
     private static final String PASSWORD = "vitess_password";
 
+    protected static final String VGTID_JSON_NO_PKS_TEMPLATE = "[" +
+            "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}," +
+            "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}" +
+            "]";
+
     protected static final String VGTID_JSON_TEMPLATE = "[" +
             "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\",\"table_p_ks\":[]}," +
             "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\",\"table_p_ks\":[]}" +

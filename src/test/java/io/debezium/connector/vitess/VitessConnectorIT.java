@@ -873,7 +873,54 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                         expectedVgtid.getShardGtids().get(0).getTableLastPrimaryKeys());
             }
         }
+    }
 
+    @Test
+    public void testSnapshotLargeTable() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        int expectedSnapshotRecordsCount = 10000;
+        String rowValue = "(1, 1, %d, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
+        String tableName = "numeric_table";
+        StringBuilder insertRows = new StringBuilder().append("INSERT INTO numeric_table ("
+                + "tinyint_col,"
+                + "tinyint_unsigned_col,"
+                + "smallint_col,"
+                + "smallint_unsigned_col,"
+                + "mediumint_col,"
+                + "mediumint_unsigned_col,"
+                + "int_col,"
+                + "int_unsigned_col,"
+                + "bigint_col,"
+                + "bigint_unsigned_col,"
+                + "bigint_unsigned_overflow_col,"
+                + "float_col,"
+                + "double_col,"
+                + "decimal_col,"
+                + "boolean_col)"
+                + " VALUES " + String.format(rowValue, 0));
+        for (int i = 1; i < expectedSnapshotRecordsCount; i++) {
+            insertRows.append(", ").append(String.format(rowValue, i));
+        }
+
+        String insertRowsStatement = insertRows.toString();
+        TestHelper.execute(insertRowsStatement);
+
+        String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + tableName;
+        startConnector(Function.identity(), false, false, 1,
+                -1, -1, tableInclude, VitessConnectorConfig.SnapshotMode.INITIAL, TestHelper.TEST_SHARD);
+
+        consumer = testConsumer(1, tableInclude );
+        consumer.await(TestHelper.waitTimeForRecords(), 0, TimeUnit.SECONDS);
+        stopConnector();
+        // Upper bound is the total size of the table so set that to prevent early termination
+        consumer = testConsumer(expectedSnapshotRecordsCount, tableInclude);
+        int recordCount = consumer.countRecords(5, TimeUnit.SECONDS);
+        // Assert snapshot is partially compelete
+        assertThat(recordCount < expectedSnapshotRecordsCount).isTrue();
+        // Assert the total snapshot records are sent after starting
+        consumer = testConsumer(expectedSnapshotRecordsCount, tableInclude);
+        startConnector();
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
     }
 
     @Test

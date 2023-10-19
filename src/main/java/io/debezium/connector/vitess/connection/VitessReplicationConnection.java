@@ -141,7 +141,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                                 String msg = "Received duplicate BEGIN events";
                                 // During a copy operation, we receive the duplicate event once when no record is copied.
                                 String eventTypes = bufferedEvents.stream().map(VEvent::getType).map(Objects::toString).collect(Collectors.joining(", "));
-                                if (eventTypes.equals("BEGIN, FIELD") || eventTypes.equals("BEGIN, FIELD, VGTID")) {
+                                if (eventTypes.equals("BEGIN, FIELD") || eventTypes.equals("BEGIN, FIELD, VGTID") || eventTypes.equals("COPY_COMPLETED, BEGIN, FIELD")) {
                                     msg += String.format(" during a copy operation. No harm to skip the buffered events. Buffered event types: %s",
                                             eventTypes);
                                     LOGGER.info(msg);
@@ -371,9 +371,9 @@ public class VitessReplicationConnection implements ReplicationConnection {
         else {
             if (config.getShard() == null || config.getShard().isEmpty()) {
                 // This case is not supported by the Vitess, so our workaround is to get all the shards from vtgate.
-                if (config.getGtid() == Vgtid.EMPTY_GTID) {
+                if (config.getVgtid() == Vgtid.EMPTY_GTID) {
                     List<String> shards = VitessConnector.getVitessShards(config);
-                    List<String> gtids = Collections.nCopies(shards.size(), config.getGtid());
+                    List<String> gtids = Collections.nCopies(shards.size(), config.getVgtid());
                     vgtid = buildVgtid(config.getKeyspace(), shards, gtids);
                 }
                 else {
@@ -384,9 +384,9 @@ public class VitessReplicationConnection implements ReplicationConnection {
             }
             else {
                 List<String> shards = config.getShard();
-                String vgtidString = config.getGtid();
+                String vgtidString = config.getVgtid();
                 List<String> gtids;
-                if (vgtidString == VitessConnectorConfig.DEFAULT_GTID ||
+                if (vgtidString == Vgtid.CURRENT_GTID ||
                         vgtidString == Vgtid.EMPTY_GTID) {
                     gtids = Collections.nCopies(shards.size(), vgtidString);
                     vgtid = buildVgtid(config.getKeyspace(), shards, gtids);

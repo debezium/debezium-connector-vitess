@@ -24,6 +24,11 @@ import io.vitess.proto.Query;
 
 import binlogdata.Binlogdata;
 
+/**
+ * Vitess table copy offsets. During a table copy phase, Vitess VGTID also includes the
+ * last primary keys' values for each table. The VGTID received from Vitess, which includes the
+ * progress of the table copy, is represented as this class. Used by `Vgtid.java`
+ */
 public class TablePrimaryKeys {
 
     public static final String TABLE_NAME_KEY = "table_name";

@@ -41,6 +41,7 @@ import io.debezium.config.Configuration;
 import io.debezium.connector.common.OffsetReader;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.embedded.KafkaConnectUtil;
+import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.spi.Offsets;
 import io.debezium.util.Collect;
@@ -237,6 +238,34 @@ public class VitessConnectorTest {
     }
 
     @Test
+    public void testTaskConfigsValidatesDeprecatedConfig() {
+        LogInterceptor interceptor = new LogInterceptor(VitessConnectorConfig.class);
+        VitessConnector connector = new VitessConnector();
+        List<String> shards = Arrays.asList("-80", "80-90");
+        String shardCsv = String.join(",", shards);
+        String vgtid = VgtidTest.VGTID_JSON;
+        int maxTasks = 2;
+        Map<String, String> props = new HashMap<>() {
+            {
+                put("key", "value");
+                put(VitessConnectorConfig.KEYSPACE.name(), TEST_SHARDED_KEYSPACE);
+                put(VitessConnectorConfig.SHARD.name(), shardCsv);
+                put(VitessConnectorConfig.GTID.name(), vgtid);
+                put(VitessConnectorConfig.TASKS_MAX_CONFIG, String.valueOf(maxTasks));
+                put(VitessConnectorConfig.OFFSET_STORAGE_PER_TASK.name(), "true");
+                put(VitessConnectorConfig.SNAPSHOT_MODE.name(), VitessConnectorConfig.SnapshotMode.NEVER.getValue());
+            }
+        };
+        Configuration config = Configuration.from(props);
+        Map<String, ConfigValue> results = connector.validateAllFields(config);
+        LOGGER.info("results: {}", results);
+        assertThat(interceptor.containsWarnMessage("Field vitess.gtid is deprecated, use vitess.vgtid instead")).isTrue();
+        ConfigValue configValue = results.get(VitessConnectorConfig.GTID.name());
+        List<String> expectedErrorMessages = List.of("The 'vitess.gtid' value is invalid: If GTIDs are specified must be specified for matching shards");
+        assertEquals(configValue.errorMessages(), expectedErrorMessages);
+    }
+
+    @Test
     public void testTaskConfigsSingleTaskNoShardsMultipleGtidsMultipleTasks() {
         VitessConnector connector = new VitessConnector();
         String vgtid = VgtidTest.VGTID_JSON;
@@ -331,6 +360,36 @@ public class VitessConnectorTest {
         List<String> shards = Arrays.asList("-01", "01-");
         String shardCsv = String.join(",", shards);
         String vgtid = VgtidTest.VGTID_JSON;
+        Map<String, String> props = new HashMap<>() {
+            {
+                put("key", "value");
+                put(VitessConnectorConfig.KEYSPACE.name(), TEST_SHARDED_KEYSPACE);
+                put(VitessConnectorConfig.SHARD.name(), shardCsv);
+                put(VitessConnectorConfig.VGTID.name(), vgtid);
+                put(VitessConnectorConfig.SNAPSHOT_MODE.name(), VitessConnectorConfig.SnapshotMode.NEVER.getValue());
+            }
+        };
+        connector.start(props);
+        List<Map<String, String>> taskConfigs = connector.taskConfigs(1, shards);
+        assertThat(taskConfigs.size() == 1);
+        Map<String, String> firstConfig = taskConfigs.get(0);
+        assertThat(firstConfig.size() == 3);
+        assertEquals(firstConfig.get(VitessConnectorConfig.SHARD.name()),
+                String.join(",", shards));
+        List<String> gtidStrs = Arrays.asList(Vgtid.CURRENT_GTID, Vgtid.CURRENT_GTID,
+                Vgtid.CURRENT_GTID, Vgtid.CURRENT_GTID);
+        Vgtid defaultVgtid = VitessReplicationConnection.defaultVgtid(new VitessConnectorConfig(Configuration.from(firstConfig)));
+        Vgtid expectedVgtid = Vgtid.of(vgtid);
+        assertThat(defaultVgtid).isEqualTo(expectedVgtid);
+        assertEquals("value", firstConfig.get("key"));
+    }
+
+    @Test
+    public void testTaskConfigsReadGtidWithoutTablePKs() {
+        VitessConnector connector = new VitessConnector();
+        List<String> shards = Arrays.asList("-80", "80-");
+        String shardCsv = String.join(",", shards);
+        String vgtid = VgtidTest.VGTID_JSON_NO_PKS;
         Map<String, String> props = new HashMap<>() {
             {
                 put("key", "value");

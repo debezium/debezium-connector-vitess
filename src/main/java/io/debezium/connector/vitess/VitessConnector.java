@@ -242,13 +242,13 @@ public class VitessConnector extends RelationalBaseSourceConnector {
     }
 
     private Map<String, String> getConfigGtidsPerShard(List<String> shards) {
-        String gtids = connectorConfig.getGtid();
+        String gtids = connectorConfig.getVgtid();
         Map<String, String> configGtidsPerShard = null;
         if (shards != null && gtids.equals(Vgtid.EMPTY_GTID)) {
             Function<Integer, String> emptyGtid = x -> Vgtid.EMPTY_GTID;
             configGtidsPerShard = buildMap(shards, emptyGtid);
         }
-        else if (shards != null && gtids.equals(VitessConnectorConfig.DEFAULT_GTID)) {
+        else if (shards != null && gtids.equals(Vgtid.CURRENT_GTID)) {
             Function<Integer, String> currentGtid = x -> Vgtid.CURRENT_GTID;
             configGtidsPerShard = buildMap(shards, currentGtid);
         }

@@ -11,6 +11,7 @@ import static io.debezium.connector.vitess.TablePrimaryKeysTest.getCompPKRawTabl
 import static io.debezium.connector.vitess.TablePrimaryKeysTest.getNumericRawTableLastPK;
 import static io.debezium.connector.vitess.TablePrimaryKeysTest.getTestRawTableLastPKList;
 import static io.debezium.connector.vitess.TablePrimaryKeysTest.getTestTablePKs;
+import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_NO_PKS_TEMPLATE;
 import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_TEMPLATE;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -29,6 +30,15 @@ public class VgtidTest {
     public static final String TEST_GTID = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-1513";
     public static final String TEST_SHARD2 = "80-";
     public static final String TEST_GTID2 = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000b:1-1513";
+
+    public static final String VGTID_JSON_NO_PKS = String.format(
+            VGTID_JSON_NO_PKS_TEMPLATE,
+            TEST_KEYSPACE,
+            TEST_SHARD,
+            TEST_GTID,
+            TEST_KEYSPACE,
+            TEST_SHARD2,
+            TEST_GTID2);
 
     public static final String VGTID_JSON = String.format(
             VGTID_JSON_TEMPLATE,

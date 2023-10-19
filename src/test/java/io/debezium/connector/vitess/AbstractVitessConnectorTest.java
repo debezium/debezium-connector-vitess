@@ -406,13 +406,31 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
             records.clear();
         }
 
-        protected void await(long timeout, TimeUnit unit) throws InterruptedException {
+        protected Integer countRecords(long timeout, TimeUnit unit) throws InterruptedException {
             final ElapsedTimeStrategy timer = ElapsedTimeStrategy.constant(Clock.SYSTEM, unit.toMillis(timeout));
             while (!timer.hasElapsed()) {
                 final SourceRecord r = consumeRecord();
                 if (r != null) {
                     accept(r);
-                    if (records.size() == expectedRecordsCount) {
+                }
+            }
+            return records.size();
+        }
+
+        protected void await(long timeout, TimeUnit unit) throws InterruptedException {
+            await(timeout, timeout / 60, unit);
+        }
+
+        protected void await(long timeout, long extraRecordsTimeout, TimeUnit unit) throws InterruptedException {
+            final ElapsedTimeStrategy timer = ElapsedTimeStrategy.constant(Clock.SYSTEM, unit.toMillis(timeout));
+            while (!timer.hasElapsed()) {
+                final SourceRecord r = consumeRecord();
+                if (r != null) {
+                    accept(r);
+                    if (records.size() == expectedRecordsCount && extraRecordsTimeout == 0) {
+                        break;
+                    } else if (records.size() == expectedRecordsCount) {
+                        verifyNoExtraRecords(extraRecordsTimeout, unit);
                         break;
                     }
                 }
@@ -423,6 +441,16 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
                                 + (expectedRecordsCount - records.size())
                                 + " records, as it received only "
                                 + records.size());
+            }
+        }
+
+        private void verifyNoExtraRecords(long extraRecordsTimeout, TimeUnit unit) throws InterruptedException {
+            final ElapsedTimeStrategy extraRecordsTimer = ElapsedTimeStrategy.constant(Clock.SYSTEM, unit.toMillis(extraRecordsTimeout));
+            while (!extraRecordsTimer.hasElapsed()) {
+                final SourceRecord extraRecord = consumeRecord();
+                if (extraRecord != null) {
+                    accept(extraRecord);
+                }
             }
         }
     }

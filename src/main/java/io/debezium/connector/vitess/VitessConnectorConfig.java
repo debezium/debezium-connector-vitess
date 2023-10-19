@@ -40,7 +40,6 @@ import io.debezium.relational.RelationalDatabaseConnectorConfig;
  */
 public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
-    public static final String DEFAULT_GTID = Vgtid.CURRENT_GTID;
     public static final String CSV_DELIMITER = ",";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessConnectorConfig.class);
@@ -242,6 +241,20 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                             + " If not configured, the connector streams changes from the latest position for the given shard(s)."
                             + " If snapshot.mode is INITIAL (default), the connector starts copying the tables for the given shard(s) first regardless of gtid value.");
 
+    public static final Field GTID = Field.create(VITESS_CONFIG_GROUP_PREFIX + "gtid")
+            .withDisplayName("gtid")
+            .withType(Type.STRING)
+            .withWidth(Width.LONG)
+            .withDefault(Vgtid.CURRENT_GTID)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withValidation(VitessConnectorConfig::validateGtids)
+            .withDescription(
+                    "This option is deprecated use vitess.vgtid instead."
+                            + "VGTID from where to start reading from for the given shard(s)."
+                            + " It has to be set together with vitess.shard."
+                            + " If not configured, the connector streams changes from the latest position for the given shard(s)."
+                            + " If snapshot.mode is INITIAL (default), the connector starts copying the tables for the given shard(s) first regardless of gtid value.");
+
     public static final Field TABLET_TYPE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "tablet.type")
             .withDisplayName("Tablet type to get data-changes")
             .withType(Type.STRING)
@@ -386,6 +399,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     KEYSPACE,
                     SHARD,
                     VGTID,
+                    GTID,
                     VTGATE_HOST,
                     VTGATE_PORT,
                     VTGATE_USER,
@@ -467,34 +481,37 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return getConfig().getStrings(SHARD, CSV_DELIMITER);
     }
 
-    public String getGtid() {
+    public String getVgtid() {
         if (getSnapshotMode() == SnapshotMode.INITIAL) {
             return Vgtid.EMPTY_GTID;
         }
         String value = getConfig().getString(VGTID);
-        return (value != null && !VGTID.defaultValueAsString().equals(value)) ? value : DEFAULT_GTID;
+        return (value != null && !VGTID.defaultValueAsString().equals(value)) ? value : Vgtid.CURRENT_GTID;
     }
 
     private static int validateGtids(Configuration config, Field field, ValidationOutput problems) {
         // Get the GTID as a string so that the default value is used if GTID is not set
-        String gtid = config.getString(VGTID);
-        if (gtid.equals(VitessConnectorConfig.DEFAULT_GTID) || gtid.equals(Vgtid.EMPTY_GTID)) {
+        String vgtidString = config.getString(field);
+        if (vgtidString.equals(Vgtid.CURRENT_GTID) || vgtidString.equals(Vgtid.EMPTY_GTID)) {
             return 0;
         }
+        if (field.equals(VitessConnectorConfig.GTID)) {
+            LOGGER.warn("Field {} is deprecated, use {} instead", field, VitessConnectorConfig.VGTID);
+        }
         List<String> shards = config.getStrings(SHARD, CSV_DELIMITER);
-        Vgtid vgtid = Vgtid.of(gtid);
+        Vgtid vgtid = Vgtid.of(vgtidString);
         if (shards == null && vgtid.getShardGtids() != null) {
-            problems.accept(field, gtid, "If GTIDs are specified, there must be shards specified");
+            problems.accept(field, vgtid, "If GTIDs are specified, there must be shards specified");
             return 1;
         }
         if (shards != null && shards.size() != vgtid.getShardGtids().size()) {
-            problems.accept(field, gtid, "If GTIDs are specified must be specified for all shards");
+            problems.accept(field, vgtid, "If GTIDs are specified must be specified for all shards");
             return 1;
         }
         Set<String> configShards = new HashSet(shards);
         Set<String> vgtidConfigShards = vgtid.getShardGtids().stream().map(shardGtid -> shardGtid.getShard()).collect(Collectors.toSet());
         if (!configShards.equals(vgtidConfigShards)) {
-            problems.accept(field, gtid, "If GTIDs are specified must be specified for matching shards");
+            problems.accept(field, vgtid, "If GTIDs are specified must be specified for matching shards");
             return 1;
         }
         return 0;

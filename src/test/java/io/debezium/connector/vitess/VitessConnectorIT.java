@@ -909,7 +909,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         startConnector(Function.identity(), false, false, 1,
                 -1, -1, tableInclude, VitessConnectorConfig.SnapshotMode.INITIAL, TestHelper.TEST_SHARD);
 
-        consumer = testConsumer(1, tableInclude );
+        consumer = testConsumer(1, tableInclude);
         consumer.await(TestHelper.waitTimeForRecords(), 0, TimeUnit.SECONDS);
         stopConnector();
         // Upper bound is the total size of the table so set that to prevent early termination

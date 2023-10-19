@@ -429,7 +429,8 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
                     accept(r);
                     if (records.size() == expectedRecordsCount && extraRecordsTimeout == 0) {
                         break;
-                    } else if (records.size() == expectedRecordsCount) {
+                    }
+                    else if (records.size() == expectedRecordsCount) {
                         verifyNoExtraRecords(extraRecordsTimeout, unit);
                         break;
                     }

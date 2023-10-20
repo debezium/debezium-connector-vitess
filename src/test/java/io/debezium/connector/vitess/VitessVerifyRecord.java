@@ -38,4 +38,10 @@ public class VitessVerifyRecord extends VerifyRecord {
         Struct key = (Struct) record.key();
         assertThat(key.get(pkField)).isNotNull();
     }
+
+    public static void isValidInsert(SourceRecord record, String pkField, Object pkValue) {
+        Struct key = (Struct) record.key();
+        assertThat(key.get(pkField)).isNotNull();
+        assertThat(key.get(pkField)).isEqualTo(pkValue);
+    }
 }

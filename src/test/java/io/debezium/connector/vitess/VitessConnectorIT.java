@@ -876,10 +876,10 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
-    public void testSnapshotLargeTable() throws Exception {
+    public void testMidSnapshotRecoveryLargeTable() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         int expectedSnapshotRecordsCount = 10000;
-        String rowValue = "(1, 1, %d, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
+        String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
         String tableName = "numeric_table";
         StringBuilder insertRows = new StringBuilder().append("INSERT INTO numeric_table ("
                 + "tinyint_col,"
@@ -897,9 +897,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 + "double_col,"
                 + "decimal_col,"
                 + "boolean_col)"
-                + " VALUES " + String.format(rowValue, 0));
+                + " VALUES " + rowValue);
         for (int i = 1; i < expectedSnapshotRecordsCount; i++) {
-            insertRows.append(", ").append(String.format(rowValue, i));
+            insertRows.append(", ").append(rowValue);
         }
 
         String insertRowsStatement = insertRows.toString();
@@ -921,6 +921,10 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         consumer = testConsumer(expectedSnapshotRecordsCount, tableInclude);
         startConnector();
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+
+        for (int i = 1; i <= expectedSnapshotRecordsCount; i++) {
+            assertRecordInserted(TEST_UNSHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD, Long.valueOf(i));
+        }
     }
 
     @Test
@@ -1218,9 +1222,13 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     private SourceRecord assertRecordInserted(String expectedTopicName, String pkField) {
+        return assertRecordInserted(expectedTopicName, pkField, null);
+    }
+
+    private SourceRecord assertRecordInserted(String expectedTopicName, String pkField, Object pkValue) {
         assertFalse("records not generated", consumer.isEmpty());
         SourceRecord insertedRecord = consumer.remove();
-        return assertRecordInserted(insertedRecord, expectedTopicName, pkField);
+        return assertRecordInserted(insertedRecord, expectedTopicName, pkField, pkValue);
     }
 
     private SourceRecord assertRecordUpdated() {
@@ -1236,12 +1244,19 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     private SourceRecord assertRecordInserted(SourceRecord insertedRecord, String expectedTopicName, String pkField) {
+        return assertRecordInserted(insertedRecord, expectedTopicName, pkField, null);
+    }
+
+    private SourceRecord assertRecordInserted(SourceRecord insertedRecord, String expectedTopicName, String pkField, Object pkValue) {
         assertEquals(topicName(expectedTopicName), insertedRecord.topic());
         if (pkField != null) {
             VitessVerifyRecord.isValidInsert(insertedRecord, pkField);
         }
         else {
             VerifyRecord.isValidInsert(insertedRecord);
+        }
+        if (pkValue != null) {
+            VitessVerifyRecord.isValidInsert(insertedRecord, pkField, pkValue);
         }
         return insertedRecord;
     }

@@ -234,7 +234,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withWidth(Width.LONG)
             .withDefault(Vgtid.CURRENT_GTID)
             .withImportance(ConfigDef.Importance.HIGH)
-            .withValidation(VitessConnectorConfig::validateGtids)
+            .withValidation(VitessConnectorConfig::validateVgtids)
             .withDescription(
                     "VGTID from where to start reading from for the given shard(s)."
                             + " It has to be set together with vitess.shard."
@@ -247,7 +247,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withWidth(Width.LONG)
             .withDefault(Vgtid.CURRENT_GTID)
             .withImportance(ConfigDef.Importance.HIGH)
-            .withValidation(VitessConnectorConfig::validateGtids)
+            .withValidation(VitessConnectorConfig::validateVgtids)
             .withDescription(
                     "This option is deprecated use vitess.vgtid instead."
                             + "VGTID from where to start reading from for the given shard(s)."
@@ -489,7 +489,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return (value != null && !VGTID.defaultValueAsString().equals(value)) ? value : Vgtid.CURRENT_GTID;
     }
 
-    private static int validateGtids(Configuration config, Field field, ValidationOutput problems) {
+    private static int validateVgtids(Configuration config, Field field, ValidationOutput problems) {
         // Get the GTID as a string so that the default value is used if GTID is not set
         String vgtidString = config.getString(field);
         if (vgtidString.equals(Vgtid.CURRENT_GTID) || vgtidString.equals(Vgtid.EMPTY_GTID)) {

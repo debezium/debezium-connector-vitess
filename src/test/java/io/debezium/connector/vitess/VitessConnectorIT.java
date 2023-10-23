@@ -915,7 +915,8 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // Upper bound is the total size of the table so set that to prevent early termination
         consumer = testConsumer(expectedSnapshotRecordsCount, tableInclude);
         int recordCount = consumer.countRecords(5, TimeUnit.SECONDS);
-        // Assert snapshot is partially compelete
+        // Assert snapshot is partially complete
+        assertThat(recordCount).isPositive();
         assertThat(recordCount < expectedSnapshotRecordsCount).isTrue();
         // Assert the total snapshot records are sent after starting
         consumer = testConsumer(expectedSnapshotRecordsCount, tableInclude);
@@ -925,6 +926,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         for (int i = 1; i <= expectedSnapshotRecordsCount; i++) {
             assertRecordInserted(TEST_UNSHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD, Long.valueOf(i));
         }
+        assertNoRecordsToConsume();
     }
 
     @Test

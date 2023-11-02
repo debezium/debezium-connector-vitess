@@ -62,7 +62,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
     private TestConsumer consumer;
     private VitessConnector connector;
-    private AtomicBoolean isConnecorRunning = new AtomicBoolean(false);
+    private AtomicBoolean isConnectorRunning = new AtomicBoolean(false);
 
     @Before
     public void before() {
@@ -670,11 +670,11 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.executeDDL("vitess_create_tables.ddl");
 
         EmbeddedEngine.CompletionCallback completionCallback = (success, message, error) -> {
-            isConnecorRunning.set(false);
+            isConnectorRunning.set(false);
         };
         start(VitessConnector.class, TestHelper.defaultConfig().build(), completionCallback);
         assertConnectorIsRunning();
-        isConnecorRunning.set(true);
+        isConnectorRunning.set(true);
         waitForStreamingRunning(null);
 
         // Connector receives a row whose column name is not valid, task should fail
@@ -682,9 +682,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.execute(INSERT_NUMERIC_TYPES_STMT);
         // Connector should still be running & retrying
         assertConnectorIsRunning();
-        assertTrue("The task is expected to keep retrying and not complete", isRunning.get());
+        assertTrue("The task is expected to keep retrying and not complete", isConnectorRunning.get());
         stopConnector();
-        assertFalse("The connector should be stopped now", isRunning.get());
+        assertFalse("The connector should be stopped now", isConnectorRunning.get());
         assertThat(logInterceptor.containsErrorMessage("Illegal prefix '@' for column: @1")).isTrue();
     }
 

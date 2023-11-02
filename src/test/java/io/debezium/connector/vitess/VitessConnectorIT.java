@@ -12,7 +12,6 @@ import static junit.framework.TestCase.assertEquals;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -24,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -62,6 +62,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
     private TestConsumer consumer;
     private VitessConnector connector;
+    private AtomicBoolean isConnecorRunning = new AtomicBoolean(false);
 
     @Before
     public void before() {
@@ -669,10 +670,11 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.executeDDL("vitess_create_tables.ddl");
 
         EmbeddedEngine.CompletionCallback completionCallback = (success, message, error) -> {
-            fail("The task is expected to keep retrying and not complete");
+            isConnecorRunning.set(false);
         };
         start(VitessConnector.class, TestHelper.defaultConfig().build(), completionCallback);
         assertConnectorIsRunning();
+        isConnecorRunning.set(true);
         waitForStreamingRunning(null);
 
         // Connector receives a row whose column name is not valid, task should fail
@@ -680,7 +682,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.execute(INSERT_NUMERIC_TYPES_STMT);
         // Connector should still be running & retrying
         assertConnectorIsRunning();
+        assertTrue("The task is expected to keep retrying and not complete", isRunning.get());
         stopConnector();
+        assertFalse("The connector should be stopped now", isRunning.get());
         assertThat(logInterceptor.containsErrorMessage("Illegal prefix '@' for column: @1")).isTrue();
     }
 

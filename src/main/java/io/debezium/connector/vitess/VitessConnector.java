@@ -32,6 +32,7 @@ import io.debezium.config.Configuration;
 import io.debezium.connector.common.RelationalBaseSourceConnector;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.relational.TableId;
 import io.debezium.util.Strings;
 import io.grpc.StatusRuntimeException;
 import io.vitess.proto.Query;
@@ -390,5 +391,18 @@ public class VitessConnector extends RelationalBaseSourceConnector {
             }
         }
         return results;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public List<TableId> getMatchingCollections(Configuration configuration) {
+        VitessConnectorConfig vitessConnectorConfig = new VitessConnectorConfig(configuration);
+        String keyspace = vitessConnectorConfig.getKeyspace();
+        List<String> allTables = getKeyspaceTables(vitessConnectorConfig);
+        List<String> includedTables = getIncludedTables(keyspace,
+                vitessConnectorConfig.tableIncludeList(), allTables);
+        return includedTables.stream()
+                .map(table -> new TableId(keyspace, null, table))
+                .collect(Collectors.toList());
     }
 }

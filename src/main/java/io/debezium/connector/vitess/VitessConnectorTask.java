@@ -66,6 +66,9 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
         // Mapped Diagnostic Context (MDC) logging
         LoggingContext.PreviousContext previousContext = taskContext.configureLoggingContext(CONTEXT_NAME);
 
+        // Service providers
+        registerServiceProviders(connectorConfig.getServiceRegistry());
+
         try {
             if (previousOffset == null) {
                 LOGGER.info("No previous offset found");

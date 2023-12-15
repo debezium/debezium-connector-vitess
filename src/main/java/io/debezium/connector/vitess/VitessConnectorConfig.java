@@ -425,9 +425,14 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     // We copy the definition here instead of importing the class from connect.runtime package
     protected static final String TASKS_MAX_CONFIG = "tasks.max";
 
-    // The vitess.task.key config, the value is in the form of <task-id>_<num-tasks>,
+    // The vitess.task.key config, the value is in the form of <task-id>_<num-tasks>_<gen>,
     // VitessConnector will populate the value of this param and pass on to VitessConnectorTask
     protected static final String VITESS_TASK_KEY_CONFIG = "vitess.task.key";
+
+    // The total number of tasks that will be used by the vitess connector, which is
+    // deterimined dynamically in VitessConnector, and can be different from the
+    // tasks.max config (e.g., tasks.max > number of shards)
+    protected static final String VITESS_TOTAL_TASKS_CONFIG = "vitess.total.tasks";
 
     // The vitess.task.shards config, the value is a comma separated vitess shard names
     // VitessConnector will populate the value of this param and pass on to VitessConnectorTask
@@ -589,6 +594,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public String getVitessTaskKey() {
         return getConfig().getString(VITESS_TASK_KEY_CONFIG);
+    }
+
+    public int getVitessTotalTasksConfig() {
+        return getConfig().getInteger(VITESS_TOTAL_TASKS_CONFIG);
     }
 
     public List<String> getVitessTaskKeyShards() {

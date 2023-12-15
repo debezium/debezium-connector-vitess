@@ -15,10 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigValue;
@@ -66,7 +64,21 @@ public class VitessConnector extends RelationalBaseSourceConnector {
             LOGGER.warn("Context {} is not setup for the connector, this can happen in unit tests.", context);
             return null;
         }
-        final OffsetStorageReader offsetStorageReader = context().offsetStorageReader();
+        return getGtidPerShardFromStorage(
+                context().offsetStorageReader(),
+                connectorConfig,
+                numTasks,
+                gen,
+                expectsOffset);
+    }
+
+    public static Map<String, String> getGtidPerShardFromStorage(
+                                                                 OffsetStorageReader offsetStorageReader,
+                                                                 VitessConnectorConfig connectorConfig,
+                                                                 int numTasks, int gen, boolean expectsOffset) {
+        if (gen < 0) {
+            return Collections.emptyMap();
+        }
         final Map<String, String> gtidsPerShard = new HashMap<>();
         for (int i = 0; i < numTasks; i++) {
             String taskKey = VitessConnector.getTaskKeyName(i, numTasks, gen);
@@ -199,7 +211,6 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                 shards = currentShards;
             }
             // Read GTIDs from config for initial run, only fallback to using this if no stored previous GTIDs, no current GTIDs
-            Map<String, String> configGtidsPerShard = getConfigGtidsPerShard(shards);
             shards.sort(Comparator.naturalOrder());
             Map<Integer, List<String>> shardsPerTask = new HashMap<>();
             int taskId = 0;
@@ -215,20 +226,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                 Map<String, String> taskProps = new HashMap<>(properties);
                 taskProps.put(VitessConnectorConfig.VITESS_TASK_KEY_CONFIG, getTaskKeyName(tid, tasks, gen));
                 taskProps.put(VitessConnectorConfig.VITESS_TASK_SHARDS_CONFIG, String.join(VitessConnectorConfig.CSV_DELIMITER, taskShards));
-                List<Vgtid.ShardGtid> shardGtids = new ArrayList<>();
-                for (String shard : taskShards) {
-                    String gtidStr = gtidsPerShard != null ? gtidsPerShard.get(shard) : null;
-                    if (gtidStr == null) {
-                        LOGGER.warn("No current gtid found for shard: {}, fallback to previous gen", shard);
-                        gtidStr = prevGtidsPerShard != null ? prevGtidsPerShard.get(shard) : null;
-                    }
-                    if (gtidStr == null) {
-                        gtidStr = configGtidsPerShard.get(shard);
-                        LOGGER.warn("No previous gtid found either for shard: {}, fallback to '{}'", shard, gtidStr);
-                    }
-                    shardGtids.add(new Vgtid.ShardGtid(keyspace, shard, gtidStr));
-                }
-                taskProps.put(VitessConnectorConfig.VITESS_TASK_VGTID_CONFIG, Vgtid.of(shardGtids).toString());
+                taskProps.put(VitessConnectorConfig.VITESS_TOTAL_TASKS_CONFIG, Integer.toString(tasks));
                 allTaskProps.add(taskProps);
             }
             LOGGER.info("taskConfigs are: {}", allTaskProps);
@@ -240,32 +238,6 @@ public class VitessConnector extends RelationalBaseSourceConnector {
             }
             return Collections.singletonList(properties);
         }
-    }
-
-    private Map<String, String> getConfigGtidsPerShard(List<String> shards) {
-        String gtids = connectorConfig.getVgtid();
-        Map<String, String> configGtidsPerShard = null;
-        if (shards != null && gtids.equals(Vgtid.EMPTY_GTID)) {
-            Function<Integer, String> emptyGtid = x -> Vgtid.EMPTY_GTID;
-            configGtidsPerShard = buildMap(shards, emptyGtid);
-        }
-        else if (shards != null && gtids.equals(Vgtid.CURRENT_GTID)) {
-            Function<Integer, String> currentGtid = x -> Vgtid.CURRENT_GTID;
-            configGtidsPerShard = buildMap(shards, currentGtid);
-        }
-        else if (shards != null) {
-            List<Vgtid.ShardGtid> shardGtids = Vgtid.of(gtids).getShardGtids();
-            Function<Integer, String> shardGtid = (i -> shardGtids.get(i).getGtid());
-            configGtidsPerShard = buildMap(shards, shardGtid);
-        }
-        LOGGER.info("Found GTIDs per shard in config {}", configGtidsPerShard);
-        return configGtidsPerShard;
-    }
-
-    private static Map<String, String> buildMap(List<String> keys, Function<Integer, String> function) {
-        return IntStream.range(0, keys.size())
-                .boxed()
-                .collect(Collectors.toMap(keys::get, function));
     }
 
     protected static final String getTaskKeyName(int tid, int numTasks, int gen) {

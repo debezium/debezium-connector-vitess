@@ -94,8 +94,8 @@ public class TestHelper {
                 tableInclude,
                 snapshotMode,
                 "",
-                "",
-                "");
+                null,
+                null);
     }
 
     public static Configuration.Builder defaultConfig(boolean hasMultipleShards,

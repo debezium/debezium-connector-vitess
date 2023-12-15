@@ -130,6 +130,7 @@ public class VitessConnectorTest {
         connector.start(props);
         List<String> shards = Arrays.asList("-4000", "4000-8000", "8000-c000", "c000-");
         List<Map<String, String>> taskConfigs = connector.taskConfigs(1, shards);
+        taskConfigs = getConfigWithOffsetsHelper(taskConfigs);
         assertThat(taskConfigs.size() == 1);
         Map<String, String> firstConfig = taskConfigs.get(0);
         assertThat(firstConfig.size() == 4);
@@ -140,6 +141,7 @@ public class VitessConnectorTest {
         List<String> gtidStrs = Arrays.asList(Vgtid.CURRENT_GTID, Vgtid.CURRENT_GTID,
                 Vgtid.CURRENT_GTID, Vgtid.CURRENT_GTID);
         Vgtid vgtid = VitessReplicationConnection.buildVgtid(TEST_UNSHARDED_KEYSPACE, shards, gtidStrs);
+        // assertThat(firstConfig.get(VitessConnectorConfig.VITESS_TASK_VGTID_CONFIG)).isNull();
         assertEquals(vgtid.toString(), firstConfig.get(VitessConnectorConfig.VITESS_TASK_VGTID_CONFIG));
         assertEquals("value", firstConfig.get("key"));
     }
@@ -191,7 +193,8 @@ public class VitessConnectorTest {
         };
         connector.start(props);
         List<Map<String, String>> taskConfigs = connector.taskConfigs(maxTasks);
-        int expectedConfigSize = 9;
+        taskConfigs = getConfigWithOffsetsHelper(taskConfigs);
+        int expectedConfigSize = 10;
         assertEquals(taskConfigs.size(), maxTasks);
         Map<String, String> firstConfig = taskConfigs.get(0);
         assertEquals(firstConfig.size(), expectedConfigSize);
@@ -333,7 +336,8 @@ public class VitessConnectorTest {
         };
         connector.start(props);
         List<Map<String, String>> taskConfigs = connector.taskConfigs(maxTasks);
-        int expectedConfigSize = 10;
+        taskConfigs = getConfigWithOffsetsHelper(taskConfigs);
+        int expectedConfigSize = 11;
         assertEquals(taskConfigs.size(), maxTasks);
         Map<String, String> firstConfig = taskConfigs.get(0);
         assertEquals(firstConfig.size(), expectedConfigSize);
@@ -481,6 +485,7 @@ public class VitessConnectorTest {
         connector.start(props);
         List<String> shards = Arrays.asList("-4000", "4000-8000", "8000-c000", "c000-");
         List<Map<String, String>> taskConfigs = connector.taskConfigs(2, shards);
+        taskConfigs = getConfigWithOffsetsHelper(taskConfigs);
         assertThat(taskConfigs.size() == 2);
         Map<String, String> firstConfig = taskConfigs.get(0);
         assertThat(firstConfig.size() == 4);
@@ -982,6 +987,17 @@ public class VitessConnectorTest {
         }
     }
 
+    private static List<Map<String, String>> getConfigWithOffsetsHelper(List<Map<String, String>> initialTaskConfigs) {
+        List<Map<String, String>> taskConfigs = new ArrayList();
+        for (Map<String, String> config : initialTaskConfigs) {
+            VitessConnectorTask task = new VitessConnectorTask();
+            task.initialize(new VitessConnectorTaskTest.ContextHelper().getSourceTaskContext());
+            Configuration newConfig = task.getConfigWithOffsets(Configuration.from(config));
+            taskConfigs.add(newConfig.asMap());
+        }
+        return taskConfigs;
+    }
+
     private Map<String, String> getTaskOffsets(OffsetBackingStore offsetStore, int numTasks, List<String> shards,
                                                int gen, int prevNumTasks) {
         final Configuration config = TestHelper.defaultConfig(false, true, numTasks, gen, prevNumTasks, null, VitessConnectorConfig.SnapshotMode.NEVER).build();
@@ -1030,8 +1046,8 @@ public class VitessConnectorTest {
         for (Map<String, String> taskConfig : taskConfigs) {
             VitessConnectorTask task = new VitessConnectorTask();
             task.initialize(sourceTaskContext);
-
-            final VitessConnectorConfig connectorConfig = new VitessConnectorConfig(Configuration.from(taskConfig));
+            final VitessConnectorConfig connectorConfig = new VitessConnectorConfig(
+                    task.getConfigWithOffsets(Configuration.from(taskConfig)));
             Set<VitessPartition> partitions = new VitessPartition.Provider(connectorConfig).getPartitions();
             OffsetReader<VitessPartition, VitessOffsetContext, OffsetContext.Loader<VitessOffsetContext>> reader = new OffsetReader<>(
                     sourceTaskContext.offsetStorageReader(), new VitessOffsetContext.Loader(

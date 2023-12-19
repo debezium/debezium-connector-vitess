@@ -18,8 +18,8 @@ import io.debezium.converters.spi.SerializerType;
  */
 public class VitessCloudEventsMaker extends CloudEventsMaker {
 
-    public VitessCloudEventsMaker(RecordParser parser, SerializerType contentType, String dataSchemaUriBase) {
-        super(parser, contentType, dataSchemaUriBase);
+    public VitessCloudEventsMaker(RecordParser parser, SerializerType contentType, String dataSchemaUriBase, String cloudEventsSchemaName) {
+        super(parser, contentType, dataSchemaUriBase, cloudEventsSchemaName);
     }
 
     @Override

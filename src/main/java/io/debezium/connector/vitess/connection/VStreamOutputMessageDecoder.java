@@ -5,8 +5,6 @@
  */
 package io.debezium.connector.vitess.connection;
 
-import static io.debezium.connector.vitess.connection.ReplicationMessage.Column;
-
 import java.sql.Types;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -47,8 +45,11 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
 
     private final VitessDatabaseSchema schema;
 
+    private final VitessDatabaseSchema schemaBackup;
+
     public VStreamOutputMessageDecoder(VitessDatabaseSchema schema) {
         this.schema = schema;
+        this.schemaBackup = schema.clone();
     }
 
     @Override
@@ -293,16 +294,32 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         return Optional.ofNullable(schema.tableFor(VitessDatabaseSchema.buildTableId(shard, schemaName, tableName)));
     }
 
+    private Optional<Table> resolveRelationFromBackup(TableId tableId) {
+        return Optional.ofNullable(schemaBackup.tableFor(tableId));
+    }
+
     /** Resolve the vEvent data to a list of replication message columns (with values). */
     private List<Column> resolveColumns(Row row, Table table) {
+        return resolveColumns(row, table, false);
+    }
+
+    /**
+     *  Resolve the vEvent data to a list of replication message columns (with values).
+     *  NOTE: Sometimes due to race condition in Vitess ROW and TYPE messages can be mixed up, so there's a fallback
+     *  the old schema version in case row length mismatches between Row and Table in schema cache.
+     *  <a href="https://vitess.io/docs/18.0/reference/vreplication/internal/tracker/#caveat">...</a>
+     */
+    private List<Column> resolveColumns(Row row, Table table, Boolean fromBackup) {
         int numberOfColumns = row.getLengthsCount();
         List<io.debezium.relational.Column> tableColumns = table.columns();
         if (tableColumns.size() != numberOfColumns) {
-            throw new IllegalStateException(
+            TableId tableId = table.id();
+            Optional<Table> backup = fromBackup ? Optional.empty() : resolveRelationFromBackup(tableId);
+            return backup.map(backupTable -> resolveColumns(row, backupTable, true)).orElseThrow(() -> new IllegalStateException(
                     String.format(
                             "The number of columns in the ROW event %s is different from the in-memory table schema %s.",
                             row,
-                            table));
+                            table)));
         }
 
         ByteString rawValues = row.getValues();
@@ -371,8 +388,12 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                 Table table = resolveTable(shard, schemaName, tableName, columns);
                 LOGGER.debug("Number of columns in the resolved table: {}", table.columns().size());
 
+                if (schema.tableIds().contains(table.id())) {
+                    Table tableToBackup = schema.tableFor(table.id());
+                    LOGGER.info("Old schema for table: {} found in cache, backing up", table.id());
+                    schemaBackup.applySchemaChangesForTable(tableToBackup);
+                }
                 schema.applySchemaChangesForTable(table);
-                return;
             }
         }
     }

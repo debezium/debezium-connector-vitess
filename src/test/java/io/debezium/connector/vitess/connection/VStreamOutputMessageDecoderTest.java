@@ -10,8 +10,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.debezium.connector.vitess.AnonymousValue;
 import io.debezium.connector.vitess.TestHelper;
@@ -30,7 +28,6 @@ import io.vitess.proto.Query;
 import binlogdata.Binlogdata;
 
 public class VStreamOutputMessageDecoderTest {
-    private static final Logger LOGGER = LoggerFactory.getLogger(VStreamOutputMessageDecoderTest.class);
 
     private VitessConnectorConfig connectorConfig;
     private VitessDatabaseSchema schema;
@@ -400,6 +397,65 @@ public class VStreamOutputMessageDecoderTest {
         }).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("bool_col")
                 .hasMessageContaining("long_col");
+    }
+
+    @Test
+    public void shouldProcessOutOfOrderTypeAndRowMessages() throws Exception {
+
+        // Create schema for default fields
+        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);
+        // verify outcome
+        Table table = schema.tableFor(TestHelper.defaultTableId());
+        assertThat(table).isNotNull();
+        assertThat(table.id().schema()).isEqualTo(TestHelper.TEST_UNSHARDED_KEYSPACE);
+        assertThat(table.id().table()).isEqualTo(TestHelper.TEST_TABLE);
+        assertThat(table.columns().size()).isEqualTo(TestHelper.defaultNumOfColumns());
+        for (Query.Field field : TestHelper.defaultFields()) {
+            assertThat(table.columnWithName(field.getName())).isNotNull();
+        }
+
+        // Fields update with a subset of fields
+        decoder.processMessage(TestHelper.newFieldEvent(TestHelper.columnValuesSubset()), null, null, false);
+        // verify outcome
+        Table tableUpdated = schema.tableFor(TestHelper.defaultTableId());
+        assertThat(tableUpdated).isNotNull();
+        assertThat(tableUpdated.id().schema()).isEqualTo(TestHelper.TEST_UNSHARDED_KEYSPACE);
+        assertThat(tableUpdated.id().table()).isEqualTo(TestHelper.TEST_TABLE);
+        assertThat(tableUpdated.columns().size()).isEqualTo(TestHelper.columnSubsetNumOfColumns());
+        for (Query.Field field : TestHelper.fieldsSubset()) {
+            assertThat(tableUpdated.columnWithName(field.getName())).isNotNull();
+        }
+
+        // Row event with old default fields
+        final boolean[] processed = { false };
+        decoder.processMessage(
+                TestHelper.defaultInsertEvent(),
+                (message, vgtid, isLastRowEventOfTransaction) -> {
+                    // verify outcome
+                    assertThat(message).isNotNull();
+                    assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
+                    assertThat(message.getOperation()).isEqualTo(ReplicationMessage.Operation.INSERT);
+                    assertThat(message.getOldTupleList()).isNull();
+                    assertThat(message.getShard()).isEqualTo(TestHelper.TEST_SHARD);
+                    assertThat(message.getNewTupleList().size()).isEqualTo(TestHelper.defaultNumOfColumns());
+                    processed[0] = true;
+                },
+                null, false);
+
+        // Row event with new fields
+        decoder.processMessage(
+                TestHelper.insertEvent(TestHelper.columnValuesSubset()),
+                (message, vgtid, isLastRowEventOfTransaction) -> {
+                    // verify outcome
+                    assertThat(message).isNotNull();
+                    assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
+                    assertThat(message.getOperation()).isEqualTo(ReplicationMessage.Operation.INSERT);
+                    assertThat(message.getOldTupleList()).isNull();
+                    assertThat(message.getShard()).isEqualTo(TestHelper.TEST_SHARD);
+                    assertThat(message.getNewTupleList().size()).isEqualTo(TestHelper.columnSubsetNumOfColumns());
+                    processed[0] = true;
+                },
+                null, false);
     }
 
     @Test

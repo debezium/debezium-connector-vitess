@@ -22,8 +22,12 @@ import io.debezium.spi.topic.TopicNamingStrategy;
  * Logical in-memory representation of Vitess schema (a.k.a Vitess keyspace). It is used to create
  * kafka connect {@link Schema} for all tables.
  */
-public class VitessDatabaseSchema extends RelationalDatabaseSchema {
+public class VitessDatabaseSchema extends RelationalDatabaseSchema implements Cloneable {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessDatabaseSchema.class);
+
+    private final VitessConnectorConfig config;
+    private final SchemaNameAdjuster schemaNameAdjuster;
+    private final TopicNamingStrategy<TableId> topicNamingStrategy;
 
     public VitessDatabaseSchema(
                                 VitessConnectorConfig config,
@@ -49,6 +53,9 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
                         false),
                 false,
                 config.getKeyMapper());
+        this.config = config;
+        this.schemaNameAdjuster = schemaNameAdjuster;
+        this.topicNamingStrategy = topicNamingStrategy;
     }
 
     /** Applies schema changes for the specified table. */
@@ -97,5 +104,10 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
      */
     public static TableId buildTableId(String shard, String keyspace, String table) {
         return new TableId(shard, keyspace, table);
+    }
+
+    @Override
+    public VitessDatabaseSchema clone() {
+        return new VitessDatabaseSchema(this.config, this.schemaNameAdjuster, this.topicNamingStrategy);
     }
 }

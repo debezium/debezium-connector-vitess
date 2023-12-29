@@ -49,7 +49,9 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
 
     public VStreamOutputMessageDecoder(VitessDatabaseSchema schema) {
         this.schema = schema;
-        this.schemaBackup = schema.clone();
+        // Schema can be null. See: VitessConnector.validateConnection
+        if (schema != null) this.schemaBackup = schema.clone();
+        else this.schemaBackup = null;
     }
 
     @Override

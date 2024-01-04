@@ -87,8 +87,8 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     }
 
     @Override
-    protected SnapshotContext<VitessPartition, VitessOffsetContext> prepare(VitessPartition partition) {
-        return new RelationalSnapshotContext<>(partition, "");
+    protected SnapshotContext<VitessPartition, VitessOffsetContext> prepare(VitessPartition partition, boolean onDemand) {
+        return new RelationalSnapshotContext<>(partition, "", onDemand);
     }
 
     @Override

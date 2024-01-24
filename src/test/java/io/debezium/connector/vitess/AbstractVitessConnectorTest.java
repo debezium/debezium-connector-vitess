@@ -423,9 +423,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
 
         protected void await(long timeout, long extraRecordsTimeout, TimeUnit unit) throws InterruptedException {
             final ElapsedTimeStrategy timer = ElapsedTimeStrategy.constant(Clock.SYSTEM, unit.toMillis(timeout));
-            System.out.println(timer);
             while (!timer.hasElapsed()) {
-                System.out.println(timer);
                 final SourceRecord r = consumeRecord();
                 if (r != null) {
                     accept(r);

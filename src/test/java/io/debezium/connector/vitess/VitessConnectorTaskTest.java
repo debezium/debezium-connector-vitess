@@ -77,7 +77,7 @@ public class VitessConnectorTaskTest {
         task.initialize(helper.getSourceTaskContext());
         ChangeEventSourceCoordinator coordinator = task.start(config);
         String expectedMessage = String.format(
-                "Found previous partition offset VitessPartition [sourcePartition={server=test_server}]: {transaction_id=null, vgtid=%s}",
+                "Found previous partition offset VitessPartition [sourcePartition={server=test_server}]: {vgtid=%s}",
                 VGTID_JSON);
         assertThat(logInterceptor.containsMessage(expectedMessage)).isTrue();
     }

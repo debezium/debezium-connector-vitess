@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.debezium.annotation.VisibleForTesting;
+import io.debezium.bean.StandardBeanNames;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
@@ -36,6 +37,7 @@ import io.debezium.pipeline.spi.Offsets;
 import io.debezium.relational.TableId;
 import io.debezium.schema.SchemaFactory;
 import io.debezium.schema.SchemaNameAdjuster;
+import io.debezium.snapshot.SnapshotterService;
 import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.util.Clock;
 import io.debezium.util.LoggingContext;
@@ -74,8 +76,15 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
         // Mapped Diagnostic Context (MDC) logging
         LoggingContext.PreviousContext previousContext = taskContext.configureLoggingContext(CONTEXT_NAME);
 
+        // Manual Bean Registration
+        connectorConfig.getBeanRegistry().add(StandardBeanNames.CONFIGURATION, config);
+        connectorConfig.getBeanRegistry().add(StandardBeanNames.CONNECTOR_CONFIG, connectorConfig);
+        connectorConfig.getBeanRegistry().add(StandardBeanNames.DATABASE_SCHEMA, schema);
+
         // Service providers
         registerServiceProviders(connectorConfig.getServiceRegistry());
+
+        final SnapshotterService snapshotterService = connectorConfig.getServiceRegistry().tryGetService(SnapshotterService.class);
 
         try {
             if (previousOffset == null) {
@@ -119,12 +128,13 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
                     VitessConnector.class,
                     connectorConfig,
                     new VitessChangeEventSourceFactory(
-                            connectorConfig, errorHandler, dispatcher, clock, schema, replicationConnection),
+                            connectorConfig, errorHandler, dispatcher, clock, schema, replicationConnection, snapshotterService),
                     connectorConfig.offsetStoragePerTask() ? new VitessChangeEventSourceMetricsFactory() : new DefaultChangeEventSourceMetricsFactory<>(),
                     dispatcher,
                     schema,
                     null,
-                    notificationService);
+                    notificationService,
+                    snapshotterService);
 
             coordinator.start(taskContext, this.queue, metadataProvider);
 

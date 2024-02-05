@@ -15,6 +15,7 @@ import io.debezium.pipeline.source.spi.SnapshotChangeEventSource;
 import io.debezium.pipeline.source.spi.SnapshotProgressListener;
 import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
 import io.debezium.relational.TableId;
+import io.debezium.snapshot.SnapshotterService;
 import io.debezium.util.Clock;
 
 /**
@@ -29,6 +30,7 @@ public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<
     private final Clock clock;
     private final VitessDatabaseSchema schema;
     private final ReplicationConnection replicationConnection;
+    private final SnapshotterService snapshotterService;
 
     public VitessChangeEventSourceFactory(
                                           VitessConnectorConfig connectorConfig,
@@ -36,13 +38,14 @@ public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<
                                           EventDispatcher<VitessPartition, TableId> dispatcher,
                                           Clock clock,
                                           VitessDatabaseSchema schema,
-                                          ReplicationConnection replicationConnection) {
+                                          ReplicationConnection replicationConnection, SnapshotterService snapshotterService) {
         this.connectorConfig = connectorConfig;
         this.errorHandler = errorHandler;
         this.dispatcher = dispatcher;
         this.clock = clock;
         this.schema = schema;
         this.replicationConnection = replicationConnection;
+        this.snapshotterService = snapshotterService;
     }
 
     @Override
@@ -50,7 +53,14 @@ public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<
                                                                                                         NotificationService<VitessPartition, VitessOffsetContext> notificationService) {
         // A dummy SnapshotChangeEventSource, snapshot is skipped.
         return new VitessSnapshotChangeEventSource(
-                connectorConfig, new DefaultMainConnectionProvidingConnectionFactory<>(() -> null), dispatcher, schema, clock, null, notificationService);
+                connectorConfig,
+                new DefaultMainConnectionProvidingConnectionFactory<>(() -> null),
+                dispatcher,
+                schema,
+                clock,
+                null,
+                notificationService,
+                snapshotterService);
     }
 
     @Override

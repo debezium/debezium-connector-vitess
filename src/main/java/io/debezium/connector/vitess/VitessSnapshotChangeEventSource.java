@@ -21,6 +21,7 @@ import io.debezium.relational.RelationalSnapshotChangeEventSource;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.schema.SchemaChangeEvent;
+import io.debezium.snapshot.SnapshotterService;
 import io.debezium.util.Clock;
 
 /** Always skip snapshot for now */
@@ -33,7 +34,7 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
                                            VitessDatabaseSchema schema,
                                            Clock clock,
                                            SnapshotProgressListener<VitessPartition> snapshotProgressListener,
-                                           NotificationService<VitessPartition, VitessOffsetContext> notificationService) {
+                                           NotificationService<VitessPartition, VitessOffsetContext> notificationService, SnapshotterService snapshotterService) {
         super(
                 connectorConfig,
                 connectionFactory,
@@ -41,7 +42,8 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
                 dispatcher,
                 clock,
                 snapshotProgressListener,
-                notificationService);
+                notificationService,
+                snapshotterService);
     }
 
     @Override

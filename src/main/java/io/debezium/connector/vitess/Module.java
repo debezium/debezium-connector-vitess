@@ -5,15 +5,12 @@
  */
 package io.debezium.connector.vitess;
 
-import java.util.Properties;
-
-import io.debezium.util.IoUtil;
+import io.debezium.util.VersionParser;
 
 public class Module {
-    private static final Properties INFO = IoUtil.loadProperties(Module.class, "io/debezium/connector/vitess/build.version");
 
     public static String version() {
-        return INFO.getProperty("version");
+        return VersionParser.getVersion();
     }
 
     /** @return name of the connector plugin */

@@ -9,9 +9,13 @@ import io.debezium.connector.vitess.Vgtid;
 
 import binlogdata.Binlogdata;
 
+import java.time.Instant;
+
 /** Decode VStream gRPC VEvent and process it with the ReplicationMessageProcessor. */
 public interface MessageDecoder {
 
     void processMessage(Binlogdata.VEvent event, ReplicationMessageProcessor processor, Vgtid newVgtid, boolean isLastRowEventOfTransaction)
             throws InterruptedException;
+
+    void setCommitTimestamp(Instant commitTimestamp);
 }

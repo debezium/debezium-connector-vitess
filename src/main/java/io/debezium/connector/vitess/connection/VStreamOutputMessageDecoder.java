@@ -5,8 +5,6 @@
  */
 package io.debezium.connector.vitess.connection;
 
-import static io.debezium.connector.vitess.connection.ReplicationMessage.Column;
-
 import java.sql.Types;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -51,6 +49,10 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         this.schema = schema;
     }
 
+    public void setCommitTimestamp(Instant commitTimestamp) {
+        this.commitTimestamp = commitTimestamp;
+    }
+
     @Override
     public void processMessage(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid, boolean isLastRowEventOfTransaction)
             throws InterruptedException {
@@ -85,29 +87,29 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
 
     private void handleDdl(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)
             throws InterruptedException {
-        this.commitTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
+        Instant eventTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
         // Use the entire VGTID as transaction id
         if (newVgtid != null) {
             this.transactionId = newVgtid.toString();
         }
         processor.process(
-                new DdlMessage(transactionId, commitTimestamp), newVgtid, false);
+                new DdlMessage(transactionId, eventTimestamp), newVgtid, false);
     }
 
     private void handleOther(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)
             throws InterruptedException {
-        this.commitTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
+        Instant eventTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
         // Use the entire VGTID as transaction id
         if (newVgtid != null) {
             this.transactionId = newVgtid.toString();
         }
         processor.process(
-                new OtherMessage(transactionId, commitTimestamp), newVgtid, false);
+                new OtherMessage(transactionId, eventTimestamp), newVgtid, false);
     }
 
     private void handleBeginMessage(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)
             throws InterruptedException {
-        this.commitTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
+        Instant eventTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
         // Use the entire VGTID as transaction id.
         if (newVgtid != null) {
             this.transactionId = newVgtid.toString();
@@ -117,23 +119,23 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             LOGGER.info("Skip processing BEGIN because no VGTID was received");
             return;
         }
-        LOGGER.trace("Commit timestamp of begin transaction: {}", commitTimestamp);
+        LOGGER.trace("Timestamp of begin transaction: {}", eventTimestamp);
         processor.process(
-                new TransactionalMessage(Operation.BEGIN, transactionId, commitTimestamp), newVgtid, false);
+                new TransactionalMessage(Operation.BEGIN, transactionId, eventTimestamp), newVgtid, false);
     }
 
     private void handleCommitMessage(
                                      Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)
             throws InterruptedException {
-        Instant commitTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
+        Instant eventTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
         // Transaction ID must not be null in TransactionalMessage.
         if (this.transactionId == null) {
             LOGGER.info("Skip processing COMMIT because no VGTID was received");
             return;
         }
-        LOGGER.trace("Commit timestamp of commit transaction: {}", commitTimestamp);
+        LOGGER.trace("Timestamp of commit transaction: {}", commitTimestamp);
         processor.process(
-                new TransactionalMessage(Operation.COMMIT, transactionId, commitTimestamp), newVgtid, false);
+                new TransactionalMessage(Operation.COMMIT, transactionId, eventTimestamp), newVgtid, false);
     }
 
     private void decodeRows(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid, boolean isLastRowEventOfTransaction)

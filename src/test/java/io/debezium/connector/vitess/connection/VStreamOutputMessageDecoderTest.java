@@ -29,6 +29,8 @@ import io.vitess.proto.Query;
 
 import binlogdata.Binlogdata;
 
+import java.time.Instant;
+
 public class VStreamOutputMessageDecoderTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(VStreamOutputMessageDecoderTest.class);
 
@@ -474,4 +476,112 @@ public class VStreamOutputMessageDecoderTest {
         assertThat(processed[0]).isTrue();
     }
 
+    @Test
+    public void shouldSetRowEventsToCommitTimestamp() throws Exception {
+        // setup fixture
+        Long expectedBeginTimestamp = 1L;
+        Long expectedCommitTimestamp = 2L;
+        Binlogdata.VEvent beginEvent = Binlogdata.VEvent.newBuilder()
+                .setType(Binlogdata.VEventType.BEGIN)
+                .setTimestamp(expectedBeginTimestamp)
+                .build();
+        Binlogdata.VEvent commitEvent = Binlogdata.VEvent.newBuilder()
+                .setType(Binlogdata.VEventType.COMMIT)
+                .setTimestamp(expectedCommitTimestamp)
+                .build();
+        decoder.setCommitTimestamp(Instant.ofEpochSecond(commitEvent.getTimestamp()));
+        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);
+        schema.tableFor(TestHelper.defaultTableId());
+        schema.tableFor(TestHelper.defaultTableId());
+        Vgtid newVgtid = Vgtid.of(VgtidTest.VGTID_JSON);
+
+        // exercise SUT
+//        final boolean[] processed = { false };
+        decoder.processMessage(
+                beginEvent,
+                (message, vgtid, isLastRowEventOfTransaction) -> {
+                    // verify outcome
+                    assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedBeginTimestamp);
+                },
+                newVgtid,
+                false);
+        decoder.processMessage(
+                TestHelper.defaultInsertEvent(),
+                (message, vgtid, isLastRowEventOfTransaction) -> {
+                    // verify outcome
+                    assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedCommitTimestamp);
+                },
+                null,
+                false);
+        decoder.processMessage(
+                TestHelper.defaultUpdateEvent(),
+                (message, vgtid, isLastRowEventOfTransaction) -> {
+                    // verify outcome
+                    assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedCommitTimestamp);
+                },
+                null,
+                false);
+        decoder.processMessage(
+                TestHelper.defaultDeleteEvent(),
+                (message, vgtid, isLastRowEventOfTransaction) -> {
+                    // verify outcome
+                    assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedCommitTimestamp);
+                },
+                null,
+                false);
+        decoder.processMessage(
+                commitEvent,
+                (message, vgtid, isLastRowEventOfTransaction) -> {
+                    // verify outcome
+                    assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedCommitTimestamp);
+                },
+                newVgtid,
+                false);
+    }
+
+    @Test
+    public void shouldSetOtherEventsToEventTimestamp() throws Exception {
+        // setup fixture
+        Long expectedEventTimestamp = 1L;
+        Long expectedCommitTimestamp = 2L;
+        Binlogdata.VEvent otherEvent = Binlogdata.VEvent.newBuilder()
+                .setType(Binlogdata.VEventType.OTHER)
+                .setTimestamp(expectedEventTimestamp)
+                .build();
+        Binlogdata.VEvent ddlEvent = Binlogdata.VEvent.newBuilder()
+                .setType(Binlogdata.VEventType.DDL)
+                .setTimestamp(expectedEventTimestamp)
+                .build();
+        Binlogdata.VEvent commitEvent = Binlogdata.VEvent.newBuilder()
+                .setType(Binlogdata.VEventType.COMMIT)
+                .setTimestamp(expectedCommitTimestamp)
+                .build();
+        decoder.setCommitTimestamp(Instant.ofEpochSecond(commitEvent.getTimestamp()));
+        Vgtid newVgtid = Vgtid.of(VgtidTest.VGTID_JSON);
+
+        decoder.processMessage(
+                otherEvent,
+                (message, vgtid, isLastRowEventOfTransaction) -> {
+                    // verify outcome
+                    assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedEventTimestamp);
+                },
+                newVgtid,
+                false);
+        decoder.processMessage(
+                ddlEvent,
+                (message, vgtid, isLastRowEventOfTransaction) -> {
+                    // verify outcome
+                    assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedEventTimestamp);
+                },
+                null,
+                false);
+        decoder.processMessage(
+                commitEvent,
+                (message, vgtid, isLastRowEventOfTransaction) -> {
+                    // verify outcome
+                    assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedCommitTimestamp);
+                },
+                null,
+                false);
+    }
 }

@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.vitess.connection;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -167,6 +168,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                                 return;
                             }
                             commitEventSeen = true;
+                            messageDecoder.setCommitTimestamp(Instant.ofEpochSecond(event.getTimestamp()));
                             break;
                         case DDL:
                         case OTHER:

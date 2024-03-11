@@ -8,6 +8,8 @@ package io.debezium.connector.vitess.connection;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Instant;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -28,8 +30,6 @@ import io.debezium.spi.topic.TopicNamingStrategy;
 import io.vitess.proto.Query;
 
 import binlogdata.Binlogdata;
-
-import java.time.Instant;
 
 public class VStreamOutputMessageDecoderTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(VStreamOutputMessageDecoderTest.class);
@@ -496,7 +496,6 @@ public class VStreamOutputMessageDecoderTest {
         Vgtid newVgtid = Vgtid.of(VgtidTest.VGTID_JSON);
 
         // exercise SUT
-//        final boolean[] processed = { false };
         decoder.processMessage(
                 beginEvent,
                 (message, vgtid, isLastRowEventOfTransaction) -> {
@@ -541,7 +540,6 @@ public class VStreamOutputMessageDecoderTest {
 
     @Test
     public void shouldSetOtherEventsToEventTimestamp() throws Exception {
-        // setup fixture
         Long expectedEventTimestamp = 1L;
         Long expectedCommitTimestamp = 2L;
         Binlogdata.VEvent otherEvent = Binlogdata.VEvent.newBuilder()

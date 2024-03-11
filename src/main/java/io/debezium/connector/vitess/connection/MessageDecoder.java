@@ -5,11 +5,11 @@
  */
 package io.debezium.connector.vitess.connection;
 
+import java.time.Instant;
+
 import io.debezium.connector.vitess.Vgtid;
 
 import binlogdata.Binlogdata;
-
-import java.time.Instant;
 
 /** Decode VStream gRPC VEvent and process it with the ReplicationMessageProcessor. */
 public interface MessageDecoder {

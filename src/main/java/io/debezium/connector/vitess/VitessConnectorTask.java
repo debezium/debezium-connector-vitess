@@ -34,9 +34,11 @@ import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.metrics.DefaultChangeEventSourceMetricsFactory;
 import io.debezium.pipeline.notification.NotificationService;
 import io.debezium.pipeline.spi.Offsets;
+import io.debezium.processors.PostProcessorRegistryServiceProvider;
 import io.debezium.relational.TableId;
 import io.debezium.schema.SchemaFactory;
 import io.debezium.schema.SchemaNameAdjuster;
+import io.debezium.service.spi.ServiceRegistry;
 import io.debezium.snapshot.SnapshotterService;
 import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.util.Clock;
@@ -241,5 +243,12 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
     @Override
     protected Iterable<Field> getAllConfigurationFields() {
         return VitessConnectorConfig.ALL_FIELDS;
+    }
+
+    // Remove when support for SPI snapshotter will be implemented with DBZ-7307
+    @Override
+    protected void registerServiceProviders(ServiceRegistry serviceRegistry) {
+
+        serviceRegistry.registerServiceProvider(new PostProcessorRegistryServiceProvider());
     }
 }

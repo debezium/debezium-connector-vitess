@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -611,6 +612,11 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public SnapshotMode getSnapshotMode() {
         return SnapshotMode.parse(getConfig().getString(SNAPSHOT_MODE), SNAPSHOT_MODE.defaultValueAsString());
+    }
+
+    @Override
+    public Optional<EnumeratedValue> getSnapshotLockingMode() {
+        return Optional.empty();
     }
 
     public BigIntUnsignedHandlingMode getBigIntUnsgnedHandlingMode() {

@@ -57,8 +57,10 @@ public class VitessEventMetadataProvider implements EventMetadataProvider {
         }
 
         final Struct sourceInfo = value.getStruct(Envelope.FieldName.SOURCE);
-        // Use the entire VGTID as transaction id
-        return sourceInfo.getString(SourceInfo.VGTID_KEY);
-    }
+        String shard = sourceInfo.getString(SourceInfo.SHARD_KEY);
 
+        String jsonString = sourceInfo.getString(SourceInfo.VGTID_KEY);
+        Vgtid vgtid = Vgtid.of(jsonString);
+        return vgtid.getShardGtid(shard).getGtid();
+    }
 }

@@ -16,6 +16,9 @@ import org.slf4j.LoggerFactory;
 
 import io.debezium.connector.SnapshotRecord;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
+import io.debezium.connector.vitess.transaction.OrderedTransactionContext;
+import io.debezium.connector.vitess.transaction.VitessEpochProvider;
+import io.debezium.connector.vitess.transaction.VitessRankProvider;
 import io.debezium.pipeline.CommonOffsetContext;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.txmetadata.TransactionContext;
@@ -50,8 +53,16 @@ public class VitessOffsetContext extends CommonOffsetContext<SourceInfo> {
                                                      VitessConnectorConfig connectorConfig, Clock clock) {
         LOGGER.info("No previous offset exists. Use default VGTID.");
         final Vgtid defaultVgtid = VitessReplicationConnection.defaultVgtid(connectorConfig);
+        // use the other transaction context
+        TransactionContext transactionContext;
+        if (connectorConfig.shouldProvideOrderedTransactionMetadata()) {
+            transactionContext = new OrderedTransactionContext(new VitessEpochProvider(), new VitessRankProvider());
+        }
+        else {
+            transactionContext = new TransactionContext();
+        }
         return new VitessOffsetContext(
-                connectorConfig, defaultVgtid, clock.currentTimeAsInstant(), new TransactionContext());
+                connectorConfig, defaultVgtid, clock.currentTimeAsInstant(), transactionContext);
     }
 
     /**
@@ -144,11 +155,18 @@ public class VitessOffsetContext extends CommonOffsetContext<SourceInfo> {
         @Override
         public VitessOffsetContext load(Map<String, ?> offset) {
             final String vgtid = (String) offset.get(SourceInfo.VGTID_KEY);
+            TransactionContext transactionContext;
+            if (connectorConfig.shouldProvideOrderedTransactionMetadata()) {
+                transactionContext = OrderedTransactionContext.load(offset, new VitessEpochProvider(), new VitessRankProvider());
+            }
+            else {
+                transactionContext = TransactionContext.load(offset);
+            }
             return new VitessOffsetContext(
                     connectorConfig,
                     Vgtid.of(vgtid),
                     null,
-                    TransactionContext.load(offset));
+                    transactionContext);
         }
     }
 }

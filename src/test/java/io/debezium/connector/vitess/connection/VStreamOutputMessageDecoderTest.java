@@ -54,8 +54,10 @@ public class VStreamOutputMessageDecoderTest {
         Binlogdata.VEvent event = Binlogdata.VEvent.newBuilder()
                 .setType(Binlogdata.VEventType.BEGIN)
                 .setTimestamp(AnonymousValue.getLong())
+                .setShard(VgtidTest.TEST_SHARD)
                 .build();
         Vgtid newVgtid = Vgtid.of(VgtidTest.VGTID_JSON);
+        String expectedGtid = newVgtid.getShardGtid(VgtidTest.TEST_SHARD).getGtid();
 
         // exercise SUT
         final boolean[] processed = { false };
@@ -66,8 +68,8 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(TransactionalMessage.class);
                     assertThat(message.getOperation()).isEqualTo(ReplicationMessage.Operation.BEGIN);
-                    assertThat(message.getTransactionId()).isEqualTo(newVgtid.toString());
-                    assertThat(vgtid).isEqualTo(newVgtid);
+                    assertThat(message.getTransactionId()).isEqualTo(expectedGtid);
+                    assertThat(vgtid).isEqualTo(vgtid);
                     processed[0] = true;
                 },
                 newVgtid,
@@ -483,11 +485,13 @@ public class VStreamOutputMessageDecoderTest {
         Long expectedCommitTimestamp = 2L;
         Binlogdata.VEvent beginEvent = Binlogdata.VEvent.newBuilder()
                 .setType(Binlogdata.VEventType.BEGIN)
+                .setShard(VgtidTest.TEST_SHARD)
                 .setTimestamp(expectedBeginTimestamp)
                 .build();
         Binlogdata.VEvent commitEvent = Binlogdata.VEvent.newBuilder()
                 .setType(Binlogdata.VEventType.COMMIT)
                 .setTimestamp(expectedCommitTimestamp)
+                .setShard(VgtidTest.TEST_SHARD)
                 .build();
         decoder.setCommitTimestamp(Instant.ofEpochSecond(commitEvent.getTimestamp()));
         decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);
@@ -544,14 +548,17 @@ public class VStreamOutputMessageDecoderTest {
         Long expectedCommitTimestamp = 2L;
         Binlogdata.VEvent otherEvent = Binlogdata.VEvent.newBuilder()
                 .setType(Binlogdata.VEventType.OTHER)
+                .setShard(VgtidTest.TEST_SHARD)
                 .setTimestamp(expectedEventTimestamp)
                 .build();
         Binlogdata.VEvent ddlEvent = Binlogdata.VEvent.newBuilder()
                 .setType(Binlogdata.VEventType.DDL)
+                .setShard(VgtidTest.TEST_SHARD)
                 .setTimestamp(expectedEventTimestamp)
                 .build();
         Binlogdata.VEvent commitEvent = Binlogdata.VEvent.newBuilder()
                 .setType(Binlogdata.VEventType.COMMIT)
+                .setShard(VgtidTest.TEST_SHARD)
                 .setTimestamp(expectedCommitTimestamp)
                 .build();
         decoder.setCommitTimestamp(Instant.ofEpochSecond(commitEvent.getTimestamp()));

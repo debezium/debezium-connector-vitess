@@ -90,7 +90,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         Instant eventTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
         // Use the entire VGTID as transaction id
         if (newVgtid != null) {
-            this.transactionId = newVgtid.toString();
+            this.transactionId = newVgtid.getShardGtid(vEvent.getShard().toString()).getGtid();
         }
         processor.process(
                 new DdlMessage(transactionId, eventTimestamp), newVgtid, false);
@@ -101,7 +101,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         Instant eventTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
         // Use the entire VGTID as transaction id
         if (newVgtid != null) {
-            this.transactionId = newVgtid.toString();
+            this.transactionId = newVgtid.getShardGtid(vEvent.getShard().toString()).getGtid();
         }
         processor.process(
                 new OtherMessage(transactionId, eventTimestamp), newVgtid, false);
@@ -112,7 +112,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         Instant eventTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
         // Use the entire VGTID as transaction id.
         if (newVgtid != null) {
-            this.transactionId = newVgtid.toString();
+            this.transactionId = newVgtid.getShardGtid(vEvent.getShard().toString()).getGtid();
         }
         // Transaction ID must not be null in TransactionalMessage.
         if (this.transactionId == null) {

@@ -389,6 +389,15 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     + "'precise' represents values as precise (Java's 'BigDecimal') values;"
                     + "'long' represents values using Java's 'long', which may not offer the precision but will be far easier to use in consumers.");
 
+    public static final Field PROVIDE_ORDERED_TRANSACTION_METADATA = Field.create("provide.ordered.transaction.metadata")
+            .withDisplayName("Provide ordered transaction meatadata")
+            .withType(Type.BOOLEAN)
+            .withDefault(false)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withDescription(
+                    "Whether to provided ordered metadata on transactions");
+
     public static final Field SOURCE_INFO_STRUCT_MAKER = CommonConnectorConfig.SOURCE_INFO_STRUCT_MAKER
             .withDefault(VitessSourceInfoStructMaker.class.getName());
 
@@ -417,7 +426,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .events(
                     INCLUDE_UNKNOWN_DATATYPES,
                     SOURCE_INFO_STRUCT_MAKER)
-            .connector(SNAPSHOT_MODE, BIGINT_UNSIGNED_HANDLING_MODE)
+            .connector(SNAPSHOT_MODE, BIGINT_UNSIGNED_HANDLING_MODE, PROVIDE_ORDERED_TRANSACTION_METADATA)
             .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST)
             .create();
 
@@ -616,5 +625,9 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     public BigIntUnsignedHandlingMode getBigIntUnsgnedHandlingMode() {
         return BigIntUnsignedHandlingMode.parse(getConfig().getString(BIGINT_UNSIGNED_HANDLING_MODE),
                 BIGINT_UNSIGNED_HANDLING_MODE.defaultValueAsString());
+    }
+
+    public boolean shouldProvideOrderedTransactionMetadata() {
+        return Boolean.parseBoolean(getConfig().getString(PROVIDE_ORDERED_TRANSACTION_METADATA));
     }
 }

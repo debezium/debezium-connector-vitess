@@ -121,7 +121,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         }
         LOGGER.trace("Timestamp of begin transaction: {}", eventTimestamp);
         processor.process(
-                new TransactionalMessage(Operation.BEGIN, transactionId, eventTimestamp), newVgtid, false);
+                new TransactionalMessage(Operation.BEGIN, transactionId, eventTimestamp, vEvent.getShard()), newVgtid, false);
     }
 
     private void handleCommitMessage(
@@ -135,7 +135,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         }
         LOGGER.trace("Timestamp of commit transaction: {}", commitTimestamp);
         processor.process(
-                new TransactionalMessage(Operation.COMMIT, transactionId, eventTimestamp), newVgtid, false);
+                new TransactionalMessage(Operation.COMMIT, transactionId, eventTimestamp, vEvent.getShard()), newVgtid, false);
     }
 
     private void decodeRows(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid, boolean isLastRowEventOfTransaction)

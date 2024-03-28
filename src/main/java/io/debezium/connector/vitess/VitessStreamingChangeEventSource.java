@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import io.debezium.connector.vitess.connection.ReplicationConnection;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageProcessor;
+import io.debezium.connector.vitess.pipeline.txmetadata.VitessTransactionInfo;
 import io.debezium.pipeline.ErrorHandler;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
@@ -96,7 +97,8 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
                 offsetContext.rotateVgtid(newVgtid, message.getCommitTime());
                 if (message.getOperation() == ReplicationMessage.Operation.BEGIN) {
                     // send to transaction topic
-                    dispatcher.dispatchTransactionStartedEvent(partition, message.getTransactionId(), offsetContext, message.getCommitTime());
+                    VitessTransactionInfo transactionInfo = new VitessTransactionInfo(message.getTransactionId(), message.getShard());
+                    dispatcher.dispatchTransactionStartedEvent(partition, transactionInfo, offsetContext, message.getCommitTime());
                 }
                 else if (message.getOperation() == ReplicationMessage.Operation.COMMIT) {
                     // send to transaction topic

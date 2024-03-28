@@ -470,6 +470,69 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    @FixFor("")
+    public void shouldProvideOrderedTransactionMetadata() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(config -> config
+                .with(VitessConnectorConfig.PROVIDE_ORDERED_TRANSACTION_METADATA, true)
+                .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true)
+                .with(VitessConnectorConfig.SHARD, "-80,80-"),
+                true,
+                "80-");
+        assertConnectorIsRunning();
+
+        Vgtid baseVgtid = TestHelper.getCurrentVgtid();
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount + 2);
+
+        String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
+        String insertQuery = "INSERT INTO numeric_table ("
+                + "tinyint_col,"
+                + "tinyint_unsigned_col,"
+                + "smallint_col,"
+                + "smallint_unsigned_col,"
+                + "mediumint_col,"
+                + "mediumint_unsigned_col,"
+                + "int_col,"
+                + "int_unsigned_col,"
+                + "bigint_col,"
+                + "bigint_unsigned_col,"
+                + "bigint_unsigned_overflow_col,"
+                + "float_col,"
+                + "double_col,"
+                + "decimal_col,"
+                + "boolean_col)"
+                + " VALUES " + rowValue;
+        StringBuilder insertRows = new StringBuilder().append(insertQuery);
+        for (int i = 1; i < expectedRecordsCount; i++) {
+            insertRows.append(", ").append(rowValue);
+        }
+
+        String insertRowsStatement = insertRows.toString();
+
+        // exercise SUT
+        executeAndWait(insertRowsStatement, TEST_SHARDED_KEYSPACE);
+        // First transaction.
+        SourceRecord beginRecord = assertRecordBeginSourceRecord();
+        assertThat(beginRecord.sourceOffset()).containsKey("transaction_epoch");
+        String expectedTxId1 = ((Struct) beginRecord.value()).getString("id");
+        for (int i = 1; i <= expectedRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
+            final Struct txn = ((Struct) record.value()).getStruct("transaction");
+            String txId = txn.getString("id");
+            assertThat(txId).isNotNull();
+            assertThat(txId).isEqualTo(expectedTxId1);
+            assertThat(txn.get("transaction_epoch")).isEqualTo(0L);
+            assertThat(txn.get("transaction_rank")).isNotNull();
+            Vgtid actualVgtid = Vgtid.of(txId);
+            // The current vgtid is not the previous vgtid.
+            assertThat(actualVgtid).isNotEqualTo(baseVgtid);
+        }
+        assertRecordEnd(expectedTxId1, expectedRecordsCount);
+    }
+
+    @Test
     @FixFor("DBZ-5063")
     public void shouldUseSameTransactionIdWhenMultiGrpcResponses() throws Exception {
         Testing.Print.disable();
@@ -1326,14 +1389,19 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         return updatedRecord;
     }
 
+    private SourceRecord assertRecordBeginSourceRecord() {
+        assertFalse("records not generated", consumer.isEmpty());
+        SourceRecord record = consumer.remove();
+        return record;
+    }
+
     /**
      * Assert that the connector receives a valid BEGIN event.
      *
      * @return The transaction id
      */
     private String assertRecordBegin() {
-        assertFalse("records not generated", consumer.isEmpty());
-        SourceRecord record = consumer.remove();
+        SourceRecord record = assertRecordBeginSourceRecord();
         final Struct end = (Struct) record.value();
         assertThat(end.getString("status")).isEqualTo("BEGIN");
         return end.getString("id");

@@ -125,7 +125,8 @@ public class VitessChangeRecordEmitterTest {
     @Test(expected = UnsupportedOperationException.class)
     public void shouldNotSupportBeginMessage() {
         // setup fixture
-        ReplicationMessage message = new TransactionalMessage(ReplicationMessage.Operation.BEGIN, AnonymousValue.getString(), AnonymousValue.getInstant());
+        ReplicationMessage message = new TransactionalMessage(ReplicationMessage.Operation.BEGIN, AnonymousValue.getString(), AnonymousValue.getInstant(),
+                AnonymousValue.getString());
 
         // exercise SUT
         new VitessChangeRecordEmitter(
@@ -140,7 +141,8 @@ public class VitessChangeRecordEmitterTest {
     @Test(expected = UnsupportedOperationException.class)
     public void shouldNotSupportCommitMessage() {
         // setup fixture
-        ReplicationMessage message = new TransactionalMessage(ReplicationMessage.Operation.COMMIT, AnonymousValue.getString(), AnonymousValue.getInstant());
+        ReplicationMessage message = new TransactionalMessage(ReplicationMessage.Operation.COMMIT, AnonymousValue.getString(), AnonymousValue.getInstant(),
+                AnonymousValue.getString());
 
         // exercise SUT
         new VitessChangeRecordEmitter(

@@ -19,6 +19,7 @@ import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.pipeline.CommonOffsetContext;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.txmetadata.TransactionContext;
+import io.debezium.pipeline.txmetadata.TransactionContextSupplier;
 import io.debezium.relational.TableId;
 import io.debezium.spi.schema.DataCollectionId;
 import io.debezium.util.Clock;
@@ -50,8 +51,12 @@ public class VitessOffsetContext extends CommonOffsetContext<SourceInfo> {
                                                      VitessConnectorConfig connectorConfig, Clock clock) {
         LOGGER.info("No previous offset exists. Use default VGTID.");
         final Vgtid defaultVgtid = VitessReplicationConnection.defaultVgtid(connectorConfig);
-        return new VitessOffsetContext(
-                connectorConfig, defaultVgtid, clock.currentTimeAsInstant(), new TransactionContext());
+        // use the other transaction context
+        TransactionContextSupplier supplier = new TransactionContextSupplier(connectorConfig);
+        TransactionContext transactionContext = supplier.newTransactionContext();
+        VitessOffsetContext context = new VitessOffsetContext(
+                connectorConfig, defaultVgtid, clock.currentTimeAsInstant(), transactionContext);
+        return context;
     }
 
     /**
@@ -144,11 +149,13 @@ public class VitessOffsetContext extends CommonOffsetContext<SourceInfo> {
         @Override
         public VitessOffsetContext load(Map<String, ?> offset) {
             final String vgtid = (String) offset.get(SourceInfo.VGTID_KEY);
+            TransactionContextSupplier supplier = new TransactionContextSupplier(connectorConfig);
+            TransactionContext transactionContext = supplier.loadTransactionContext(offset);
             return new VitessOffsetContext(
                     connectorConfig,
                     Vgtid.of(vgtid),
                     null,
-                    TransactionContext.load(offset));
+                    transactionContext);
         }
     }
 }

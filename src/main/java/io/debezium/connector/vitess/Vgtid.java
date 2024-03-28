@@ -87,6 +87,15 @@ public class Vgtid {
         return shardGtids;
     }
 
+    public ShardGtid getShardGtid(String shard) {
+        for (ShardGtid shardGtid : shardGtids) {
+            if (shardGtid.shard.equals(shard)) {
+                return shardGtid;
+            }
+        }
+        throw new RuntimeException("Gtid for shard missing, shard: " + shard + "vgtid: " + this.rawVgtid.toString());
+    }
+
     public boolean isSingleShard() {
         return rawVgtid.getShardGtidsCount() == 1;
     }

@@ -100,7 +100,7 @@ public class VitessOffsetContextTest {
     }
 
     @Test
-    public void shouldGetOrderedTransactionContext() {
+    public void shouldGetVitessTransactionContext() {
         VitessConnectorConfig config = new VitessConnectorConfig(
                 TestHelper.defaultConfig()
                         .with(VitessConnectorConfig.TRANSACTION_CONTEXT, VitessTransactionContext.class)
@@ -113,7 +113,7 @@ public class VitessOffsetContextTest {
     }
 
     @Test
-    public void shouldGetInitialOrderedTransactionContext() {
+    public void shouldGetInitialVitessTransactionContext() {
         VitessConnectorConfig config = new VitessConnectorConfig(
                 TestHelper.defaultConfig()
                         .with(VitessConnectorConfig.TRANSACTION_CONTEXT, VitessTransactionContext.class)

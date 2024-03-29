@@ -21,7 +21,8 @@ public class VitessEpochProviderTest {
     private String txId = prefix + String.join(",", host1Tx2, host2Tx1);
     private String txIdShrunk = prefix + String.join(",", host1Tx2);
 
-    private String txIdUpgrade = "MySQL82/" + String.join(",", host1Tx2);
+    private String txIdVersion5 = "MySQL57/" + String.join(",", host1Tx2);
+    private String txIdVersion8 = "MySQL82/" + String.join(",", host1Tx2);
 
     @Test
     public void testGetEpochSameHostSet() {
@@ -53,9 +54,9 @@ public class VitessEpochProviderTest {
     }
 
     @Test
-    public void testGetEpochVersionUpgrade() {
+    public void testVersionUpgradeDoesNotAffectEpoch() {
         VitessEpochProvider provider = new VitessEpochProvider();
-        Long epoch = provider.getEpoch(0L, previousTxId, txIdUpgrade);
-        assertThat(epoch).isEqualTo(1);
+        Long epoch = provider.getEpoch(0L, txIdVersion5, txIdVersion8);
+        assertThat(epoch).isEqualTo(0L);
     }
 }

@@ -11,28 +11,25 @@ import org.apache.kafka.connect.data.Struct;
 import io.debezium.connector.vitess.VitessSchemaFactory;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.txmetadata.AbstractTransactionStructMaker;
-import io.debezium.pipeline.txmetadata.OrderedTransactionContext;
 import io.debezium.pipeline.txmetadata.TransactionStructMaker;
-import io.debezium.spi.schema.DataCollectionId;
 
 public class VitessOrderedTransactionStructMaker extends AbstractTransactionStructMaker implements TransactionStructMaker {
 
     @Override
-    public Struct prepareTxStruct(OffsetContext offsetContext, DataCollectionId source) {
-        Struct struct = super.prepareTxStruct(offsetContext, source);
+    public Struct prepareTxStruct(OffsetContext offsetContext, long dataCollectionEventOrder, Struct value) {
+        Struct struct = super.prepareTxStruct(offsetContext, dataCollectionEventOrder, value);
         return addOrderMetadata(struct, offsetContext);
     }
 
     private Struct addOrderMetadata(Struct struct, OffsetContext offsetContext) {
-        VitessTransactionOrderMetadata metadata = getVitessTransactionOrderMetadata(offsetContext);
-        struct.put(VitessTransactionOrderMetadata.OFFSET_TRANSACTION_RANK, metadata.transactionRank.toString());
-        struct.put(VitessTransactionOrderMetadata.OFFSET_TRANSACTION_EPOCH, metadata.transactionEpoch);
+        VitessTransactionContext context = getVitessTransactionOrderMetadata(offsetContext);
+        struct.put(VitessTransactionContext.OFFSET_TRANSACTION_RANK, context.transactionRank.toString());
+        struct.put(VitessTransactionContext.OFFSET_TRANSACTION_EPOCH, context.transactionEpoch);
         return struct;
     }
 
-    private VitessTransactionOrderMetadata getVitessTransactionOrderMetadata(OffsetContext offsetContext) {
-        OrderedTransactionContext context = (OrderedTransactionContext) offsetContext.getTransactionContext();
-        return (VitessTransactionOrderMetadata) context.getTransactionOrderMetadata();
+    private VitessTransactionContext getVitessTransactionOrderMetadata(OffsetContext offsetContext) {
+        return (VitessTransactionContext) offsetContext.getTransactionContext();
     }
 
     @Override

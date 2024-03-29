@@ -11,37 +11,51 @@ import java.util.Map;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.debezium.pipeline.txmetadata.TransactionInfo;
-import io.debezium.pipeline.txmetadata.TransactionOrderMetadata;
 
-public class VitessTransactionOrderMetadata implements TransactionOrderMetadata {
-
+public class VitessTransactionContext extends TransactionContext {
     public static final String OFFSET_TRANSACTION_EPOCH = "transaction_epoch";
     public static final String OFFSET_TRANSACTION_RANK = "transaction_rank";
     protected String previousTransactionId = null;
-    protected Long transactionEpoch;
-    protected BigInteger transactionRank;
+    protected Long transactionEpoch = 0L;
+    protected BigInteger transactionRank = null;
     private VitessEpochProvider epochProvider = new VitessEpochProvider();
     private VitessRankProvider rankProvider = new VitessRankProvider();
 
-    @Override
-    public Map<String, Object> store(Map<String, Object> offset) {
-        return epochProvider.store(offset);
+    public VitessTransactionContext() {
+    }
+
+    public VitessTransactionContext(TransactionContext transactionContext) {
+        super();
+        // Copy fields
+        this.transactionId = transactionContext.transactionId;
+        this.perTableEventCount.putAll(transactionContext.perTableEventCount);
+        this.totalEventCount = transactionContext.totalEventCount;
     }
 
     @Override
-    public void load(Map<String, ?> offsets) {
-        this.previousTransactionId = (String) offsets.get(TransactionContext.OFFSET_TRANSACTION_ID);
-        epochProvider.load(offsets);
+    public Map<String, Object> store(Map<String, Object> offset) {
+        offset = super.store(offset);
+        return epochProvider.store(offset);
+    }
+
+    public static VitessTransactionContext load(Map<String, ?> offsets) {
+        TransactionContext transactionContext = TransactionContext.load(offsets);
+        VitessTransactionContext vitessTransactionContext = new VitessTransactionContext(transactionContext);
+        vitessTransactionContext.previousTransactionId = (String) offsets.get(TransactionContext.OFFSET_TRANSACTION_ID);
+        vitessTransactionContext.epochProvider.load(offsets);
+        return vitessTransactionContext;
     }
 
     @Override
     public void beginTransaction(TransactionInfo transactionInfo) {
+        super.beginTransaction(transactionInfo);
         VitessTransactionInfo vitessTransactionInfo = (VitessTransactionInfo) transactionInfo;
         beginTransaction(vitessTransactionInfo.getShard(), vitessTransactionInfo.getTransactionId());
     }
 
     @Override
     public void endTransaction() {
+        super.endTransaction();
         this.transactionEpoch = null;
         this.transactionRank = null;
     }

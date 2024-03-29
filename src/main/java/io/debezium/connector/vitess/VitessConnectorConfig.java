@@ -32,10 +32,8 @@ import io.debezium.config.Field.ValidationOutput;
 import io.debezium.connector.SourceInfoStructMaker;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionStructMaker;
-import io.debezium.connector.vitess.pipeline.txmetadata.VitessTransactionOrderMetadata;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.jdbc.TemporalPrecisionMode;
-import io.debezium.pipeline.txmetadata.TransactionOrderMetadata;
 import io.debezium.pipeline.txmetadata.TransactionStructMaker;
 import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
@@ -421,9 +419,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     public static final Field SOURCE_INFO_STRUCT_MAKER = CommonConnectorConfig.SOURCE_INFO_STRUCT_MAKER
             .withDefault(VitessSourceInfoStructMaker.class.getName());
 
-    public static final Field TRANSACTION_ORDER_METADATA_FIELD = CommonConnectorConfig.TRANSACTION_ORDER_METADATA_FIELD
-            .withDefault(VitessTransactionOrderMetadata.class.getName());
-
     public static final Field TRANSACTION_STRUCT_MAKER = CommonConnectorConfig.TRANSACTION_STRUCT_MAKER
             .withDefault(VitessOrderedTransactionStructMaker.class.getName());
 
@@ -522,11 +517,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     protected SourceInfoStructMaker<?> getSourceInfoStructMaker(Version version) {
         // Assume V2 is used because it is the default version
         return getSourceInfoStructMaker(SOURCE_INFO_STRUCT_MAKER, Module.name(), Module.version(), this);
-    }
-
-    @Override
-    public TransactionOrderMetadata getTransactionOrderMetadata() {
-        return getTransactionOrderMetadata(TRANSACTION_ORDER_METADATA_FIELD);
     }
 
     @Override

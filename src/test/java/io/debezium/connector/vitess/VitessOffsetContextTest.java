@@ -13,7 +13,7 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 
-import io.debezium.pipeline.txmetadata.OrderedTransactionContext;
+import io.debezium.connector.vitess.pipeline.txmetadata.VitessTransactionContext;
 import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.debezium.util.Clock;
 import io.debezium.util.Collect;
@@ -103,23 +103,23 @@ public class VitessOffsetContextTest {
     public void shouldGetOrderedTransactionContext() {
         VitessConnectorConfig config = new VitessConnectorConfig(
                 TestHelper.defaultConfig()
-                        .with(VitessConnectorConfig.PROVIDE_ORDERED_TRANSACTION_METADATA, true)
+                        .with(VitessConnectorConfig.TRANSACTION_CONTEXT, VitessTransactionContext.class)
                         .build());
         VitessOffsetContext.Loader loader = new VitessOffsetContext.Loader(config);
         Map offsets = Map.of(SourceInfo.VGTID_KEY, VGTID_JSON);
         VitessOffsetContext context = loader.load(offsets);
         TransactionContext transactionContext = context.getTransactionContext();
-        assertThat(transactionContext).isInstanceOf(OrderedTransactionContext.class);
+        assertThat(transactionContext).isInstanceOf(VitessTransactionContext.class);
     }
 
     @Test
     public void shouldGetInitialOrderedTransactionContext() {
         VitessConnectorConfig config = new VitessConnectorConfig(
                 TestHelper.defaultConfig()
-                        .with(VitessConnectorConfig.PROVIDE_ORDERED_TRANSACTION_METADATA, true)
+                        .with(VitessConnectorConfig.TRANSACTION_CONTEXT, VitessTransactionContext.class)
                         .build());
         VitessOffsetContext context = VitessOffsetContext.initialContext(config, Clock.system());
         TransactionContext transactionContext = context.getTransactionContext();
-        assertThat(transactionContext).isInstanceOf(OrderedTransactionContext.class);
+        assertThat(transactionContext).isInstanceOf(VitessTransactionContext.class);
     }
 }

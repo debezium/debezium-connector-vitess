@@ -61,4 +61,9 @@ public class VitessEventMetadataProvider implements EventMetadataProvider {
         return sourceInfo.getString(SourceInfo.VGTID_KEY);
     }
 
+    // @Override
+    // public TransactionInfo getTransactionInfo(DataCollectionId source, OffsetContext offset, Object key, Struct value) {
+    //
+    // }
+
 }

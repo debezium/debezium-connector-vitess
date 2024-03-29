@@ -46,6 +46,8 @@ import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
+import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionStructMaker;
+import io.debezium.connector.vitess.pipeline.txmetadata.VitessTransactionContext;
 import io.debezium.converters.CloudEventsConverterTest;
 import io.debezium.converters.spi.CloudEventsMaker;
 import io.debezium.data.Envelope;
@@ -475,7 +477,8 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
         TestHelper.applyVSchema("vitess_vschema.json");
         startConnector(config -> config
-                .with(VitessConnectorConfig.PROVIDE_ORDERED_TRANSACTION_METADATA, true)
+                .with(CommonConnectorConfig.TRANSACTION_CONTEXT, VitessTransactionContext.class)
+                .with(CommonConnectorConfig.TRANSACTION_STRUCT_MAKER, VitessOrderedTransactionStructMaker.class)
                 .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true)
                 .with(VitessConnectorConfig.SHARD, "-80,80-"),
                 true,

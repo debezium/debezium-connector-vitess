@@ -18,13 +18,13 @@ import org.junit.Test;
 
 import io.debezium.connector.vitess.SourceInfo;
 
-public class VitessTransactionContextTest {
+public class VitessOrderedTransactionContextTest {
 
     private static final Schema sourceStructSchema = SchemaBuilder.struct().field(SourceInfo.VGTID_KEY, Schema.STRING_SCHEMA);
 
     @Test
     public void shouldInit() {
-        new VitessTransactionContext();
+        new VitessOrderedTransactionContext();
     }
 
     @Test
@@ -32,8 +32,8 @@ public class VitessTransactionContextTest {
         String expectedId = null;
         String expectedEpoch = "{\"-80\": 0}";
         Map offsets = Map.of(
-                VitessTransactionContext.OFFSET_TRANSACTION_EPOCH, expectedEpoch);
-        VitessTransactionContext metadata = new VitessTransactionContext();
+                VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, expectedEpoch);
+        VitessOrderedTransactionContext metadata = new VitessOrderedTransactionContext();
         metadata.load(offsets);
         assertThat(metadata.previousTransactionId).isEqualTo(expectedId);
     }
@@ -43,7 +43,7 @@ public class VitessTransactionContextTest {
         String expectedId = null;
         Long expectedEpoch = 0L;
         Map offsets = Collections.emptyMap();
-        VitessTransactionContext metadata = new VitessTransactionContext();
+        VitessOrderedTransactionContext metadata = new VitessOrderedTransactionContext();
         metadata.load(offsets);
         assertThat(metadata.previousTransactionId).isEqualTo(expectedId);
         assertThat(metadata.transactionEpoch).isEqualTo(expectedEpoch);
@@ -51,7 +51,7 @@ public class VitessTransactionContextTest {
 
     @Test
     public void shouldUpdateEpoch() {
-        VitessTransactionContext metadata = new VitessTransactionContext();
+        VitessOrderedTransactionContext metadata = new VitessOrderedTransactionContext();
 
         String expectedTxId = "[{\"keyspace\": \"foo\", \"gtid\": \"host1:1-3,host2:3-4\", \"shard\": \"-80\"}]";
         BigInteger expectedRank = new BigInteger("7");
@@ -75,7 +75,7 @@ public class VitessTransactionContextTest {
 
     @Test
     public void shouldUpdateRank() {
-        VitessTransactionContext metadata = new VitessTransactionContext();
+        VitessOrderedTransactionContext metadata = new VitessOrderedTransactionContext();
 
         String expectedTxId = "[{\"keyspace\": \"foo\", \"gtid\": \"host1:1-3,host2:3-4\", \"shard\": \"-80\"}]";
         String expectedShard = "-80";
@@ -92,7 +92,7 @@ public class VitessTransactionContextTest {
 
     @Test
     public void shouldStoreOffsets() {
-        VitessTransactionContext metadata = new VitessTransactionContext();
+        VitessOrderedTransactionContext metadata = new VitessOrderedTransactionContext();
 
         String expectedTxId = "[{\"keyspace\": \"foo\", \"gtid\": \"host1:1-3,host2:3-4\", \"shard\": \"-80\"}]";
         String expectedShard = "-80";
@@ -103,6 +103,6 @@ public class VitessTransactionContextTest {
         Map offsets = new HashMap();
         String expectedEpoch = "{\"-80\":0}";
         Map actualOffsets = metadata.store(offsets);
-        assertThat(actualOffsets.get(VitessTransactionContext.OFFSET_TRANSACTION_EPOCH)).isEqualTo(expectedEpoch);
+        assertThat(actualOffsets.get(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH)).isEqualTo(expectedEpoch);
     }
 }

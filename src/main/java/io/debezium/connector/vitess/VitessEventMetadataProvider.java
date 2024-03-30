@@ -10,9 +10,11 @@ import java.util.Map;
 
 import org.apache.kafka.connect.data.Struct;
 
+import io.debezium.connector.vitess.pipeline.txmetadata.VitessTransactionInfo;
 import io.debezium.data.Envelope;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
 import io.debezium.pipeline.spi.OffsetContext;
+import io.debezium.pipeline.txmetadata.TransactionInfo;
 import io.debezium.spi.schema.DataCollectionId;
 import io.debezium.util.Collect;
 
@@ -61,9 +63,15 @@ public class VitessEventMetadataProvider implements EventMetadataProvider {
         return sourceInfo.getString(SourceInfo.VGTID_KEY);
     }
 
-    // @Override
-    // public TransactionInfo getTransactionInfo(DataCollectionId source, OffsetContext offset, Object key, Struct value) {
-    //
-    // }
+    @Override
+    public TransactionInfo getTransactionInfo(DataCollectionId source, OffsetContext offset, Object key, Struct value) {
+        if (value == null || source == null) {
+            return null;
+        }
+        final Struct sourceInfo = value.getStruct(Envelope.FieldName.SOURCE);
+        String vgtid = sourceInfo.getString(SourceInfo.VGTID_KEY);
+        String shard = sourceInfo.getString(SourceInfo.SHARD_KEY);
+        return new VitessTransactionInfo(vgtid, shard);
+    }
 
 }

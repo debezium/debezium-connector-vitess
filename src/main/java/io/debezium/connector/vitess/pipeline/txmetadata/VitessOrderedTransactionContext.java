@@ -12,7 +12,7 @@ import io.debezium.connector.vitess.Vgtid;
 import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.debezium.pipeline.txmetadata.TransactionInfo;
 
-public class VitessTransactionContext extends TransactionContext {
+public class VitessOrderedTransactionContext extends TransactionContext {
     public static final String OFFSET_TRANSACTION_EPOCH = "transaction_epoch";
     public static final String OFFSET_TRANSACTION_RANK = "transaction_rank";
     protected String previousTransactionId = null;
@@ -21,10 +21,10 @@ public class VitessTransactionContext extends TransactionContext {
     private VitessEpochProvider epochProvider = new VitessEpochProvider();
     private VitessRankProvider rankProvider = new VitessRankProvider();
 
-    public VitessTransactionContext() {
+    public VitessOrderedTransactionContext() {
     }
 
-    public VitessTransactionContext(TransactionContext transactionContext) {
+    public VitessOrderedTransactionContext(TransactionContext transactionContext) {
         super();
         // Copy fields
         this.transactionId = transactionContext.transactionId;
@@ -38,12 +38,12 @@ public class VitessTransactionContext extends TransactionContext {
         return epochProvider.store(offset);
     }
 
-    public static VitessTransactionContext load(Map<String, ?> offsets) {
+    public static VitessOrderedTransactionContext load(Map<String, ?> offsets) {
         TransactionContext transactionContext = TransactionContext.load(offsets);
-        VitessTransactionContext vitessTransactionContext = new VitessTransactionContext(transactionContext);
-        vitessTransactionContext.previousTransactionId = (String) offsets.get(TransactionContext.OFFSET_TRANSACTION_ID);
-        vitessTransactionContext.epochProvider.load(offsets);
-        return vitessTransactionContext;
+        VitessOrderedTransactionContext vitessOrderedTransactionContext = new VitessOrderedTransactionContext(transactionContext);
+        vitessOrderedTransactionContext.previousTransactionId = (String) offsets.get(TransactionContext.OFFSET_TRANSACTION_ID);
+        vitessOrderedTransactionContext.epochProvider.load(offsets);
+        return vitessOrderedTransactionContext;
     }
 
     @Override

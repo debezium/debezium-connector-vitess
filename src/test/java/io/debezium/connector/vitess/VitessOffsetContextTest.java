@@ -13,7 +13,7 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 
-import io.debezium.connector.vitess.pipeline.txmetadata.VitessTransactionContext;
+import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionContext;
 import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.debezium.util.Clock;
 import io.debezium.util.Collect;
@@ -100,26 +100,26 @@ public class VitessOffsetContextTest {
     }
 
     @Test
-    public void shouldGetVitessTransactionContext() {
+    public void shouldGetVitessOrderedTransactionContext() {
         VitessConnectorConfig config = new VitessConnectorConfig(
                 TestHelper.defaultConfig()
-                        .with(VitessConnectorConfig.TRANSACTION_CONTEXT, VitessTransactionContext.class)
+                        .with(VitessConnectorConfig.TRANSACTION_CONTEXT, VitessOrderedTransactionContext.class)
                         .build());
         VitessOffsetContext.Loader loader = new VitessOffsetContext.Loader(config);
         Map offsets = Map.of(SourceInfo.VGTID_KEY, VGTID_JSON);
         VitessOffsetContext context = loader.load(offsets);
         TransactionContext transactionContext = context.getTransactionContext();
-        assertThat(transactionContext).isInstanceOf(VitessTransactionContext.class);
+        assertThat(transactionContext).isInstanceOf(VitessOrderedTransactionContext.class);
     }
 
     @Test
-    public void shouldGetInitialVitessTransactionContext() {
+    public void shouldGetInitialVitessOrderedTransactionContext() {
         VitessConnectorConfig config = new VitessConnectorConfig(
                 TestHelper.defaultConfig()
-                        .with(VitessConnectorConfig.TRANSACTION_CONTEXT, VitessTransactionContext.class)
+                        .with(VitessConnectorConfig.TRANSACTION_CONTEXT, VitessOrderedTransactionContext.class)
                         .build());
         VitessOffsetContext context = VitessOffsetContext.initialContext(config, Clock.system());
         TransactionContext transactionContext = context.getTransactionContext();
-        assertThat(transactionContext).isInstanceOf(VitessTransactionContext.class);
+        assertThat(transactionContext).isInstanceOf(VitessOrderedTransactionContext.class);
     }
 }

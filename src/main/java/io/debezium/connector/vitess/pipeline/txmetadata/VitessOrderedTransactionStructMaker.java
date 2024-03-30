@@ -22,14 +22,14 @@ public class VitessOrderedTransactionStructMaker extends AbstractTransactionStru
     }
 
     private Struct addOrderMetadata(Struct struct, OffsetContext offsetContext) {
-        VitessTransactionContext context = getVitessTransactionOrderMetadata(offsetContext);
-        struct.put(VitessTransactionContext.OFFSET_TRANSACTION_RANK, context.transactionRank.toString());
-        struct.put(VitessTransactionContext.OFFSET_TRANSACTION_EPOCH, context.transactionEpoch);
+        VitessOrderedTransactionContext context = getVitessTransactionOrderMetadata(offsetContext);
+        struct.put(VitessOrderedTransactionContext.OFFSET_TRANSACTION_RANK, context.transactionRank.toString());
+        struct.put(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, context.transactionEpoch);
         return struct;
     }
 
-    private VitessTransactionContext getVitessTransactionOrderMetadata(OffsetContext offsetContext) {
-        return (VitessTransactionContext) offsetContext.getTransactionContext();
+    private VitessOrderedTransactionContext getVitessTransactionOrderMetadata(OffsetContext offsetContext) {
+        return (VitessOrderedTransactionContext) offsetContext.getTransactionContext();
     }
 
     @Override

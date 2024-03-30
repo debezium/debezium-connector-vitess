@@ -11,7 +11,7 @@ import java.util.Set;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 
-import io.debezium.connector.vitess.pipeline.txmetadata.VitessTransactionContext;
+import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionContext;
 import io.debezium.data.Envelope;
 import io.debezium.pipeline.txmetadata.TransactionStructMaker;
 import io.debezium.schema.SchemaFactory;
@@ -35,8 +35,8 @@ public class VitessSchemaFactory extends SchemaFactory {
                 .field(TransactionStructMaker.DEBEZIUM_TRANSACTION_ID_KEY, Schema.STRING_SCHEMA)
                 .field(TransactionStructMaker.DEBEZIUM_TRANSACTION_TOTAL_ORDER_KEY, Schema.INT64_SCHEMA)
                 .field(TransactionStructMaker.DEBEZIUM_TRANSACTION_DATA_COLLECTION_ORDER_KEY, Schema.INT64_SCHEMA)
-                .field(VitessTransactionContext.OFFSET_TRANSACTION_EPOCH, Schema.INT64_SCHEMA)
-                .field(VitessTransactionContext.OFFSET_TRANSACTION_RANK, Schema.STRING_SCHEMA)
+                .field(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, Schema.INT64_SCHEMA)
+                .field(VitessOrderedTransactionContext.OFFSET_TRANSACTION_RANK, Schema.STRING_SCHEMA)
                 .build();
     }
 

@@ -42,7 +42,7 @@ public class VitessEpochProvider {
 
     public Map<String, Object> store(Map<String, Object> offset) {
         try {
-            offset.put(VitessTransactionContext.OFFSET_TRANSACTION_EPOCH, MAPPER.writeValueAsString(shardToEpoch));
+            offset.put(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, MAPPER.writeValueAsString(shardToEpoch));
             return offset;
         }
         catch (JsonProcessingException e) {
@@ -52,7 +52,7 @@ public class VitessEpochProvider {
 
     public void load(Map<String, ?> offsets) {
         try {
-            String shardToEpochString = (String) offsets.get(VitessTransactionContext.OFFSET_TRANSACTION_EPOCH);
+            String shardToEpochString = (String) offsets.get(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH);
             if (shardToEpochString != null) {
                 shardToEpoch = MAPPER.readValue(shardToEpochString, new TypeReference<Map<String, Long>>() {
                 });

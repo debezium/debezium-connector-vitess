@@ -31,7 +31,6 @@ import io.debezium.config.Field;
 import io.debezium.config.Field.ValidationOutput;
 import io.debezium.connector.SourceInfoStructMaker;
 import io.debezium.connector.vitess.connection.VitessTabletType;
-import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionStructMaker;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.pipeline.txmetadata.TransactionStructMaker;

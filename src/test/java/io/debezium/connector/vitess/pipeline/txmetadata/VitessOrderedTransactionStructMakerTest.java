@@ -7,6 +7,7 @@ package io.debezium.connector.vitess.pipeline.txmetadata;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 import org.apache.kafka.connect.data.Struct;
@@ -32,7 +33,7 @@ public class VitessOrderedTransactionStructMakerTest {
         OffsetContext context = new VitessOffsetContext(config, Vgtid.of(VgtidTest.VGTID_JSON), Instant.now(), transactionContext);
         Struct struct = maker.prepareTxStruct(context, 0, null);
         assertThat(struct.get(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH)).isEqualTo(0L);
-        assertThat(struct.get(VitessOrderedTransactionContext.OFFSET_TRANSACTION_RANK)).isEqualTo("1513");
+        assertThat(struct.get(VitessOrderedTransactionContext.OFFSET_TRANSACTION_RANK)).isEqualTo(new BigDecimal(1513));
     }
 
     @Test

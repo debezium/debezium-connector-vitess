@@ -5,7 +5,7 @@
  */
 package io.debezium.connector.vitess.pipeline.txmetadata;
 
-import java.math.BigInteger;
+import java.math.BigDecimal;
 import java.util.Map;
 
 import io.debezium.connector.vitess.Vgtid;
@@ -17,7 +17,7 @@ public class VitessOrderedTransactionContext extends TransactionContext {
     public static final String OFFSET_TRANSACTION_RANK = "transaction_rank";
     protected String previousTransactionId = null;
     protected Long transactionEpoch = 0L;
-    protected BigInteger transactionRank = null;
+    protected BigDecimal transactionRank = null;
     private VitessEpochProvider epochProvider = new VitessEpochProvider();
     private VitessRankProvider rankProvider = new VitessRankProvider();
 
@@ -32,6 +32,34 @@ public class VitessOrderedTransactionContext extends TransactionContext {
         this.totalEventCount = transactionContext.totalEventCount;
     }
 
+    /**
+     * Stores the needed information for determining Vitess rank & Epoch. Example (excluding standard fields added by super class):
+     * Input Offset map:
+     * {
+     *     "transaction_id": "[{\"keyspace\":\ks1\",\"shard\":\"-80\",\"gtid\":\"MySQL56/host1:123,host2:234\",\"table_p_ks\":[]} \
+     *                         {\"keyspace\":\ks1\",\"shard\":\"80-\",\"gtid\":\"MySQL56/host1:123,host2:234\",\"table_p_ks\":[]}"
+     * }
+     * Current shard to epoch map, in epoch provider:
+     * {
+     *     "-80": 0,
+     *     "80-", 1
+     * }
+     * Output offset map:
+     * {
+     *     "transaction_id": "[{\"keyspace\":\ks1\",\"shard\":\"-80\",\"gtid\":\"MySQL56/host1:123,host2:234\",\"table_p_ks\":[]} \
+     *                         {\"keyspace\":\ks1\",\"shard\":\"80-\",\"gtid\":\"MySQL56/host1:123,host2:234\",\"table_p_ks\":[]}"
+     *     "transaction_epoch": {
+     *          "-80": 0,
+     *          "80-", 1
+     *     }
+     * }
+     *
+     * Note: there is no need to store the transaction rank. We get the previous transaction ID from the "transaction_id" field
+     * and use that to compute the epoch. Rank requires no state (sum of max offsets of all hosts).
+     *
+     * @param offset
+     * @return
+     */
     @Override
     public Map<String, Object> store(Map<String, Object> offset) {
         offset = super.store(offset);

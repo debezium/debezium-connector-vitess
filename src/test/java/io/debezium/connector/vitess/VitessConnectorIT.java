@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,6 +49,7 @@ import io.debezium.config.Field;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionContext;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionStructMaker;
+import io.debezium.connector.vitess.pipeline.txmetadata.VitessRankProvider;
 import io.debezium.converters.CloudEventsConverterTest;
 import io.debezium.converters.spi.CloudEventsMaker;
 import io.debezium.data.Envelope;
@@ -478,10 +480,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         startConnector(config -> config
                 .with(CommonConnectorConfig.TRANSACTION_CONTEXT, VitessOrderedTransactionContext.class)
                 .with(CommonConnectorConfig.TRANSACTION_STRUCT_MAKER, VitessOrderedTransactionStructMaker.class)
-                .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true)
-                .with(VitessConnectorConfig.SHARD, "-80,80-"),
+                .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true),
                 true,
-                "80-");
+                "-80,80-");
         assertConnectorIsRunning();
 
         Vgtid baseVgtid = TestHelper.getCurrentVgtid();
@@ -519,14 +520,18 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         SourceRecord beginRecord = assertRecordBeginSourceRecord();
         assertThat(beginRecord.sourceOffset()).containsKey("transaction_epoch");
         String expectedTxId1 = ((Struct) beginRecord.value()).getString("id");
+        Long expectedEpoch = 0L;
         for (int i = 1; i <= expectedRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
+            Struct source = (Struct) ((Struct) record.value()).get("source");
+            String shard = source.getString("shard");
             final Struct txn = ((Struct) record.value()).getStruct("transaction");
             String txId = txn.getString("id");
             assertThat(txId).isNotNull();
             assertThat(txId).isEqualTo(expectedTxId1);
-            assertThat(txn.get("transaction_epoch")).isEqualTo(0L);
-            assertThat(txn.get("transaction_rank")).isNotNull();
+            assertThat(txn.get("transaction_epoch")).isEqualTo(expectedEpoch);
+            BigDecimal expectedRank = new VitessRankProvider().getRank(Vgtid.of(expectedTxId1).getShardGtid(shard).getGtid());
+            assertThat(txn.get("transaction_rank")).isEqualTo(expectedRank);
             Vgtid actualVgtid = Vgtid.of(txId);
             // The current vgtid is not the previous vgtid.
             assertThat(actualVgtid).isNotEqualTo(baseVgtid);

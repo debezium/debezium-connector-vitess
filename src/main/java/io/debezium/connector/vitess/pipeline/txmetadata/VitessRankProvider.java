@@ -5,15 +5,15 @@
  */
 package io.debezium.connector.vitess.pipeline.txmetadata;
 
-import java.math.BigInteger;
+import java.math.BigDecimal;
 
 public class VitessRankProvider {
 
-    public BigInteger getRank(String transactionId) {
+    public BigDecimal getRank(String transactionId) {
         Gtid gtid = new Gtid(transactionId);
-        BigInteger rank = new BigInteger("0");
+        BigDecimal rank = new BigDecimal("0");
         for (String sequenceValue : gtid.getSequenceValues()) {
-            rank = rank.add(new BigInteger(sequenceValue));
+            rank = rank.add(new BigDecimal(sequenceValue));
         }
         return rank;
     }

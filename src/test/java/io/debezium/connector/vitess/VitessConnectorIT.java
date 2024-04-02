@@ -472,7 +472,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
-    @FixFor("")
     public void shouldProvideOrderedTransactionMetadata() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
         TestHelper.applyVSchema("vitess_vschema.json");

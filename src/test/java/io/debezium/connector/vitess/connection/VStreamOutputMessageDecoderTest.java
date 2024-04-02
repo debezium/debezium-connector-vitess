@@ -51,8 +51,10 @@ public class VStreamOutputMessageDecoderTest {
     @Test
     public void shouldProcessBeginEvent() throws Exception {
         // setup fixture
+        String expectedShard = "shard";
         Binlogdata.VEvent event = Binlogdata.VEvent.newBuilder()
                 .setType(Binlogdata.VEventType.BEGIN)
+                .setShard(expectedShard)
                 .setTimestamp(AnonymousValue.getLong())
                 .build();
         Vgtid newVgtid = Vgtid.of(VgtidTest.VGTID_JSON);
@@ -66,6 +68,7 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(TransactionalMessage.class);
                     assertThat(message.getOperation()).isEqualTo(ReplicationMessage.Operation.BEGIN);
+                    assertThat(message.getShard()).isEqualTo(expectedShard);
                     assertThat(message.getTransactionId()).isEqualTo(newVgtid.toString());
                     assertThat(vgtid).isEqualTo(newVgtid);
                     processed[0] = true;
@@ -102,10 +105,12 @@ public class VStreamOutputMessageDecoderTest {
 
     @Test
     public void shouldProcessCommitEvent() throws Exception {
+        String expectedShard = "shard";
         // setup fixture
         Binlogdata.VEvent event = Binlogdata.VEvent.newBuilder()
                 .setType(Binlogdata.VEventType.COMMIT)
                 .setTimestamp(AnonymousValue.getLong())
+                .setShard(expectedShard)
                 .build();
         Vgtid newVgtid = Vgtid.of(VgtidTest.VGTID_JSON);
         decoder.setTransactionId(newVgtid.toString());
@@ -119,6 +124,7 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(TransactionalMessage.class);
                     assertThat(message.getOperation()).isEqualTo(ReplicationMessage.Operation.COMMIT);
+                    assertThat(message.getShard()).isEqualTo(expectedShard);
                     assertThat(message.getTransactionId()).isEqualTo(newVgtid.toString());
                     assertThat(vgtid).isEqualTo(newVgtid);
                     processed[0] = true;

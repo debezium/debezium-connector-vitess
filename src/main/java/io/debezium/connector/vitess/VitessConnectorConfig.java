@@ -33,7 +33,6 @@ import io.debezium.connector.SourceInfoStructMaker;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.jdbc.TemporalPrecisionMode;
-import io.debezium.pipeline.txmetadata.TransactionStructMaker;
 import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 
@@ -513,11 +512,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     protected SourceInfoStructMaker<?> getSourceInfoStructMaker(Version version) {
         // Assume V2 is used because it is the default version
         return getSourceInfoStructMaker(SOURCE_INFO_STRUCT_MAKER, Module.name(), Module.version(), this);
-    }
-
-    @Override
-    public TransactionStructMaker getTransactionStructMaker() {
-        return getTransactionStructMaker(TRANSACTION_STRUCT_MAKER);
     }
 
     public String getKeyspace() {

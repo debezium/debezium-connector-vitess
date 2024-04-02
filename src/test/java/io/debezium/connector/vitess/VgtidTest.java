@@ -303,4 +303,11 @@ public class VgtidTest {
             assertThat(vgtids.stream().allMatch(vgtid::equals)).isTrue();
         }
     }
+
+    @Test
+    public void shouldGetShardGtid() {
+        Vgtid vgtid1 = Vgtid.of(VGTID_JSON);
+        Vgtid.ShardGtid shardGtid = vgtid1.getShardGtid(TEST_SHARD);
+        assertThat(shardGtid).isEqualTo(new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID));
+    }
 }

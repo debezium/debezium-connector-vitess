@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.vitess;
 
+import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 
@@ -25,6 +26,7 @@ public class VitessSchemaFactory extends SchemaFactory {
     }
 
     public Schema getOrderedTransactionBlockSchema() {
+        Schema rankSchema = Decimal.schema(0).schema();
         return SchemaBuilder.struct().optional()
                 .name(TRANSACTION_BLOCK_SCHEMA_NAME)
                 .version(TRANSACTION_BLOCK_SCHEMA_VERSION)
@@ -32,7 +34,7 @@ public class VitessSchemaFactory extends SchemaFactory {
                 .field(TransactionStructMaker.DEBEZIUM_TRANSACTION_TOTAL_ORDER_KEY, Schema.INT64_SCHEMA)
                 .field(TransactionStructMaker.DEBEZIUM_TRANSACTION_DATA_COLLECTION_ORDER_KEY, Schema.INT64_SCHEMA)
                 .field(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, Schema.INT64_SCHEMA)
-                .field(VitessOrderedTransactionContext.OFFSET_TRANSACTION_RANK, Schema.STRING_SCHEMA)
+                .field(VitessOrderedTransactionContext.OFFSET_TRANSACTION_RANK, rankSchema)
                 .build();
     }
 }

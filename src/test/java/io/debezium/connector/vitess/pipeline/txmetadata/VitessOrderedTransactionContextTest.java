@@ -7,7 +7,7 @@ package io.debezium.connector.vitess.pipeline.txmetadata;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.math.BigInteger;
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,6 +17,8 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 import org.junit.Test;
 
 import io.debezium.connector.vitess.SourceInfo;
+import io.debezium.connector.vitess.VgtidTest;
+import io.debezium.pipeline.txmetadata.TransactionContext;
 
 public class VitessOrderedTransactionContextTest {
 
@@ -29,13 +31,15 @@ public class VitessOrderedTransactionContextTest {
 
     @Test
     public void shouldLoad() {
-        String expectedId = null;
-        String expectedEpoch = "{\"-80\": 0}";
+        String expectedId = VgtidTest.VGTID_JSON;
+        String expectedEpoch = "{\"-80\": 5}";
         Map offsets = Map.of(
-                VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, expectedEpoch);
-        VitessOrderedTransactionContext metadata = new VitessOrderedTransactionContext();
-        metadata.load(offsets);
-        assertThat(metadata.previousTransactionId).isEqualTo(expectedId);
+                VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, expectedEpoch,
+                TransactionContext.OFFSET_TRANSACTION_ID, expectedId);
+        VitessOrderedTransactionContext context = VitessOrderedTransactionContext.load(offsets);
+        assertThat(context.previousTransactionId).isEqualTo(expectedId);
+        context.beginTransaction(new VitessTransactionInfo(VgtidTest.VGTID_JSON, "-80"));
+        assertThat(context.transactionEpoch).isEqualTo(5);
     }
 
     @Test
@@ -54,7 +58,7 @@ public class VitessOrderedTransactionContextTest {
         VitessOrderedTransactionContext metadata = new VitessOrderedTransactionContext();
 
         String expectedTxId = "[{\"keyspace\": \"foo\", \"gtid\": \"host1:1-3,host2:3-4\", \"shard\": \"-80\"}]";
-        BigInteger expectedRank = new BigInteger("7");
+        BigDecimal expectedRank = new BigDecimal("7");
         long expectedEpoch = 0;
         String expectedShard = "-80";
 
@@ -64,7 +68,7 @@ public class VitessOrderedTransactionContextTest {
         assertThat(metadata.transactionEpoch).isEqualTo(expectedEpoch);
 
         String expectedTxId2 = "[{\"keyspace\": \"foo\", \"gtid\": \"host1:1-3\", \"shard\": \"-80\"}]";
-        BigInteger expectedRank2 = new BigInteger("3");
+        BigDecimal expectedRank2 = new BigDecimal("3");
         long expectedEpoch2 = 1;
 
         VitessTransactionInfo transactionInfo2 = new VitessTransactionInfo(expectedTxId2, expectedShard);
@@ -82,12 +86,12 @@ public class VitessOrderedTransactionContextTest {
 
         VitessTransactionInfo transactionInfo = new VitessTransactionInfo(expectedTxId, expectedShard);
         metadata.beginTransaction(transactionInfo);
-        assertThat(metadata.transactionRank).isEqualTo(7);
+        assertThat(metadata.transactionRank).isEqualTo(new BigDecimal(7));
 
         String expectedTxId2 = "[{\"keyspace\": \"foo\", \"gtid\": \"host1:1-3\", \"shard\": \"-80\"}]";
         VitessTransactionInfo transactionInfo2 = new VitessTransactionInfo(expectedTxId2, expectedShard);
         metadata.beginTransaction(transactionInfo2);
-        assertThat(metadata.transactionRank).isEqualTo(3);
+        assertThat(metadata.transactionRank).isEqualTo(new BigDecimal(3));
     }
 
     @Test

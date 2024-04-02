@@ -7,7 +7,7 @@ package io.debezium.connector.vitess.pipeline.txmetadata;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.math.BigInteger;
+import java.math.BigDecimal;
 
 import org.junit.Test;
 
@@ -17,8 +17,8 @@ public class VitessRankProviderTest {
     public void shouldGetRankOneHost() {
         String txId = "host1:1-4";
         VitessRankProvider provider = new VitessRankProvider();
-        BigInteger rank = provider.getRank(txId);
-        assertThat(rank).isEqualTo(4);
+        BigDecimal rank = provider.getRank(txId);
+        assertThat(rank).isEqualTo(new BigDecimal(4));
     }
 
 }

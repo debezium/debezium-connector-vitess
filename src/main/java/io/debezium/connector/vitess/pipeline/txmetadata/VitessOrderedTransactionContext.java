@@ -65,6 +65,11 @@ public class VitessOrderedTransactionContext extends TransactionContext {
         return epochProvider.store(offset);
     }
 
+    @Override
+    public TransactionContext newTransactionContextFromOffsets(Map<String, ?> offsets) {
+        return load(offsets);
+    }
+
     public static VitessOrderedTransactionContext load(Map<String, ?> offsets) {
         TransactionContext transactionContext = TransactionContext.load(offsets);
         VitessOrderedTransactionContext vitessOrderedTransactionContext = new VitessOrderedTransactionContext(transactionContext);
@@ -92,4 +97,24 @@ public class VitessOrderedTransactionContext extends TransactionContext {
         this.transactionRank = VitessRankProvider.getRank(Vgtid.of(vgtid).getShardGtid(shard).getGtid());
         this.previousVgtid = vgtid;
     }
+
+    @Override
+    public String toString() {
+        return "VitessOrderedTransactionContext [currentTransactionId=" + transactionId + ", perTableEventCount="
+                + perTableEventCount + ", totalEventCount=" + totalEventCount + "]" + ", previousVgtid=" + previousVgtid
+                + ", transactionEpoch=" + transactionEpoch + ", transactionRank=" + transactionRank;
+    }
+
+    public String getPreviousVgtid() {
+        return previousVgtid;
+    }
+
+    public Long getTransactionEpoch() {
+        return transactionEpoch;
+    }
+
+    public BigDecimal getTransactionRank() {
+        return transactionRank;
+    }
+
 }

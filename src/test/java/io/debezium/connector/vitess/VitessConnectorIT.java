@@ -530,7 +530,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
             assertThat(txId).isNotNull();
             assertThat(txId).isEqualTo(expectedTxId1);
             assertThat(txn.get("transaction_epoch")).isEqualTo(expectedEpoch);
-            BigDecimal expectedRank = new VitessRankProvider().getRank(Vgtid.of(expectedTxId1).getShardGtid(shard).getGtid());
+            BigDecimal expectedRank = VitessRankProvider.getRank(Vgtid.of(expectedTxId1).getShardGtid(shard).getGtid());
             assertThat(txn.get("transaction_rank")).isEqualTo(expectedRank);
             Vgtid actualVgtid = Vgtid.of(txId);
             // The current vgtid is not the previous vgtid.

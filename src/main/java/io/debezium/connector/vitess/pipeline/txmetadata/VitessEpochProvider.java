@@ -23,9 +23,9 @@ public class VitessEpochProvider {
     private Map<String, Long> shardToEpoch = new HashMap<>();
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    public Long getEpoch(Long previousEpoch, String previousTransactionId, String transactionId) {
-        Gtid previousGtid = new Gtid(previousTransactionId);
-        Gtid gtid = new Gtid(transactionId);
+    public Long getEpochForGtid(Long previousEpoch, String previousGtidString, String gtidString) {
+        Gtid previousGtid = new Gtid(previousGtidString);
+        Gtid gtid = new Gtid(gtidString);
         if (previousGtid.isHostSetEqual(gtid) || gtid.isHostSetSupersetOf(previousGtid)) {
             return previousEpoch;
         }
@@ -74,7 +74,7 @@ public class VitessEpochProvider {
         String previousGtid = previousVgtid.getShardGtid(shard).getGtid();
         String gtid = vgtid.getShardGtid(shard).getGtid();
         long previousEpoch = shardToEpoch.get(shard);
-        long currentEpoch = getEpoch(previousEpoch, previousGtid, gtid);
+        long currentEpoch = getEpochForGtid(previousEpoch, previousGtid, gtid);
         storeEpoch(shard, currentEpoch);
         return currentEpoch;
     }

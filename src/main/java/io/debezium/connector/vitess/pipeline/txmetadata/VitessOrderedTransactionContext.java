@@ -15,11 +15,10 @@ import io.debezium.pipeline.txmetadata.TransactionInfo;
 public class VitessOrderedTransactionContext extends TransactionContext {
     public static final String OFFSET_TRANSACTION_EPOCH = "transaction_epoch";
     public static final String OFFSET_TRANSACTION_RANK = "transaction_rank";
-    protected String previousTransactionId = null;
+    protected String previousVgtid = null;
     protected Long transactionEpoch = 0L;
     protected BigDecimal transactionRank = null;
     private VitessEpochProvider epochProvider = new VitessEpochProvider();
-    private VitessRankProvider rankProvider = new VitessRankProvider();
 
     public VitessOrderedTransactionContext() {
     }
@@ -69,7 +68,7 @@ public class VitessOrderedTransactionContext extends TransactionContext {
     public static VitessOrderedTransactionContext load(Map<String, ?> offsets) {
         TransactionContext transactionContext = TransactionContext.load(offsets);
         VitessOrderedTransactionContext vitessOrderedTransactionContext = new VitessOrderedTransactionContext(transactionContext);
-        vitessOrderedTransactionContext.previousTransactionId = (String) offsets.get(TransactionContext.OFFSET_TRANSACTION_ID);
+        vitessOrderedTransactionContext.previousVgtid = (String) offsets.get(TransactionContext.OFFSET_TRANSACTION_ID);
         vitessOrderedTransactionContext.epochProvider.load(offsets);
         return vitessOrderedTransactionContext;
     }
@@ -89,8 +88,8 @@ public class VitessOrderedTransactionContext extends TransactionContext {
     }
 
     private void beginTransaction(String shard, String vgtid) {
-        this.transactionEpoch = this.epochProvider.getEpoch(shard, this.previousTransactionId, vgtid);
-        this.transactionRank = this.rankProvider.getRank(Vgtid.of(vgtid).getShardGtid(shard).getGtid());
-        this.previousTransactionId = vgtid;
+        this.transactionEpoch = this.epochProvider.getEpoch(shard, this.previousVgtid, vgtid);
+        this.transactionRank = VitessRankProvider.getRank(Vgtid.of(vgtid).getShardGtid(shard).getGtid());
+        this.previousVgtid = vgtid;
     }
 }

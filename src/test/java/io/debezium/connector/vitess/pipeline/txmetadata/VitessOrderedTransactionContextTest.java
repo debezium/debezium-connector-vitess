@@ -37,7 +37,7 @@ public class VitessOrderedTransactionContextTest {
                 VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, expectedEpoch,
                 TransactionContext.OFFSET_TRANSACTION_ID, expectedId);
         VitessOrderedTransactionContext context = VitessOrderedTransactionContext.load(offsets);
-        assertThat(context.previousTransactionId).isEqualTo(expectedId);
+        assertThat(context.previousVgtid).isEqualTo(expectedId);
         context.beginTransaction(new VitessTransactionInfo(VgtidTest.VGTID_JSON, "-80"));
         assertThat(context.transactionEpoch).isEqualTo(5);
     }
@@ -49,7 +49,7 @@ public class VitessOrderedTransactionContextTest {
         Map offsets = Collections.emptyMap();
         VitessOrderedTransactionContext metadata = new VitessOrderedTransactionContext();
         metadata.load(offsets);
-        assertThat(metadata.previousTransactionId).isEqualTo(expectedId);
+        assertThat(metadata.previousVgtid).isEqualTo(expectedId);
         assertThat(metadata.transactionEpoch).isEqualTo(expectedEpoch);
     }
 

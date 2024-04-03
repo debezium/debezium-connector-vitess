@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 
 public class VitessRankProvider {
 
-    public BigDecimal getRank(String transactionId) {
+    public static BigDecimal getRank(String transactionId) {
         Gtid gtid = new Gtid(transactionId);
         BigDecimal rank = new BigDecimal("0");
         for (String sequenceValue : gtid.getSequenceValues()) {

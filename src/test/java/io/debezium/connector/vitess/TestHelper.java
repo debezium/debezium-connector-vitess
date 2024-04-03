@@ -59,7 +59,7 @@ public class TestHelper {
             "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}" +
             "]";
 
-    protected static final String VGTID_JSON_TEMPLATE = "[" +
+    public static final String VGTID_JSON_TEMPLATE = "[" +
             "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\",\"table_p_ks\":[]}," +
             "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\",\"table_p_ks\":[]}" +
             "]";

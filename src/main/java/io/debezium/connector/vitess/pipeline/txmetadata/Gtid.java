@@ -10,6 +10,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import io.debezium.connector.vitess.Vgtid;
+
 class Gtid {
 
     public String getVersion() {
@@ -58,6 +60,9 @@ class Gtid {
 
     private void parseGtid(String transactionId) {
         transactionId = trimVersion(transactionId);
+        if (transactionId.equals(Vgtid.CURRENT_GTID) || transactionId.equals(Vgtid.EMPTY_GTID)) {
+            return;
+        }
         String[] transactions = transactionId.split(",");
         for (String transaction : transactions) {
             String[] parts = transaction.split(":");

@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.vitess.pipeline.txmetadata;
 
+import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_TEMPLATE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
@@ -12,6 +13,7 @@ import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
+import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VgtidTest;
 
 public class VitessEpochProviderTest {
@@ -41,6 +43,42 @@ public class VitessEpochProviderTest {
         provider.load(Map.of(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, expectedEpoch));
         Long epoch = provider.getEpoch("-80", VgtidTest.VGTID_JSON, VgtidTest.VGTID_JSON);
         assertThat(epoch).isEqualTo(5);
+    }
+
+    @Test
+    public void testIncrementEpochVgtidCurrent() {
+        Long expectedEpoch = 0L;
+        VitessEpochProvider provider = new VitessEpochProvider();
+        Long epoch = provider.getEpoch("-80", VgtidTest.VGTID_JSON, VgtidTest.VGTID_JSON);
+        assertThat(epoch).isEqualTo(expectedEpoch);
+        String vgtidJsonCurrent = String.format(
+                VGTID_JSON_TEMPLATE,
+                VgtidTest.TEST_KEYSPACE,
+                VgtidTest.TEST_SHARD,
+                Vgtid.CURRENT_GTID,
+                VgtidTest.TEST_KEYSPACE,
+                VgtidTest.TEST_SHARD2,
+                Vgtid.CURRENT_GTID);
+        Long epoch2 = provider.getEpoch("-80", VgtidTest.VGTID_JSON, vgtidJsonCurrent);
+        assertThat(epoch2).isEqualTo(1L);
+    }
+
+    @Test
+    public void testIncrementEpochVgtidEmpty() {
+        Long expectedEpoch = 0L;
+        VitessEpochProvider provider = new VitessEpochProvider();
+        Long epoch = provider.getEpoch("-80", VgtidTest.VGTID_JSON, VgtidTest.VGTID_JSON);
+        assertThat(epoch).isEqualTo(expectedEpoch);
+        String vgtidJsonCurrent = String.format(
+                VGTID_JSON_TEMPLATE,
+                VgtidTest.TEST_KEYSPACE,
+                VgtidTest.TEST_SHARD,
+                Vgtid.EMPTY_GTID,
+                VgtidTest.TEST_KEYSPACE,
+                VgtidTest.TEST_SHARD2,
+                Vgtid.EMPTY_GTID);
+        Long epoch2 = provider.getEpoch("-80", VgtidTest.VGTID_JSON, vgtidJsonCurrent);
+        assertThat(epoch2).isEqualTo(1L);
     }
 
     @Test

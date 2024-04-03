@@ -7,8 +7,12 @@ package io.debezium.connector.vitess.pipeline.txmetadata;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Map;
+
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
+
+import io.debezium.connector.vitess.VgtidTest;
 
 public class VitessEpochProviderTest {
 
@@ -26,37 +30,41 @@ public class VitessEpochProviderTest {
 
     @Test
     public void testGetEpochSameHostSet() {
-        VitessEpochProvider provider = new VitessEpochProvider();
-        Long epoch = provider.getEpochForGtid(0L, previousTxId, txId);
+        Long epoch = VitessEpochProvider.getEpochForGtid(0L, previousTxId, txId);
         assertThat(epoch).isEqualTo(0);
     }
 
     @Test
-    public void testGetEpochShrunkHostSet() {
+    public void testGetEpochVgtid() {
         VitessEpochProvider provider = new VitessEpochProvider();
-        Long epoch = provider.getEpochForGtid(0L, previousTxId, txIdShrunk);
+        String expectedEpoch = "{\"-80\": 5}";
+        provider.load(Map.of(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, expectedEpoch));
+        Long epoch = provider.getEpoch("-80", VgtidTest.VGTID_JSON, VgtidTest.VGTID_JSON);
+        assertThat(epoch).isEqualTo(5);
+    }
+
+    @Test
+    public void testGetEpochShrunkHostSet() {
+        Long epoch = VitessEpochProvider.getEpochForGtid(0L, previousTxId, txIdShrunk);
         assertThat(epoch).isEqualTo(1);
     }
 
     @Test
     public void testGetEpochExpandHostSet() {
-        VitessEpochProvider provider = new VitessEpochProvider();
-        Long epoch = provider.getEpochForGtid(0L, previousTxId, txId);
+        Long epoch = VitessEpochProvider.getEpochForGtid(0L, previousTxId, txId);
         assertThat(epoch).isEqualTo(0);
     }
 
     @Test
     public void testGetEpochDisjointThrowsException() {
-        VitessEpochProvider provider = new VitessEpochProvider();
         Assertions.assertThatThrownBy(() -> {
-            provider.getEpochForGtid(0L, previousTxId, "foo:1-2,bar:2-4");
+            VitessEpochProvider.getEpochForGtid(0L, previousTxId, "foo:1-2,bar:2-4");
         }).isInstanceOf(RuntimeException.class);
     }
 
     @Test
     public void testVersionUpgradeDoesNotAffectEpoch() {
-        VitessEpochProvider provider = new VitessEpochProvider();
-        Long epoch = provider.getEpochForGtid(0L, txIdVersion5, txIdVersion8);
+        Long epoch = VitessEpochProvider.getEpochForGtid(0L, txIdVersion5, txIdVersion8);
         assertThat(epoch).isEqualTo(0L);
     }
 }

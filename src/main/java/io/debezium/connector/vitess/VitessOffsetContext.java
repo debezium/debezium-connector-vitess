@@ -147,7 +147,7 @@ public class VitessOffsetContext extends CommonOffsetContext<SourceInfo> {
         @Override
         public VitessOffsetContext load(Map<String, ?> offset) {
             final String vgtid = (String) offset.get(SourceInfo.VGTID_KEY);
-            TransactionContext transactionContext = connectorConfig.getTransactionContext();
+            TransactionContext transactionContext = connectorConfig.getTransactionContext().newTransactionContextFromOffsets(offset);
             return new VitessOffsetContext(
                     connectorConfig,
                     Vgtid.of(vgtid),

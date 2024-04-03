@@ -16,8 +16,7 @@ public class VitessRankProviderTest {
     @Test
     public void shouldGetRankOneHost() {
         String txId = "host1:1-4";
-        VitessRankProvider provider = new VitessRankProvider();
-        BigDecimal rank = provider.getRank(txId);
+        BigDecimal rank = VitessRankProvider.getRank(txId);
         assertThat(rank).isEqualTo(new BigDecimal(4));
     }
 

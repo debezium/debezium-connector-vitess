@@ -27,21 +27,21 @@ public class VitessEpochProviderTest {
     @Test
     public void testGetEpochSameHostSet() {
         VitessEpochProvider provider = new VitessEpochProvider();
-        Long epoch = provider.getEpoch(0L, previousTxId, txId);
+        Long epoch = provider.getEpochForGtid(0L, previousTxId, txId);
         assertThat(epoch).isEqualTo(0);
     }
 
     @Test
     public void testGetEpochShrunkHostSet() {
         VitessEpochProvider provider = new VitessEpochProvider();
-        Long epoch = provider.getEpoch(0L, previousTxId, txIdShrunk);
+        Long epoch = provider.getEpochForGtid(0L, previousTxId, txIdShrunk);
         assertThat(epoch).isEqualTo(1);
     }
 
     @Test
     public void testGetEpochExpandHostSet() {
         VitessEpochProvider provider = new VitessEpochProvider();
-        Long epoch = provider.getEpoch(0L, previousTxId, txId);
+        Long epoch = provider.getEpochForGtid(0L, previousTxId, txId);
         assertThat(epoch).isEqualTo(0);
     }
 
@@ -49,14 +49,14 @@ public class VitessEpochProviderTest {
     public void testGetEpochDisjointThrowsException() {
         VitessEpochProvider provider = new VitessEpochProvider();
         Assertions.assertThatThrownBy(() -> {
-            provider.getEpoch(0L, previousTxId, "foo:1-2,bar:2-4");
+            provider.getEpochForGtid(0L, previousTxId, "foo:1-2,bar:2-4");
         }).isInstanceOf(RuntimeException.class);
     }
 
     @Test
     public void testVersionUpgradeDoesNotAffectEpoch() {
         VitessEpochProvider provider = new VitessEpochProvider();
-        Long epoch = provider.getEpoch(0L, txIdVersion5, txIdVersion8);
+        Long epoch = provider.getEpochForGtid(0L, txIdVersion5, txIdVersion8);
         assertThat(epoch).isEqualTo(0L);
     }
 }

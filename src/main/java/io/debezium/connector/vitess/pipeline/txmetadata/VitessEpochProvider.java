@@ -73,7 +73,7 @@ public class VitessEpochProvider {
         Vgtid previousVgtid = Vgtid.of(previousVgtidString);
         String previousGtid = previousVgtid.getShardGtid(shard).getGtid();
         String gtid = vgtid.getShardGtid(shard).getGtid();
-        long previousEpoch = shardToEpoch.get(shard);
+        long previousEpoch = shardToEpoch.getOrDefault(shard, 0L);
         long currentEpoch = getEpochForGtid(previousEpoch, previousGtid, gtid);
         storeEpoch(shard, currentEpoch);
         return currentEpoch;

@@ -67,7 +67,7 @@ public class VitessOrderedTransactionContext extends TransactionContext {
 
     @Override
     public TransactionContext newTransactionContextFromOffsets(Map<String, ?> offsets) {
-        return load(offsets);
+        return VitessOrderedTransactionContext.load(offsets);
     }
 
     public static VitessOrderedTransactionContext load(Map<String, ?> offsets) {

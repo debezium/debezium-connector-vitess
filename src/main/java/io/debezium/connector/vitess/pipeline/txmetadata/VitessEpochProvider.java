@@ -23,7 +23,7 @@ public class VitessEpochProvider {
     private Map<String, Long> shardToEpoch = new HashMap<>();
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    public Long getEpochForGtid(Long previousEpoch, String previousGtidString, String gtidString) {
+    public static Long getEpochForGtid(Long previousEpoch, String previousGtidString, String gtidString) {
         Gtid previousGtid = new Gtid(previousGtidString);
         Gtid gtid = new Gtid(gtidString);
         if (previousGtid.isHostSetEqual(gtid) || gtid.isHostSetSupersetOf(previousGtid)) {

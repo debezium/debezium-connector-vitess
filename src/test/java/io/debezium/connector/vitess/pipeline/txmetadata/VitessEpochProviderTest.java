@@ -7,12 +7,14 @@ package io.debezium.connector.vitess.pipeline.txmetadata;
 
 import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_TEMPLATE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Java6Assertions.assertThatThrownBy;
 
 import java.util.Map;
 
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
+import io.debezium.DebeziumException;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VgtidTest;
 
@@ -46,25 +48,37 @@ public class VitessEpochProviderTest {
     }
 
     @Test
-    public void testIncrementEpochVgtidCurrent() {
-        Long expectedEpoch = 0L;
+    public void snapshotIncrementsEpoch() {
         VitessEpochProvider provider = new VitessEpochProvider();
-        Long epoch = provider.getEpoch("-80", VgtidTest.VGTID_JSON, VgtidTest.VGTID_JSON);
-        assertThat(epoch).isEqualTo(expectedEpoch);
+        String vgtidJsonEmpty = String.format(
+                VGTID_JSON_TEMPLATE,
+                VgtidTest.TEST_KEYSPACE,
+                VgtidTest.TEST_SHARD,
+                Vgtid.EMPTY_GTID,
+                VgtidTest.TEST_KEYSPACE,
+                VgtidTest.TEST_SHARD2,
+                Vgtid.EMPTY_GTID);
+        Long epoch = provider.getEpoch(VgtidTest.TEST_SHARD, vgtidJsonEmpty, VgtidTest.VGTID_JSON);
+        assertThat(epoch).isEqualTo(1L);
+    }
+
+    @Test
+    public void fastForwardVgtidIncrementsEpoch() {
+        VitessEpochProvider provider = new VitessEpochProvider();
         String vgtidJsonCurrent = String.format(
                 VGTID_JSON_TEMPLATE,
                 VgtidTest.TEST_KEYSPACE,
                 VgtidTest.TEST_SHARD,
-                Vgtid.CURRENT_GTID,
+                Vgtid.EMPTY_GTID,
                 VgtidTest.TEST_KEYSPACE,
                 VgtidTest.TEST_SHARD2,
-                Vgtid.CURRENT_GTID);
-        Long epoch2 = provider.getEpoch("-80", VgtidTest.VGTID_JSON, vgtidJsonCurrent);
-        assertThat(epoch2).isEqualTo(1L);
+                Vgtid.EMPTY_GTID);
+        Long epoch = provider.getEpoch(VgtidTest.TEST_SHARD, vgtidJsonCurrent, VgtidTest.VGTID_JSON);
+        assertThat(epoch).isEqualTo(1L);
     }
 
     @Test
-    public void testIncrementEpochVgtidEmpty() {
+    public void testInvalidCurrentGtid() {
         Long expectedEpoch = 0L;
         VitessEpochProvider provider = new VitessEpochProvider();
         Long epoch = provider.getEpoch("-80", VgtidTest.VGTID_JSON, VgtidTest.VGTID_JSON);
@@ -77,8 +91,28 @@ public class VitessEpochProviderTest {
                 VgtidTest.TEST_KEYSPACE,
                 VgtidTest.TEST_SHARD2,
                 Vgtid.EMPTY_GTID);
-        Long epoch2 = provider.getEpoch("-80", VgtidTest.VGTID_JSON, vgtidJsonCurrent);
-        assertThat(epoch2).isEqualTo(1L);
+        assertThatThrownBy(() -> {
+            provider.getEpoch("-80", VgtidTest.VGTID_JSON, vgtidJsonCurrent);
+        }).isInstanceOf(DebeziumException.class).hasMessageContaining("Invalid");
+    }
+
+    @Test
+    public void testInvalidEmptyGtid() {
+        Long expectedEpoch = 0L;
+        VitessEpochProvider provider = new VitessEpochProvider();
+        Long epoch = provider.getEpoch("-80", VgtidTest.VGTID_JSON, VgtidTest.VGTID_JSON);
+        assertThat(epoch).isEqualTo(expectedEpoch);
+        String vgtidJsonEmpty = String.format(
+                VGTID_JSON_TEMPLATE,
+                VgtidTest.TEST_KEYSPACE,
+                VgtidTest.TEST_SHARD,
+                Vgtid.EMPTY_GTID,
+                VgtidTest.TEST_KEYSPACE,
+                VgtidTest.TEST_SHARD2,
+                Vgtid.EMPTY_GTID);
+        assertThatThrownBy(() -> {
+            provider.getEpoch("-80", VgtidTest.VGTID_JSON, vgtidJsonEmpty);
+        }).isInstanceOf(DebeziumException.class).hasMessageContaining("Invalid");
     }
 
     @Test

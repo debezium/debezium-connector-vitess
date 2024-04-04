@@ -15,6 +15,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.debezium.DebeziumException;
 import io.debezium.connector.vitess.Vgtid;
 
 public class VitessEpochProvider {
@@ -23,7 +24,17 @@ public class VitessEpochProvider {
     private Map<String, Long> shardToEpoch = new HashMap<>();
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    private static boolean isInvalidGtid(String gtid) {
+        return gtid.equals(Vgtid.CURRENT_GTID) || gtid.equals(Vgtid.EMPTY_GTID);
+    }
+
     public static Long getEpochForGtid(Long previousEpoch, String previousGtidString, String gtidString) {
+        if (isInvalidGtid(previousGtidString)) {
+            return previousEpoch + 1;
+        }
+        if (isInvalidGtid(gtidString)) {
+            throw new DebeziumException("Invalid GTID: The current GTID cannot be one of current or empty " + gtidString);
+        }
         Gtid previousGtid = new Gtid(previousGtidString);
         Gtid gtid = new Gtid(gtidString);
         if (previousGtid.isHostSetEqual(gtid) || gtid.isHostSetSupersetOf(previousGtid)) {

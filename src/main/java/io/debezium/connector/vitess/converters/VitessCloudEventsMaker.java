@@ -5,11 +5,15 @@
  */
 package io.debezium.connector.vitess.converters;
 
+import java.util.Set;
+
 import io.debezium.connector.AbstractSourceInfo;
 import io.debezium.connector.vitess.SourceInfo;
+import io.debezium.converters.recordandmetadata.RecordAndMetadata;
 import io.debezium.converters.spi.CloudEventsMaker;
-import io.debezium.converters.spi.RecordParser;
 import io.debezium.converters.spi.SerializerType;
+import io.debezium.data.Envelope;
+import io.debezium.util.Collect;
 
 /**
  * CloudEvents maker for records produced by the Vitess connector.
@@ -18,13 +22,20 @@ import io.debezium.converters.spi.SerializerType;
  */
 public class VitessCloudEventsMaker extends CloudEventsMaker {
 
-    public VitessCloudEventsMaker(RecordParser parser, SerializerType contentType, String dataSchemaUriBase, String cloudEventsSchemaName) {
-        super(parser, contentType, dataSchemaUriBase, cloudEventsSchemaName);
+    private static final Set<String> VITESS_SOURCE_FIELDS = Collect.unmodifiableSet(SourceInfo.VGTID_KEY, SourceInfo.KEYSPACE_NAME_KEY);
+
+    public VitessCloudEventsMaker(RecordAndMetadata recordAndMetadata, SerializerType contentType, String dataSchemaUriBase, String cloudEventsSchemaName) {
+        super(recordAndMetadata, contentType, dataSchemaUriBase, cloudEventsSchemaName, Envelope.FieldName.BEFORE, Envelope.FieldName.AFTER);
     }
 
     @Override
     public String ceId() {
-        return "name:" + recordParser.getMetadata(AbstractSourceInfo.SERVER_NAME_KEY)
-                + ";vgtid:" + recordParser.getMetadata(SourceInfo.VGTID_KEY);
+        return "name:" + sourceField(AbstractSourceInfo.SERVER_NAME_KEY)
+                + ";vgtid:" + sourceField(SourceInfo.VGTID_KEY);
+    }
+
+    @Override
+    public Set<String> connectorSpecificSourceFields() {
+        return VITESS_SOURCE_FIELDS;
     }
 }

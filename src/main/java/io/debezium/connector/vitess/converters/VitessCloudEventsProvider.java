@@ -9,7 +9,6 @@ import io.debezium.connector.vitess.Module;
 import io.debezium.converters.recordandmetadata.RecordAndMetadata;
 import io.debezium.converters.spi.CloudEventsMaker;
 import io.debezium.converters.spi.CloudEventsProvider;
-import io.debezium.converters.spi.RecordParser;
 import io.debezium.converters.spi.SerializerType;
 
 /**
@@ -24,12 +23,7 @@ public class VitessCloudEventsProvider implements CloudEventsProvider {
     }
 
     @Override
-    public RecordParser createParser(RecordAndMetadata recordAndMetadata) {
-        return new VitessRecordParser(recordAndMetadata);
-    }
-
-    @Override
-    public CloudEventsMaker createMaker(RecordParser parser, SerializerType contentType, String dataSchemaUriBase, String cloudEventsSchemaName) {
-        return new VitessCloudEventsMaker(parser, contentType, dataSchemaUriBase, cloudEventsSchemaName);
+    public CloudEventsMaker createMaker(RecordAndMetadata recordAndMetadata, SerializerType contentType, String dataSchemaUriBase, String cloudEventsSchemaName) {
+        return new VitessCloudEventsMaker(recordAndMetadata, contentType, dataSchemaUriBase, cloudEventsSchemaName);
     }
 }

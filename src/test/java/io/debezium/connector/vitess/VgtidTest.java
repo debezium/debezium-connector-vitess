@@ -14,12 +14,14 @@ import static io.debezium.connector.vitess.TablePrimaryKeysTest.getTestTablePKs;
 import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_NO_PKS_TEMPLATE;
 import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_TEMPLATE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 
 import org.junit.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
 
+import io.debezium.DebeziumException;
 import io.debezium.util.Collect;
 
 import binlogdata.Binlogdata;
@@ -309,5 +311,13 @@ public class VgtidTest {
         Vgtid vgtid1 = Vgtid.of(VGTID_JSON);
         Vgtid.ShardGtid shardGtid = vgtid1.getShardGtid(TEST_SHARD);
         assertThat(shardGtid).isEqualTo(new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID));
+    }
+
+    @Test
+    public void shouldGetMissingShardGtidThrowsDebeziumException() {
+        Vgtid vgtid1 = Vgtid.of(VGTID_JSON);
+        assertThatThrownBy(() -> {
+            Vgtid.ShardGtid shardGtid = vgtid1.getShardGtid("missing_shard");
+        }).isInstanceOf(DebeziumException.class);
     }
 }

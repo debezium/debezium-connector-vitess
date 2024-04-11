@@ -13,6 +13,7 @@ import java.time.Instant;
 import org.apache.kafka.connect.data.Struct;
 import org.junit.Test;
 
+import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.TestHelper;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VgtidTest;
@@ -27,18 +28,18 @@ public class VitessOrderedTransactionStructMakerTest {
     @Test
     public void prepareTxStruct() {
         VitessConnectorConfig config = new VitessConnectorConfig(TestHelper.defaultConfig().build());
-        VitessOrderedTransactionStructMaker maker = new VitessOrderedTransactionStructMaker();
+        VitessOrderedTransactionStructMaker maker = new VitessOrderedTransactionStructMaker(Configuration.empty());
         TransactionContext transactionContext = new VitessOrderedTransactionContext();
         transactionContext.beginTransaction(new VitessTransactionInfo(VgtidTest.VGTID_JSON, VgtidTest.TEST_SHARD));
         OffsetContext context = new VitessOffsetContext(config, Vgtid.of(VgtidTest.VGTID_JSON), Instant.now(), transactionContext);
-        Struct struct = maker.prepareTxStruct(context, 0, null);
+        Struct struct = maker.addTransactionBlock(context, 0, null);
         assertThat(struct.get(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH)).isEqualTo(0L);
         assertThat(struct.get(VitessOrderedTransactionContext.OFFSET_TRANSACTION_RANK)).isEqualTo(new BigDecimal(1513));
     }
 
     @Test
     public void getTransactionBlockSchema() {
-        VitessOrderedTransactionStructMaker maker = new VitessOrderedTransactionStructMaker();
+        VitessOrderedTransactionStructMaker maker = new VitessOrderedTransactionStructMaker(Configuration.empty());
         assertThat(maker.getTransactionBlockSchema()).isEqualTo(VitessSchemaFactory.get().getOrderedTransactionBlockSchema());
     }
 }

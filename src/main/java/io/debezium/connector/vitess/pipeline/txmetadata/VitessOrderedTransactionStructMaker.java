@@ -8,12 +8,17 @@ package io.debezium.connector.vitess.pipeline.txmetadata;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 
+import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.VitessSchemaFactory;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.txmetadata.AbstractTransactionStructMaker;
 import io.debezium.pipeline.txmetadata.TransactionStructMaker;
 
 public class VitessOrderedTransactionStructMaker extends AbstractTransactionStructMaker implements TransactionStructMaker {
+
+    public VitessOrderedTransactionStructMaker(Configuration config) {
+        super(config);
+    }
 
     /**
      * Adds the transaction block to a change log message. Transaction block example:
@@ -31,8 +36,8 @@ public class VitessOrderedTransactionStructMaker extends AbstractTransactionStru
      * @return Struct with ordered transaction metadata
      */
     @Override
-    public Struct prepareTxStruct(OffsetContext offsetContext, long dataCollectionEventOrder, Struct value) {
-        Struct struct = super.prepareTxStruct(offsetContext, dataCollectionEventOrder, value);
+    public Struct addTransactionBlock(OffsetContext offsetContext, long dataCollectionEventOrder, Struct value) {
+        Struct struct = super.addTransactionBlock(offsetContext, dataCollectionEventOrder, value);
         return addOrderMetadata(struct, offsetContext);
     }
 

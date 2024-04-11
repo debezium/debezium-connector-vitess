@@ -26,9 +26,9 @@ public class VitessOrderedTransactionContext extends TransactionContext {
     public VitessOrderedTransactionContext(TransactionContext transactionContext) {
         super();
         // Copy fields
-        this.transactionId = transactionContext.transactionId;
-        this.perTableEventCount.putAll(transactionContext.perTableEventCount);
-        this.totalEventCount = transactionContext.totalEventCount;
+        super.setTransactionId(transactionContext.getTransactionId());
+        super.putPerTableEventCount(transactionContext.getPerTableEventCount());
+        super.setTotalEventCount(transactionContext.getTotalEventCount());
     }
 
     /**
@@ -100,8 +100,8 @@ public class VitessOrderedTransactionContext extends TransactionContext {
 
     @Override
     public String toString() {
-        return "VitessOrderedTransactionContext [currentTransactionId=" + transactionId + ", perTableEventCount="
-                + perTableEventCount + ", totalEventCount=" + totalEventCount + "]" + ", previousVgtid=" + previousVgtid
+        return "VitessOrderedTransactionContext [currentTransactionId=" + getTransactionId() + ", perTableEventCount="
+                + getPerTableEventCount() + ", totalEventCount=" + getTotalEventCount() + "]" + ", previousVgtid=" + previousVgtid
                 + ", transactionEpoch=" + transactionEpoch + ", transactionRank=" + transactionRank;
     }
 

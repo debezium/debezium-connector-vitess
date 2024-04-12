@@ -32,6 +32,7 @@ import io.debezium.config.Field.ValidationOutput;
 import io.debezium.connector.SourceInfoStructMaker;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.jdbc.JdbcConfiguration;
+import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 
@@ -390,6 +391,29 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     + "'precise' represents values as precise (Java's 'BigDecimal') values;"
                     + "'long' represents values using Java's 'long', which may not offer the precision but will be far easier to use in consumers.");
 
+    public static final Field TIME_PRECISION_MODE = RelationalDatabaseConnectorConfig.TIME_PRECISION_MODE
+            .withEnum(TemporalPrecisionMode.class, TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR, 26))
+            .withValidation(VitessConnectorConfig::validateTimePrecisionMode)
+            .withDescription("Time, date and timestamps can be represented with different kinds of precisions, including: "
+                    + "'adaptive_time_microseconds': the precision of date and timestamp values is based the database column's precision; but time fields always use microseconds precision; "
+                    + "'connect': always represents time, date and timestamp values using Kafka Connect's built-in representations for Time, Date, and Timestamp, "
+                    + "which uses millisecond precision regardless of the database columns' precision.");
+
+    private static int validateTimePrecisionMode(Configuration config, Field field, ValidationOutput problems) {
+        if (config.hasKey(TIME_PRECISION_MODE.name())) {
+            final String timePrecisionMode = config.getString(TIME_PRECISION_MODE.name());
+            if (TemporalPrecisionMode.ADAPTIVE.getValue().equals(timePrecisionMode)) {
+                // this is a problem
+                problems.accept(TIME_PRECISION_MODE, timePrecisionMode, "The 'adaptive' time.precision.mode is no longer supported");
+                return 1;
+            }
+        }
+
+        // Everything checks out ok.
+        return 0;
+    }
+
     public static final Field SOURCE_INFO_STRUCT_MAKER = CommonConnectorConfig.SOURCE_INFO_STRUCT_MAKER
             .withDefault(VitessSourceInfoStructMaker.class.getName());
 
@@ -418,8 +442,14 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .events(
                     INCLUDE_UNKNOWN_DATATYPES,
                     SOURCE_INFO_STRUCT_MAKER)
-            .connector(SNAPSHOT_MODE, BIGINT_UNSIGNED_HANDLING_MODE)
-            .excluding(SCHEMA_EXCLUDE_LIST, SCHEMA_INCLUDE_LIST)
+            .connector(
+                    SNAPSHOT_MODE,
+                    BIGINT_UNSIGNED_HANDLING_MODE,
+                    TIME_PRECISION_MODE)
+            .excluding(
+                    SCHEMA_EXCLUDE_LIST,
+                    SCHEMA_INCLUDE_LIST,
+                    RelationalDatabaseConnectorConfig.TIME_PRECISION_MODE)
             .create();
 
     // tasks.max is defined in org.apache.kafka.connect.runtime.ConnectorConfig
@@ -471,6 +501,11 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     @Override
     public String getConnectorName() {
         return Module.name();
+    }
+
+    @Override
+    public TemporalPrecisionMode getTemporalPrecisionMode() {
+        return TemporalPrecisionMode.parse(getConfig().getString(TIME_PRECISION_MODE));
     }
 
     @Override

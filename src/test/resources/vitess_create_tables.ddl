@@ -68,6 +68,21 @@ CREATE TABLE time_table
     PRIMARY KEY (id)
 );
 
+DROP TABLE IF EXISTS time_table_precision;
+CREATE TABLE time_table_precision
+(
+    id            BIGINT    NOT NULL AUTO_INCREMENT,
+    time_col1      TIME(1)      NOT NULL DEFAULT '00:00:00.0',
+    time_col4      TIME(4)      NOT NULL DEFAULT '00:00:00.0000',
+    datetime_col2  DATETIME(2)  NOT NULL DEFAULT '2020-02-12 00:00:00.00',
+    datetime_col5  DATETIME(5)  NOT NULL DEFAULT '2020-02-12 00:00:00.00000',
+    timestamp_col3 TIMESTAMP(3) NOT NULL DEFAULT '2020-02-12 00:00:00.000',
+    timestamp_col6 TIMESTAMP(6) NOT NULL DEFAULT '2020-02-12 00:00:00.000000',
+    PRIMARY KEY (id)
+);
+
+DROP TABLE IF EXISTS time_table_default;
+
 DROP TABLE IF EXISTS no_pk_table;
 CREATE TABLE no_pk_table
 (

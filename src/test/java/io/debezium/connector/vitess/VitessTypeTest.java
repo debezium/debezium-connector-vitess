@@ -36,11 +36,11 @@ public class VitessTypeTest {
         assertThat(VitessType.resolve(asField(Query.Type.TEXT)).getJdbcId()).isEqualTo(Types.VARCHAR);
         assertThat(VitessType.resolve(asField(Query.Type.JSON)).getJdbcId()).isEqualTo(Types.VARCHAR);
         assertThat(VitessType.resolve(asField(Query.Type.DECIMAL)).getJdbcId()).isEqualTo(Types.VARCHAR);
-        assertThat(VitessType.resolve(asField(Query.Type.TIME)).getJdbcId()).isEqualTo(Types.VARCHAR);
-        assertThat(VitessType.resolve(asField(Query.Type.DATE)).getJdbcId()).isEqualTo(Types.VARCHAR);
-        assertThat(VitessType.resolve(asField(Query.Type.DATETIME)).getJdbcId()).isEqualTo(Types.VARCHAR);
+        assertThat(VitessType.resolve(asField(Query.Type.TIME)).getJdbcId()).isEqualTo(Types.TIME);
+        assertThat(VitessType.resolve(asField(Query.Type.DATE)).getJdbcId()).isEqualTo(Types.DATE);
+        assertThat(VitessType.resolve(asField(Query.Type.DATETIME)).getJdbcId()).isEqualTo(Types.TIMESTAMP);
         assertThat(VitessType.resolve(asField(Query.Type.TIMESTAMP)).getJdbcId())
-                .isEqualTo(Types.VARCHAR);
+                .isEqualTo(Types.TIMESTAMP_WITH_TIMEZONE);
         assertThat(VitessType.resolve(asField(Query.Type.ENUM)).getJdbcId()).isEqualTo(Types.INTEGER);
         assertThat(VitessType.resolve(asField(Query.Type.SET)).getJdbcId()).isEqualTo(Types.BIGINT);
         assertThat(VitessType.resolve(asField(Query.Type.GEOMETRY)).getJdbcId()).isEqualTo(Types.OTHER);

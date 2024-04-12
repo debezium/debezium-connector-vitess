@@ -52,6 +52,7 @@ import io.debezium.data.Envelope;
 import io.debezium.data.VerifyRecord;
 import io.debezium.doc.FixFor;
 import io.debezium.embedded.EmbeddedEngine;
+import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.TableId;
 import io.debezium.util.Collect;
@@ -141,9 +142,62 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         consumer.expects(expectedRecordsCount);
         assertInsert(INSERT_SET_TYPE_STMT, schemasAndValuesForSetType(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void shouldReceiveChangesForInsertsWithTimestampTypes() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector();
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
 
         consumer.expects(expectedRecordsCount);
         assertInsert(INSERT_TIME_TYPES_STMT, schemasAndValuesForTimeType(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void shouldReceiveChangesForInsertsWithTimestampTypesConnect() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(config -> config.with(
+                VitessConnectorConfig.TIME_PRECISION_MODE, TemporalPrecisionMode.CONNECT),
+                false);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_TIME_TYPES_STMT, schemasAndValuesForTimeTypeConnect(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void shouldReceiveChangesForInsertsWithTimestampTypesPrecision() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector();
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_PRECISION_TIME_TYPES_STMT, schemasAndValuesForTimeTypePrecision(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void shouldReceiveChangesForInsertsWithTimestampTypesPrecisionConnect() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(config -> config.with(
+                VitessConnectorConfig.TIME_PRECISION_MODE, TemporalPrecisionMode.CONNECT),
+                false);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_PRECISION_TIME_TYPES_STMT, schemasAndValuesForTimeTypePrecisionConnect(), TestHelper.PK_FIELD);
     }
 
     @Test

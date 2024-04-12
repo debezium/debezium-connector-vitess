@@ -7,7 +7,12 @@ package io.debezium.connector.vitess.connection;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 import org.junit.Test;
 
@@ -104,5 +109,98 @@ public class ReplicationMessageColumnValueResolverTest {
                 new VitessColumnValue("foo".getBytes()),
                 false);
         assertThat(resolvedJavaValue).isNull();
+    }
+
+    @Test
+    public void shouldResolveTimeToDuration() {
+        Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
+                new VitessType(AnonymousValue.getString(), Types.TIME),
+                new VitessColumnValue("01:02:03".getBytes()),
+                false);
+        assertThat(resolvedJavaValue).isEqualTo(Duration.ofSeconds(3 + 2 * 60 + 1 * 60 * 60));
+    }
+
+    @Test
+    public void shouldResolveTimeToDurationMilliseconds() {
+        Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
+                new VitessType(AnonymousValue.getString(), Types.TIME),
+                new VitessColumnValue("01:02:03.666".getBytes()),
+                false);
+        assertThat(resolvedJavaValue).isEqualTo(Duration.ofMillis((3 + 2 * 60 + 1 * 60 * 60) * 1000 + 666));
+    }
+
+    @Test
+    public void shouldResolveTimeToDurationPrecisionTwo() {
+        Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
+                new VitessType(AnonymousValue.getString(), Types.TIME),
+                new VitessColumnValue("01:02:03.66".getBytes()),
+                false);
+        assertThat(resolvedJavaValue).isEqualTo(Duration.ofMillis(((3 + 2 * 60 + 1 * 60 * 60) * 100 + 66) * 10));
+    }
+
+    @Test
+    public void shouldResolveDateToLocalDate() {
+        String date = "2020-02-12";
+        LocalDate expectedDate = LocalDate.parse(date);
+        Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
+                new VitessType(AnonymousValue.getString(), Types.DATE),
+                new VitessColumnValue(date.getBytes()),
+                false);
+        assertThat(resolvedJavaValue).isEqualTo(expectedDate);
+    }
+
+    @Test
+    public void shouldResolveYearToInt() {
+        String year = "2020";
+        Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
+                new VitessType(AnonymousValue.getString(), Types.INTEGER),
+                new VitessColumnValue(year.getBytes()),
+                false);
+        assertThat(resolvedJavaValue).isEqualTo(2020);
+    }
+
+    @Test
+    public void shouldResolveTimestampToString() {
+        Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
+                new VitessType(AnonymousValue.getString(), Types.TIMESTAMP_WITH_TIMEZONE),
+                new VitessColumnValue("2020-02-12 01:02:03.1234".getBytes()),
+                false);
+        assertThat(resolvedJavaValue).isEqualTo("2020-02-12 01:02:03.1234");
+    }
+
+    @Test
+    public void shouldResolveDatetimeToDurationSeconds() {
+        String timestampString = "2020-02-12 01:02:03";
+        LocalDateTime timestamp = LocalDateTime.parse(timestampString, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        Timestamp expectedTimestamp = Timestamp.valueOf(timestamp);
+        Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
+                new VitessType(AnonymousValue.getString(), Types.TIMESTAMP),
+                new VitessColumnValue(timestampString.getBytes()),
+                false);
+        assertThat(resolvedJavaValue).isEqualTo(expectedTimestamp);
+    }
+
+    @Test
+    public void shouldResolveDatetimeToDurationPrecisionFour() {
+        String timestampString = "2020-02-12 01:02:03.1234";
+        LocalDateTime timestamp = LocalDateTime.parse(timestampString, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSS"));
+        Timestamp expectedTimestamp = Timestamp.valueOf(timestamp);
+        Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
+                new VitessType(AnonymousValue.getString(), Types.TIMESTAMP),
+                new VitessColumnValue(timestampString.getBytes()),
+                false);
+        assertThat(resolvedJavaValue).isEqualTo(expectedTimestamp);
+    }
+
+    @Test
+    public void shouldResolveDatetimeToDurationMicros() {
+        String timestampString = "2020-02-12 01:02:03.123456";
+        LocalDateTime timestamp = LocalDateTime.parse(timestampString, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS"));
+        Timestamp expectedTimestamp = Timestamp.valueOf(timestamp);
+        Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
+                new VitessType(AnonymousValue.getString(), Types.TIMESTAMP),
+                new VitessColumnValue(timestampString.getBytes()),
+                false);
+        assertThat(resolvedJavaValue).isEqualTo(expectedTimestamp);
     }
 }

@@ -15,11 +15,20 @@ import static org.junit.Assert.fail;
 
 import java.lang.management.ManagementFactory;
 import java.nio.ByteBuffer;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -32,10 +41,12 @@ import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
+import org.apache.kafka.connect.data.Date;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.data.Time;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.awaitility.Awaitility;
 import org.json.JSONException;
@@ -53,6 +64,11 @@ import io.debezium.data.SchemaUtil;
 import io.debezium.data.VerifyRecord;
 import io.debezium.embedded.AbstractConnectorTest;
 import io.debezium.relational.TableId;
+import io.debezium.time.MicroTime;
+import io.debezium.time.MicroTimestamp;
+import io.debezium.time.Timestamp;
+import io.debezium.time.Year;
+import io.debezium.time.ZonedTimestamp;
 import io.debezium.util.Clock;
 import io.debezium.util.Collect;
 import io.debezium.util.ElapsedTimeStrategy;
@@ -98,13 +114,36 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
             + " VALUES ('d', 'ef', 'op', 'qs');";
     protected static final String INSERT_ENUM_TYPE_STMT = "INSERT INTO enum_table (enum_col)" + " VALUES ('large');";
     protected static final String INSERT_SET_TYPE_STMT = "INSERT INTO set_table (set_col)" + " VALUES ('a,c');";
+
+    protected static final String TIME = "01:02:03";
+    protected static final String DATE = "2020-02-11";
+    protected static final String DATETIME = "2020-02-12 01:02:03";
+    protected static final String TIMESTAMP = "2020-02-13 01:02:03";
+
+    protected static final String YEAR = "2020";
     protected static final String INSERT_TIME_TYPES_STMT = "INSERT INTO time_table ("
             + "time_col,"
             + "date_col,"
             + "datetime_col,"
             + "timestamp_col,"
             + "year_col)"
-            + " VALUES ('01:02:03', '2020-02-11', '2020-02-12 01:02:03', '2020-02-13 01:02:03', '2020')";
+            + String.format(" VALUES ('%s', '%s', '%s', '%s', '%s')", TIME, DATE, DATETIME, TIMESTAMP, YEAR);
+
+    protected static final String TIME_PRECISION1 = TIME + ".1";
+    protected static final String TIME_PRECISION4 = TIME + ".1234";
+    protected static final String DATETIME_PRECISION2 = DATETIME + ".12";
+    protected static final String DATETIME_PRECISION5 = DATETIME + ".12345";
+    protected static final String TIMESTAMP_PRECISION3 = TIMESTAMP + ".123";
+    protected static final String TIMESTAMP_PRECISION6 = TIMESTAMP + ".123456";
+    protected static final String INSERT_PRECISION_TIME_TYPES_STMT = "INSERT INTO time_table_precision ("
+            + "time_col1,"
+            + "time_col4,"
+            + "datetime_col2,"
+            + "datetime_col5,"
+            + "timestamp_col3,"
+            + "timestamp_col6)"
+            + String.format(" VALUES ('%s', '%s', '%s', '%s', '%s', '%s')",
+                    TIME_PRECISION1, TIME_PRECISION4, DATETIME_PRECISION2, DATETIME_PRECISION5, TIMESTAMP_PRECISION3, TIMESTAMP_PRECISION6);
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -221,14 +260,105 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         final List<SchemaAndValueField> fields = new ArrayList<>();
         fields.addAll(
                 Arrays.asList(
-                        new SchemaAndValueField("time_col", SchemaBuilder.STRING_SCHEMA, "01:02:03"),
-                        new SchemaAndValueField("date_col", SchemaBuilder.STRING_SCHEMA, "2020-02-11"),
+                        new SchemaAndValueField("time_col", MicroTime.schema(), getDurationMicros(TIME)),
+                        new SchemaAndValueField("date_col", io.debezium.time.Date.schema(), getDateIntDays(DATE)),
                         new SchemaAndValueField(
-                                "datetime_col", SchemaBuilder.STRING_SCHEMA, "2020-02-12 01:02:03"),
+                                "datetime_col", Timestamp.schema(), getMillisForDatetime(DATETIME, 0)),
                         new SchemaAndValueField(
-                                "timestamp_col", SchemaBuilder.STRING_SCHEMA, "2020-02-13 01:02:03"),
-                        new SchemaAndValueField("year_col", SchemaBuilder.STRING_SCHEMA, "2020")));
+                                "timestamp_col", ZonedTimestamp.schema(), TIMESTAMP),
+                        new SchemaAndValueField("year_col", Year.schema(), Integer.valueOf(YEAR))));
         return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForTimeTypeConnect() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField("time_col", Time.SCHEMA, getDateForTime(TIME)),
+                        new SchemaAndValueField("date_col", Date.SCHEMA, getDateForDateString(DATE)),
+                        new SchemaAndValueField(
+                                "datetime_col", org.apache.kafka.connect.data.Timestamp.SCHEMA, getDateForDatetime(DATETIME, 0)),
+                        new SchemaAndValueField(
+                                "timestamp_col", ZonedTimestamp.schema(), TIMESTAMP),
+                        new SchemaAndValueField("year_col", Year.schema(), Integer.valueOf(YEAR))));
+        return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForTimeTypePrecision() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField("time_col1", MicroTime.schema(), getDurationMicros(TIME_PRECISION1)),
+                        new SchemaAndValueField("time_col4", MicroTime.schema(), getDurationMicros(TIME_PRECISION4)),
+                        new SchemaAndValueField(
+                                "datetime_col2", Timestamp.schema(), getMillisForDatetime(DATETIME_PRECISION2, 2)),
+                        new SchemaAndValueField(
+                                "datetime_col5", MicroTimestamp.schema(), getMicrosForDatetime(DATETIME_PRECISION5, 5)),
+                        new SchemaAndValueField(
+                                "timestamp_col3", ZonedTimestamp.schema(), TIMESTAMP_PRECISION3),
+                        new SchemaAndValueField(
+                                "timestamp_col6", ZonedTimestamp.schema(), TIMESTAMP_PRECISION6)));
+        return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForTimeTypePrecisionConnect() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField("time_col1", Time.SCHEMA, getDateForTime(TIME_PRECISION1)),
+                        new SchemaAndValueField("time_col4", Time.SCHEMA, getDateForTime(TIME_PRECISION4)),
+                        new SchemaAndValueField(
+                                "datetime_col2", org.apache.kafka.connect.data.Timestamp.SCHEMA, getDateForDatetime(DATETIME_PRECISION2, 2)),
+                        new SchemaAndValueField(
+                                "datetime_col5", org.apache.kafka.connect.data.Timestamp.SCHEMA, getDateForDatetime(DATETIME_PRECISION5, 5)),
+                        new SchemaAndValueField(
+                                "timestamp_col3", ZonedTimestamp.schema(), TIMESTAMP_PRECISION3),
+                        new SchemaAndValueField(
+                                "timestamp_col6", ZonedTimestamp.schema(), TIMESTAMP_PRECISION6)));
+        return fields;
+    }
+
+    public static java.util.Date getDateForDateString(String date) {
+        try {
+            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+            format.setTimeZone(TimeZone.getTimeZone("UTC"));
+            return format.parse(date);
+        }
+        catch (ParseException e) {
+            return null;
+        }
+    }
+
+    private long getDurationMicros(String time) {
+        return Duration.between(LocalTime.MIN, LocalTime.parse(time)).toNanos() / 1000;
+    }
+
+    private java.util.Date getDateForDatetime(String datetime, int precision) {
+        return new java.util.Date(getMillisForDatetime(datetime, precision));
+    }
+
+    private java.util.Date getDateForTime(String time) {
+        return new java.util.Date(getDurationMicros(time) / 1000L);
+    }
+
+    private int getDateIntDays(String date) {
+        return (int) (getDateForDateString(date).getTime() / (1000 * 60 * 60 * 24));
+    }
+
+    private long getMillisForDatetime(String datetime, int precision) {
+        return getMicrosForDatetime(datetime, precision) / 1000L;
+    }
+
+    private long getMicrosForDatetime(String datetime, int precision) {
+        String baseFormat = "yyyy-MM-dd HH:mm:ss";
+        for (int i = 0; i < precision; i++) {
+            if (i == 0) {
+                baseFormat += ".";
+            }
+            baseFormat += "S";
+        }
+        Instant instant = LocalDateTime.parse(datetime, DateTimeFormatter.ofPattern(baseFormat)).toInstant(ZoneOffset.UTC);
+        return instant.getEpochSecond() * 1000L * 1000L + instant.getNano() / 1000L;
     }
 
     protected static TableId tableIdFromInsertStmt(String statement) {

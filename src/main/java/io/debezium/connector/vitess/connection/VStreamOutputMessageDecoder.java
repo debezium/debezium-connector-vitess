@@ -5,8 +5,6 @@
  */
 package io.debezium.connector.vitess.connection;
 
-import static io.debezium.connector.vitess.connection.ReplicationMessage.Column;
-
 import java.sql.Types;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -387,8 +385,12 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                     .type(columnMetaData.getVitessType().getName())
                     .jdbcType(columnMetaData.getVitessType().getJdbcId())
                     .optional(columnMetaData.isOptional());
-            if (columnMetaData.getVitessType().isEnum()) {
-                editor = editor.enumValues(columnMetaData.getVitessType().getEnumValues());
+            VitessType vitessType = columnMetaData.getVitessType();
+            if (vitessType.getPrecision().isPresent()) {
+                editor = editor.length(vitessType.getPrecision().get());
+            }
+            if (vitessType.isEnum()) {
+                editor = editor.enumValues(vitessType.getEnumValues());
             }
             cols.add(editor.create());
 

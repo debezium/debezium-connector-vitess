@@ -6,14 +6,23 @@
 package io.debezium.connector.vitess;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.sql.Types;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import io.debezium.DebeziumException;
 import io.debezium.config.CommonConnectorConfig.BinaryHandlingMode;
 import io.debezium.data.Json;
 import io.debezium.jdbc.JdbcValueConverters;
@@ -21,15 +30,22 @@ import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.relational.Column;
 import io.debezium.relational.RelationalChangeRecordEmitter;
 import io.debezium.relational.ValueConverter;
+import io.debezium.time.Year;
+import io.debezium.util.Strings;
 import io.vitess.proto.Query;
 
 /** Used by {@link RelationalChangeRecordEmitter} to convert Java value to Connect value */
 public class VitessValueConverter extends JdbcValueConverters {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(VitessValueConverter.class);
     private static final BigDecimal BIGINT_MAX_VALUE = new BigDecimal("18446744073709551615");
     private static final BigDecimal BIGINT_CORRECTION = BIGINT_MAX_VALUE.add(BigDecimal.ONE);
 
     private final boolean includeUnknownDatatypes;
     private final VitessConnectorConfig.BigIntUnsignedHandlingMode bigIntUnsignedHandlingMode;
+
+    private static final Pattern DATE_FIELD_PATTERN = Pattern.compile("([0-9]*)-([0-9]*)-([0-9]*)");
+    private static final Pattern TIME_FIELD_PATTERN = Pattern.compile("(\\-?[0-9]*):([0-9]*)(:([0-9]*))?(\\.([0-9]*))?");
 
     public VitessValueConverter(
                                 DecimalMode decimalMode,
@@ -55,6 +71,9 @@ public class VitessValueConverter extends JdbcValueConverters {
         }
         if (matches(typeName, Query.Type.SET.name())) {
             return io.debezium.data.EnumSet.builder(column.enumValues());
+        }
+        if (matches(typeName, Query.Type.YEAR.name())) {
+            return Year.builder();
         }
 
         if (matches(typeName, Query.Type.UINT64.name())) {
@@ -106,6 +125,15 @@ public class VitessValueConverter extends JdbcValueConverters {
             }
         }
 
+        switch (column.jdbcType()) {
+            case Types.TIME:
+                if (adaptiveTimeMicrosecondsPrecisionMode) {
+                    return data -> convertDurationToMicroseconds(column, fieldDefn, data);
+                }
+            case Types.TIMESTAMP:
+                return ((ValueConverter) (data -> convertTimestampToLocalDateTime(column, fieldDefn, data))).and(super.converter(column, fieldDefn));
+        }
+
         final ValueConverter jdbcConverter = super.converter(column, fieldDefn);
         if (jdbcConverter == null) {
             return includeUnknownDatatypes
@@ -115,6 +143,29 @@ public class VitessValueConverter extends JdbcValueConverters {
         else {
             return jdbcConverter;
         }
+    }
+
+    protected static Object convertTimestampToLocalDateTime(Column column, Field fieldDefn, Object data) {
+        if (data == null && !fieldDefn.schema().isOptional()) {
+            return null;
+        }
+        if (!(data instanceof Timestamp)) {
+            return data;
+        }
+
+        return ((Timestamp) data).toLocalDateTime();
+    }
+
+    protected Object convertDurationToMicroseconds(Column column, Field fieldDefn, Object data) {
+        return convertValue(column, fieldDefn, data, 0L, (r) -> {
+            try {
+                if (data instanceof Duration) {
+                    r.deliver(((Duration) data).toNanos() / 1_000);
+                }
+            }
+            catch (IllegalArgumentException e) {
+            }
+        });
     }
 
     /**
@@ -253,5 +304,62 @@ public class VitessValueConverter extends JdbcValueConverters {
             indexes = indexes >>> 1;
         }
         return sb.toString();
+    }
+
+    public static Duration stringToDuration(String timeString) {
+        Matcher matcher = TIME_FIELD_PATTERN.matcher(timeString);
+        if (!matcher.matches()) {
+            throw new DebeziumException("Unexpected format for TIME column: " + timeString);
+        }
+
+        boolean isNegative = !timeString.isBlank() && timeString.charAt(0) == '-';
+
+        final long hours = Long.parseLong(matcher.group(1));
+        final long minutes = Long.parseLong(matcher.group(2));
+        final String secondsGroup = matcher.group(4);
+        long seconds = 0;
+        long nanoSeconds = 0;
+
+        if (secondsGroup != null) {
+            seconds = Long.parseLong(secondsGroup);
+            String microSecondsString = matcher.group(6);
+            if (microSecondsString != null) {
+                nanoSeconds = Long.parseLong(Strings.justifyLeft(microSecondsString, 9, '0'));
+            }
+        }
+
+        final Duration duration = hours >= 0
+                ? Duration
+                        .ofHours(hours)
+                        .plusMinutes(minutes)
+                        .plusSeconds(seconds)
+                        .plusNanos(nanoSeconds)
+                : Duration
+                        .ofHours(hours)
+                        .minusMinutes(minutes)
+                        .minusSeconds(seconds)
+                        .minusNanos(nanoSeconds);
+        return isNegative && !duration.isNegative() ? duration.negated() : duration;
+    }
+
+    public static LocalDate stringToLocalDate(String dateString) {
+        final Matcher matcher = DATE_FIELD_PATTERN.matcher(dateString);
+        if (!matcher.matches()) {
+            throw new RuntimeException("Unexpected format for DATE column: " + dateString);
+        }
+
+        final int year = Integer.parseInt(matcher.group(1));
+        final int month = Integer.parseInt(matcher.group(2));
+        final int day = Integer.parseInt(matcher.group(3));
+
+        if (year == 0 || month == 0 || day == 0) {
+            LOGGER.warn("Invalid value '{}' stored in column converted to empty value", dateString);
+            return null;
+        }
+        return LocalDate.of(year, month, day);
+    }
+
+    public static Timestamp stringToTimestamp(String datetimeString) {
+        return Timestamp.valueOf(datetimeString);
     }
 }

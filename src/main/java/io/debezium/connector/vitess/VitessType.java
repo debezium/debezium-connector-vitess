@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import io.vitess.proto.Query;
 
@@ -22,15 +23,25 @@ public class VitessType {
     private final int jdbcId;
     // permitted enum values
     private final List<String> enumValues;
+    private Optional<Integer> precision;
 
     public VitessType(String name, int jdbcId) {
         this(name, jdbcId, Collections.emptyList());
     }
 
     public VitessType(String name, int jdbcId, List<String> enumValues) {
+        this(name, jdbcId, enumValues, Optional.empty());
+    }
+
+    public VitessType(String name, int jdbcId, Integer precision) {
+        this(name, jdbcId, Collections.emptyList(), Optional.of(precision));
+    }
+
+    public VitessType(String name, int jdbcId, List<String> enumValues, Optional<Integer> precision) {
         this.name = name;
         this.jdbcId = jdbcId;
         this.enumValues = Collections.unmodifiableList(enumValues);
+        this.precision = precision;
     }
 
     public String getName() {
@@ -87,6 +98,7 @@ public class VitessType {
             case "INT24":
             case "UINT24":
             case "INT32":
+            case "YEAR":
                 return new VitessType(type, Types.INTEGER);
             case "ENUM":
                 return new VitessType(type, Types.INTEGER, resolveEnumAndSetValues(field.getColumnType()));
@@ -109,12 +121,15 @@ public class VitessType {
             case "TEXT":
             case "JSON":
             case "DECIMAL":
-            case "TIME":
-            case "DATE":
-            case "DATETIME":
-            case "TIMESTAMP":
-            case "YEAR":
                 return new VitessType(type, Types.VARCHAR);
+            case "TIME":
+                return new VitessType(type, Types.TIME, field.getDecimals());
+            case "DATE":
+                return new VitessType(type, Types.DATE);
+            case "TIMESTAMP":
+                return new VitessType(type, Types.TIMESTAMP_WITH_TIMEZONE, field.getDecimals());
+            case "DATETIME":
+                return new VitessType(type, Types.TIMESTAMP, field.getDecimals());
             case "FLOAT32":
                 return new VitessType(type, Types.FLOAT);
             case "FLOAT64":
@@ -160,5 +175,9 @@ public class VitessType {
             }
         }
         return values;
+    }
+
+    public Optional<Integer> getPrecision() {
+        return this.precision;
     }
 }

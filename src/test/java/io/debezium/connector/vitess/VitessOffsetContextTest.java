@@ -17,6 +17,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionContext;
+import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionMetadataFactory;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessTransactionInfo;
 import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.debezium.util.Clock;
@@ -107,7 +108,7 @@ public class VitessOffsetContextTest {
     public void shouldLoadVitessOrderedTransactionContext() throws JsonProcessingException {
         VitessConnectorConfig config = new VitessConnectorConfig(
                 TestHelper.defaultConfig()
-                        .with(VitessConnectorConfig.TRANSACTION_CONTEXT, VitessOrderedTransactionContext.class)
+                        .with(VitessConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
                         .build());
         VitessOffsetContext.Loader loader = new VitessOffsetContext.Loader(config);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -136,7 +137,7 @@ public class VitessOffsetContextTest {
     public void shouldGetInitialVitessOrderedTransactionContext() {
         VitessConnectorConfig config = new VitessConnectorConfig(
                 TestHelper.defaultConfig()
-                        .with(VitessConnectorConfig.TRANSACTION_CONTEXT, VitessOrderedTransactionContext.class)
+                        .with(VitessConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
                         .build());
         VitessOffsetContext context = VitessOffsetContext.initialContext(config, Clock.system());
         TransactionContext transactionContext = context.getTransactionContext();

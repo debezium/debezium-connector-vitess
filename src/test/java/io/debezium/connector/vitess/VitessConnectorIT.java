@@ -51,7 +51,7 @@ import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionContext;
-import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionStructMaker;
+import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionMetadataFactory;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessRankProvider;
 import io.debezium.converters.CloudEventsConverterTest;
 import io.debezium.converters.spi.CloudEventsMaker;
@@ -481,8 +481,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
         TestHelper.applyVSchema("vitess_vschema.json");
         startConnector(config -> config
-                .with(CommonConnectorConfig.TRANSACTION_CONTEXT, VitessOrderedTransactionContext.class)
-                .with(CommonConnectorConfig.TRANSACTION_STRUCT_MAKER, VitessOrderedTransactionStructMaker.class)
+                .with(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
                 .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true),
                 true,
                 "-80,80-");
@@ -564,10 +563,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 SourceInfo.VGTID_KEY, currentVgtid);
         Map<Map<String, ?>, Map<String, ?>> offsets = Map.of(srcPartition, offsetId);
         Configuration config = TestHelper.defaultConfig()
-                .with(CommonConnectorConfig.TRANSACTION_CONTEXT, VitessOrderedTransactionContext.class)
+                .with(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
                 .with(CommonConnectorConfig.TOPIC_PREFIX, TEST_SERVER)
                 .with(VitessConnectorConfig.KEYSPACE, TEST_SHARDED_KEYSPACE)
-                .with(CommonConnectorConfig.TRANSACTION_STRUCT_MAKER, VitessOrderedTransactionStructMaker.class)
                 .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true)
                 .with(VitessConnectorConfig.SHARD, "-80,80-")
                 .build();

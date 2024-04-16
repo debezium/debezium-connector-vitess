@@ -51,7 +51,7 @@ public class VitessOffsetContext extends CommonOffsetContext<SourceInfo> {
         LOGGER.info("No previous offset exists. Use default VGTID.");
         final Vgtid defaultVgtid = VitessReplicationConnection.defaultVgtid(connectorConfig);
         // use the other transaction context
-        TransactionContext transactionContext = connectorConfig.getTransactionContext();
+        TransactionContext transactionContext = connectorConfig.getTransactionMetadataFactory().getTransactionContext();
         VitessOffsetContext context = new VitessOffsetContext(
                 connectorConfig, defaultVgtid, clock.currentTimeAsInstant(), transactionContext);
         return context;
@@ -148,7 +148,8 @@ public class VitessOffsetContext extends CommonOffsetContext<SourceInfo> {
         public VitessOffsetContext load(Map<String, ?> offset) {
             LOGGER.info("Previous offset exists, load from {}", offset);
             final String vgtid = (String) offset.get(SourceInfo.VGTID_KEY);
-            TransactionContext transactionContext = connectorConfig.getTransactionContext().newTransactionContextFromOffsets(offset);
+            TransactionContext transactionContext = connectorConfig.getTransactionMetadataFactory()
+                    .getTransactionContext().newTransactionContextFromOffsets(offset);
             return new VitessOffsetContext(
                     connectorConfig,
                     Vgtid.of(vgtid),

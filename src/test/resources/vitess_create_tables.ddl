@@ -48,6 +48,14 @@ CREATE TABLE enum_table
     PRIMARY KEY (id)
 );
 
+DROP TABLE IF EXISTS enum_ambiguous_table;
+CREATE TABLE enum_ambiguous_table
+(
+    id       BIGINT                            NOT NULL AUTO_INCREMENT,
+    enum_col ENUM ('2', '0', '1') NOT NULL DEFAULT '2',
+    PRIMARY KEY (id)
+);
+
 DROP TABLE IF EXISTS set_table;
 CREATE TABLE set_table
 (

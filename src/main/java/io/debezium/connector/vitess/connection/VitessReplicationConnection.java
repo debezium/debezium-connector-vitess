@@ -102,6 +102,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
             private boolean commitEventSeen;
             private int numOfRowEvents;
             private int numResponses;
+            private boolean isInVStreamCopy = vgtid.willTriggerVStreamCopy();
 
             @Override
             public void onNext(Vtgate.VStreamResponse response) {
@@ -209,7 +210,10 @@ public class VitessReplicationConnection implements ReplicationConnection {
                             rowEventSeen++;
                         }
                         boolean isLastRowEventOfTransaction = newVgtid != null && numOfRowEvents != 0 && rowEventSeen == numOfRowEvents;
-                        messageDecoder.processMessage(bufferedEvents.get(i), processor, newVgtid, isLastRowEventOfTransaction);
+                        if (isInVStreamCopy && event.getType() == Binlogdata.VEventType.COPY_COMPLETED) {
+                            isInVStreamCopy = false;
+                        }
+                        messageDecoder.processMessage(bufferedEvents.get(i), processor, newVgtid, isLastRowEventOfTransaction, isInVStreamCopy);
                     }
                 }
                 catch (InterruptedException e) {

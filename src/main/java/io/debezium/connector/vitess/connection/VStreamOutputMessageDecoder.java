@@ -54,7 +54,11 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     }
 
     @Override
-    public void processMessage(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid, boolean isLastRowEventOfTransaction)
+    public void processMessage(Binlogdata.VEvent vEvent,
+                               ReplicationMessageProcessor processor,
+                               Vgtid newVgtid,
+                               boolean isLastRowEventOfTransaction,
+                               boolean isInVStreamCopy)
             throws InterruptedException {
         final Binlogdata.VEventType vEventType = vEvent.getType();
         switch (vEventType) {
@@ -69,7 +73,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                 break;
             case FIELD:
                 // field type event has table schema
-                handleFieldMessage(vEvent);
+                handleFieldMessage(vEvent, isInVStreamCopy);
                 break;
             case DDL:
                 handleDdl(vEvent, processor, newVgtid);
@@ -329,7 +333,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         return columns;
     }
 
-    private void handleFieldMessage(Binlogdata.VEvent vEvent) {
+    private void handleFieldMessage(Binlogdata.VEvent vEvent, boolean isInVStreamCopy) {
         Binlogdata.FieldEvent fieldEvent = vEvent.getFieldEvent();
         if (fieldEvent == null) {
             LOGGER.error("fieldEvent is expected from {}", vEvent);
@@ -353,7 +357,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                 for (short i = 0; i < columnCount; ++i) {
                     Field field = fieldEvent.getFields(i);
                     String columnName = validateColumnName(field.getName(), schemaName, tableName);
-                    VitessType vitessType = VitessType.resolve(field);
+                    VitessType vitessType = VitessType.resolve(field, isInVStreamCopy);
                     if (vitessType.getJdbcId() == Types.OTHER) {
                         LOGGER.error("Cannot resolve JDBC type from VStream field {}", field);
                     }

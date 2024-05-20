@@ -7,6 +7,7 @@ package io.debezium.connector.vitess;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.ByteBuffer;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Duration;
@@ -65,8 +66,38 @@ public class VitessValueConverterTest {
                 new TestHelper.ColumnValue("datetime_col", Query.Type.DATETIME, Types.TIMESTAMP, "2020-01-01 01:02:03".getBytes(), 3600));
     }
 
+    private static Integer ENUM_VALUE = 1;
+
+    private static Long SET_VALUE = (long) 0b11;
+
+    public static List<TestHelper.ColumnValue> enumColumnValuesString() {
+        return Arrays.asList(
+                new TestHelper.ColumnValue("enum_col", Query.Type.ENUM, Types.VARCHAR, "a".getBytes(), "a",
+                        List.of("a", "b", "c"), "enum('a','b','c')"),
+                new TestHelper.ColumnValue("set_col", Query.Type.SET, Types.VARCHAR, "a,b".getBytes(), "a,b",
+                        List.of("a", "b", "c"), "set('a','b','c')"));
+    }
+
+    public static List<TestHelper.ColumnValue> enumColumnValuesInt() {
+        byte[] enumByteArray = ByteBuffer.allocate(Integer.BYTES).putInt(ENUM_VALUE).array();
+        byte[] setByteArray = ByteBuffer.allocate(Long.BYTES).putLong(SET_VALUE).array();
+        return Arrays.asList(
+                new TestHelper.ColumnValue("enum_col", Query.Type.ENUM, Types.VARCHAR, enumByteArray, ENUM_VALUE,
+                        List.of("a", "b", "c"), "enum('a','b','c')"),
+                new TestHelper.ColumnValue("set_col", Query.Type.SET, Types.VARCHAR, setByteArray, SET_VALUE,
+                        List.of("a", "b", "c"), "set('a','b','c')"));
+    }
+
     public static Binlogdata.VEvent temporalFieldEvent() {
         return TestHelper.newFieldEvent(temporalColumnValues());
+    }
+
+    public static Binlogdata.VEvent enumFieldEventString() {
+        return TestHelper.newFieldEvent(enumColumnValuesString());
+    }
+
+    public static Binlogdata.VEvent enumFieldEventInt() {
+        return TestHelper.newFieldEvent(enumColumnValuesInt());
     }
 
     public static List<Query.Field> temporalFields() {
@@ -75,7 +106,7 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldGetInt64SchemaBuilderForTime() throws InterruptedException {
-        decoder.processMessage(temporalFieldEvent(), null, null, false);
+        decoder.processMessage(temporalFieldEvent(), null, null, false, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
         Column column = table.columnWithName("time_col");
@@ -86,7 +117,7 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldGetYearSchemaBuilderForYear() throws InterruptedException {
-        decoder.processMessage(temporalFieldEvent(), null, null, false);
+        decoder.processMessage(temporalFieldEvent(), null, null, false, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
         Column column = table.columnWithName("year_col");
@@ -97,7 +128,7 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldConverterWorkForTimeColumn() throws InterruptedException {
-        decoder.processMessage(temporalFieldEvent(), null, null, false);
+        decoder.processMessage(temporalFieldEvent(), null, null, false, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
         Column column = table.columnWithName("time_col");
@@ -109,8 +140,73 @@ public class VitessValueConverterTest {
     }
 
     @Test
+    public void shouldConverterWorkForEnumColumnString() throws InterruptedException {
+        decoder.processMessage(enumFieldEventString(), null, null, false, true);
+        Table table = schema.tableFor(TestHelper.defaultTableId());
+
+        Column column = table.columnWithName("enum_col");
+        Field field = new Field("enum", 0, Schema.STRING_SCHEMA);
+        ValueConverter valueConverter = converter.converter(column, field);
+        String expectedValue = "a";
+        assertThat(valueConverter.convert(expectedValue)).isInstanceOf(String.class);
+        assertThat(valueConverter.convert(expectedValue)).isEqualTo(expectedValue);
+    }
+
+    @Test
+    public void shouldConverterReturnEmptyStringForInvalid() throws InterruptedException {
+        decoder.processMessage(enumFieldEventString(), null, null, false, true);
+        Table table = schema.tableFor(TestHelper.defaultTableId());
+
+        Column column = table.columnWithName("enum_col");
+        Field field = new Field("enum", 0, Schema.STRING_SCHEMA);
+        ValueConverter valueConverter = converter.converter(column, field);
+        assertThat(valueConverter.convert(0)).isEqualTo("");
+        assertThat(valueConverter.convert(20)).isEqualTo("");
+    }
+
+    @Test
+    public void shouldConverterWorkForEnumColumnIntToString() throws InterruptedException {
+        decoder.processMessage(enumFieldEventInt(), null, null, false, false);
+        Table table = schema.tableFor(TestHelper.defaultTableId());
+
+        Column column = table.columnWithName("enum_col");
+        Field field = new Field("enum", 0, Schema.STRING_SCHEMA);
+        ValueConverter valueConverter = converter.converter(column, field);
+        Integer expectedValueIndex = ENUM_VALUE;
+        String expectedValue = "a";
+        assertThat(valueConverter.convert(expectedValueIndex)).isInstanceOf(String.class);
+        assertThat(valueConverter.convert(expectedValueIndex)).isEqualTo(expectedValue);
+    }
+
+    @Test
+    public void shouldConverterWorkForSetColumnString() throws InterruptedException {
+        decoder.processMessage(enumFieldEventString(), null, null, false, true);
+        Table table = schema.tableFor(TestHelper.defaultTableId());
+
+        Column column = table.columnWithName("set_col");
+        Field field = new Field("set", 0, Schema.STRING_SCHEMA);
+        ValueConverter valueConverter = converter.converter(column, field);
+        String expectedValue = "a,b";
+        assertThat(valueConverter.convert(expectedValue)).isInstanceOf(String.class);
+        assertThat(valueConverter.convert(expectedValue)).isEqualTo(expectedValue);
+    }
+
+    @Test
+    public void shouldConverterWorkForSetColumnIntToString() throws InterruptedException {
+        decoder.processMessage(enumFieldEventInt(), null, null, false, false);
+        Table table = schema.tableFor(TestHelper.defaultTableId());
+
+        Column column = table.columnWithName("set_col");
+        Field field = new Field("set", 0, Schema.STRING_SCHEMA);
+        ValueConverter valueConverter = converter.converter(column, field);
+        String expectedValue = "a,b";
+        assertThat(valueConverter.convert(SET_VALUE)).isInstanceOf(String.class);
+        assertThat(valueConverter.convert(SET_VALUE)).isEqualTo(expectedValue);
+    }
+
+    @Test
     public void shouldConverterWorkForDatetimeColumn() throws InterruptedException {
-        decoder.processMessage(temporalFieldEvent(), null, null, false);
+        decoder.processMessage(temporalFieldEvent(), null, null, false, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
         Column column = table.columnWithName("datetime_col");

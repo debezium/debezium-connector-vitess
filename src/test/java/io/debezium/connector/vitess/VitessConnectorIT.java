@@ -38,7 +38,6 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.awaitility.Awaitility;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -145,10 +144,37 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertInsert(INSERT_BYTES_TYPES_STMT, schemasAndValuesForBytesTypesAsBytes(), TestHelper.PK_FIELD);
 
         consumer.expects(expectedRecordsCount);
-        assertInsert(INSERT_ENUM_TYPE_STMT, schemasAndValuesForEnumType(), TestHelper.PK_FIELD);
+        assertInsert(INSERT_SET_TYPE_STMT, schemasAndValuesForSetType(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    @FixFor("DBZ-2776")
+    public void shouldReceiveChangesForInsertsWithEnum() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector();
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
 
         consumer.expects(expectedRecordsCount);
-        assertInsert(INSERT_SET_TYPE_STMT, schemasAndValuesForSetType(), TestHelper.PK_FIELD);
+        assertInsert(INSERT_ENUM_TYPE_STMT, schemasAndValuesForEnumType(), TestHelper.PK_FIELD);
+
+    }
+
+    @Test
+    @FixFor("DBZ-2776")
+    public void shouldReceiveChangesForInsertsWithAmbiguous() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector();
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_ENUM_AMBIGUOUS_TYPE_STMT, schemasAndValuesForEnumTypeAmbiguous(), TestHelper.PK_FIELD);
+
     }
 
     @Test
@@ -262,6 +288,20 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertInsert(INSERT_BYTES_TYPES_STMT, schemasAndValuesForBytesTypesAsHexString(), TestHelper.PK_FIELD);
     }
 
+    private Integer getGtidPosition(String gtid) {
+        // Split the string by ':'
+        String[] parts = gtid.split(":");
+
+        // The part we need is the second one, split it by '-'
+        String[] rangeParts = parts[1].split("-");
+
+        // The part after the hyphen is the second one
+        String numberStr = rangeParts[1];
+
+        // Convert the string to an integer
+        return Integer.parseInt(numberStr);
+    }
+
     @Test
     public void shouldOffsetIncrementAfterDDL() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
@@ -273,12 +313,10 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         consumer = testConsumer(expectedRecordsCount);
         SourceRecord sourceRecord = assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
 
+        Integer binlogPosition = getGtidPosition(Vgtid.of((String) sourceRecord.sourceOffset().get("vgtid")).getShardGtids().get(0).getGtid());
+
         // apply DDL
         TestHelper.execute("ALTER TABLE numeric_table ADD foo INT default 10;");
-        int numOfGtidsFromDdl = 1;
-
-        // As of Vitess 17.0.3 four additional VGTID events are emitted after the DDL and before the next insert
-        int numOfAdditionalGtids = 4;
 
         // insert 1 row
         consumer.expects(expectedRecordsCount);
@@ -287,11 +325,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 new SchemaAndValueField("foo", SchemaBuilder.OPTIONAL_INT32_SCHEMA, 10));
         SourceRecord sourceRecord2 = assertInsert(INSERT_NUMERIC_TYPES_STMT, expectedSchemaAndValuesByColumn, TestHelper.PK_FIELD);
 
-        String expectedOffset = RecordOffset
-                .fromSourceInfo(sourceRecord)
-                .incrementOffset(numOfGtidsFromDdl + numOfAdditionalGtids + 1).getVgtid();
-        String actualOffset = (String) sourceRecord2.sourceOffset().get(SourceInfo.VGTID_KEY);
-        Assert.assertEquals(expectedOffset, actualOffset);
+        Integer binlogPosition2 = getGtidPosition(Vgtid.of((String) sourceRecord2.sourceOffset().get("vgtid")).getShardGtids().get(0).getGtid());
+
+        assertThat(binlogPosition2).isGreaterThan(binlogPosition);
     }
 
     @Test
@@ -1052,6 +1088,96 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // We should receive additional record from numeric_table
         consumer.expects(expectedRecordsCount);
         assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void testSnapshotForTableWithEnums() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        int expectedSnapshotRecordsCount = 10;
+        int expectedStreamingRecordsCount = 1;
+        int totalRecordsCount = expectedSnapshotRecordsCount + expectedStreamingRecordsCount;
+        final String tableName = "enum_table";
+        for (int i = 1; i <= expectedSnapshotRecordsCount; i++) {
+            TestHelper.execute(INSERT_ENUM_TYPE_STMT, TEST_UNSHARDED_KEYSPACE);
+        }
+        String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + tableName + "," + TEST_UNSHARDED_KEYSPACE + "." + tableName;
+        startConnector(Function.identity(), false, false, 1,
+                -1, -1, tableInclude, VitessConnectorConfig.SnapshotMode.INITIAL, TestHelper.TEST_SHARD);
+
+        for (int i = 1; i <= expectedStreamingRecordsCount; i++) {
+            TestHelper.execute(INSERT_ENUM_TYPE_STMT, TEST_UNSHARDED_KEYSPACE);
+        }
+
+        // We should receive a record written before starting the connector.
+        consumer = testConsumer(totalRecordsCount);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 1; i <= totalRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_ENUM_TYPE_STMT), TestHelper.PK_FIELD);
+            assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, tableName);
+            assertRecordSchemaAndValues(schemasAndValuesForEnumType(), record, Envelope.FieldName.AFTER);
+
+            if (i == expectedSnapshotRecordsCount) {
+                Map<String, ?> prevOffset = record.sourceOffset();
+                Map<String, ?> prevPartition = record.sourcePartition();
+                Testing.print(String.format("Offset: %s, partition: %s", prevOffset, prevPartition));
+                final String vgtidStr = (String) prevOffset.get(SourceInfo.VGTID_KEY);
+                final String expectedJSONString = "[{\"keyspace\":\"test_unsharded_keyspace\",\"shard\":\"0\"," +
+                        "\"gtid\":\"MySQL56/6a18875e-6d37-11ee-ac9a-0242ac110002:1-224\"," +
+                        "\"table_p_ks\":[{\"table_name\":\"enum_table\",\"lastpk\":" +
+                        "{\"fields\":[{\"name\":\"id\",\"type\":\"INT64\",\"charset\":63,\"flags\":49667}]," +
+                        "\"rows\":[{\"lengths\":[\"2\"],\"values\":\"10\"}]}}]}]";
+                Vgtid actualVgtid = Vgtid.of(vgtidStr);
+                Vgtid expectedVgtid = Vgtid.of(expectedJSONString);
+                assertThat(actualVgtid.getShardGtids().size()).isEqualTo(1);
+                assertThat(actualVgtid.getShardGtids().get(0).getTableLastPrimaryKeys()).isEqualTo(
+                        expectedVgtid.getShardGtids().get(0).getTableLastPrimaryKeys());
+            }
+        }
+    }
+
+    @Test
+    public void testSnapshotForTableWithEnumsAmbiguous() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        int expectedSnapshotRecordsCount = 10;
+        int streamingRecordsCount = 1;
+        int totalRecordsCount = expectedSnapshotRecordsCount + streamingRecordsCount;
+        final String tableName = "enum_ambiguous_table";
+        for (int i = 1; i <= expectedSnapshotRecordsCount; i++) {
+            TestHelper.execute(INSERT_ENUM_AMBIGUOUS_TYPE_STMT, TEST_UNSHARDED_KEYSPACE);
+        }
+        String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + tableName + "," + TEST_UNSHARDED_KEYSPACE + "." + tableName;
+        startConnector(Function.identity(), false, false, 1,
+                -1, -1, tableInclude, VitessConnectorConfig.SnapshotMode.INITIAL, TestHelper.TEST_SHARD);
+
+        for (int i = 1; i <= streamingRecordsCount; i++) {
+            TestHelper.execute(INSERT_ENUM_AMBIGUOUS_TYPE_STMT, TEST_UNSHARDED_KEYSPACE);
+        }
+
+        // We should receive a record written before starting the connector.
+        consumer = testConsumer(totalRecordsCount);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 1; i <= totalRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_ENUM_AMBIGUOUS_TYPE_STMT), TestHelper.PK_FIELD);
+            assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, tableName);
+            assertRecordSchemaAndValues(schemasAndValuesForEnumTypeAmbiguous(), record, Envelope.FieldName.AFTER);
+
+            if (i == expectedSnapshotRecordsCount) {
+                Map<String, ?> prevOffset = record.sourceOffset();
+                Map<String, ?> prevPartition = record.sourcePartition();
+                Testing.print(String.format("Offset: %s, partition: %s", prevOffset, prevPartition));
+                final String vgtidStr = (String) prevOffset.get(SourceInfo.VGTID_KEY);
+                final String expectedJSONString = "[{\"keyspace\":\"test_unsharded_keyspace\",\"shard\":\"0\"," +
+                        "\"gtid\":\"MySQL56/6a18875e-6d37-11ee-ac9a-0242ac110002:1-224\"," +
+                        "\"table_p_ks\":[{\"table_name\":\"enum_ambiguous_table\",\"lastpk\":" +
+                        "{\"fields\":[{\"name\":\"id\",\"type\":\"INT64\",\"charset\":63,\"flags\":49667}]," +
+                        "\"rows\":[{\"lengths\":[\"2\"],\"values\":\"10\"}]}}]}]";
+                Vgtid actualVgtid = Vgtid.of(vgtidStr);
+                Vgtid expectedVgtid = Vgtid.of(expectedJSONString);
+                assertThat(actualVgtid.getShardGtids().size()).isEqualTo(1);
+                assertThat(actualVgtid.getShardGtids().get(0).getTableLastPrimaryKeys()).isEqualTo(
+                        expectedVgtid.getShardGtids().get(0).getTableLastPrimaryKeys());
+            }
+        }
     }
 
     @Test

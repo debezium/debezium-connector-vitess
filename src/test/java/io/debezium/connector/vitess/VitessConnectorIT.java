@@ -288,20 +288,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertInsert(INSERT_BYTES_TYPES_STMT, schemasAndValuesForBytesTypesAsHexString(), TestHelper.PK_FIELD);
     }
 
-    private Integer getGtidPosition(String gtid) {
-        // Split the string by ':'
-        String[] parts = gtid.split(":");
-
-        // The part we need is the second one, split it by '-'
-        String[] rangeParts = parts[1].split("-");
-
-        // The part after the hyphen is the second one
-        String numberStr = rangeParts[1];
-
-        // Convert the string to an integer
-        return Integer.parseInt(numberStr);
-    }
-
     @Test
     public void shouldOffsetIncrementAfterDDL() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
@@ -313,10 +299,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         consumer = testConsumer(expectedRecordsCount);
         SourceRecord sourceRecord = assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
 
-        Integer binlogPosition = getGtidPosition(Vgtid.of((String) sourceRecord.sourceOffset().get("vgtid")).getShardGtids().get(0).getGtid());
-
         // apply DDL
         TestHelper.execute("ALTER TABLE numeric_table ADD foo INT default 10;");
+        int numOfGtidsFromDdl = 1;
 
         // insert 1 row
         consumer.expects(expectedRecordsCount);
@@ -325,9 +310,11 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 new SchemaAndValueField("foo", SchemaBuilder.OPTIONAL_INT32_SCHEMA, 10));
         SourceRecord sourceRecord2 = assertInsert(INSERT_NUMERIC_TYPES_STMT, expectedSchemaAndValuesByColumn, TestHelper.PK_FIELD);
 
-        Integer binlogPosition2 = getGtidPosition(Vgtid.of((String) sourceRecord2.sourceOffset().get("vgtid")).getShardGtids().get(0).getGtid());
-
-        assertThat(binlogPosition2).isGreaterThan(binlogPosition);
+        String expectedOffset = RecordOffset
+                .fromSourceInfo(sourceRecord)
+                .incrementOffset(numOfGtidsFromDdl + 1).getVgtid();
+        String actualOffset = (String) sourceRecord2.sourceOffset().get(SourceInfo.VGTID_KEY);
+        assertThat(actualOffset).isGreaterThanOrEqualTo(expectedOffset);
     }
 
     @Test

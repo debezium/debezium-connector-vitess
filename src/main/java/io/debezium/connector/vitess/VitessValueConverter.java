@@ -239,22 +239,24 @@ public class VitessValueConverter extends JdbcValueConverters {
      */
     private Object convertEnumToString(List<String> options, Column column, Field fieldDefn, Object data) {
         return convertValue(column, fieldDefn, data, "", (r) -> {
-            if (options != null) {
-                // The binlog will contain an int with the 1-based index of the option in the enum value ...
-                int value = ((Integer) data).intValue();
-                if (value == 0) {
-                    // an invalid value was specified, which corresponds to the empty string '' and an index of 0
-                    r.deliver("");
-                }
-                else {
-                    int index = value - 1; // 'options' is 0-based
-                    if (index < options.size() && index >= 0) {
-                        r.deliver(options.get(index));
-                    }
-                    else {
-                        r.deliver("");
-                    }
-                }
+            // The value has already been converted to a string so deliver as is
+            if (data instanceof String) {
+                r.deliver(data);
+                return;
+            }
+
+            // If we don't have options (list of values), we cannot look up an index value
+            if (options == null) {
+                r.deliver("");
+                return;
+            }
+
+            // The value is an 1-index int referring to the enum value
+            int value = ((Integer) data).intValue();
+            int index = value - 1; // 'options' is 0-based
+            // an invalid value was specified, which corresponds to the empty string '' and an index of 0
+            if (index < options.size() && index >= 0) {
+                r.deliver(options.get(index));
             }
             else {
                 r.deliver("");
@@ -274,9 +276,15 @@ public class VitessValueConverter extends JdbcValueConverters {
      */
     protected Object convertSetToString(List<String> options, Column column, Field fieldDefn, Object data) {
         return convertValue(column, fieldDefn, data, "", (r) -> {
-            // The binlog will contain a long with the indexes of the options in the set value ...
-            long indexes = ((Long) data).longValue();
-            r.deliver(convertSetValue(column, indexes, options));
+            if (data instanceof String) {
+                // The value has already been converted to a string so deliver as is
+                r.deliver(data);
+            }
+            else {
+                // The binlog will contain a long with the indexes of the options in the set value ...
+                long indexes = ((Long) data).longValue();
+                r.deliver(convertSetValue(column, indexes, options));
+            }
         });
     }
 

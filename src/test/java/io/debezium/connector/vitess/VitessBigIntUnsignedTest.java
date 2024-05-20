@@ -87,7 +87,7 @@ public class VitessBigIntUnsignedTest {
                 (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig));
         decoder = new VStreamOutputMessageDecoder(schema);
         // initialize schema by FIELD event
-        decoder.processMessage(TestHelper.newFieldEvent(defaultColumnValues(mode)), null, null, false);
+        decoder.processMessage(TestHelper.newFieldEvent(defaultColumnValues(mode)), null, null, false, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
         assertThat(table.columnWithName("bigint_unsigned_col").jdbcType() == Types.BIGINT);
 

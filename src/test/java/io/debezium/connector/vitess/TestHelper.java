@@ -41,6 +41,9 @@ public class TestHelper {
     public static final String TEST_UNSHARDED_KEYSPACE = "test_unsharded_keyspace";
     public static final String TEST_SHARDED_KEYSPACE = "test_sharded_keyspace";
     public static final String TEST_SHARD = "0";
+    public static final String TEST_SHARD1 = "-80";
+    public static final String TEST_SHARD2 = "80-";
+
     public static final String TEST_GTID = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-1513";
     public static final String TEST_TABLE = "test_table";
     private static final String TEST_VITESS_FULL_TABLE = TEST_UNSHARDED_KEYSPACE + "." + TEST_TABLE;
@@ -441,9 +444,14 @@ public class TestHelper {
 
         public ColumnValue(
                            String columnName, Query.Type queryType, int jdbcId, byte[] rawValue, Object javaValue) {
-            this.field = Field.newBuilder().setName(columnName).setType(queryType).build();
+            this(columnName, queryType, jdbcId, rawValue, javaValue, Collections.emptyList(), "");
+        }
+
+        public ColumnValue(
+                           String columnName, Query.Type queryType, int jdbcId, byte[] rawValue, Object javaValue, List<String> enumSetValues, String columnType) {
+            this.field = Field.newBuilder().setName(columnName).setType(queryType).setColumnType(columnType).build();
             this.replicationMessageColumn = new ReplicationMessageColumn(
-                    columnName, new VitessType(queryType.name(), jdbcId), true, rawValue);
+                    columnName, new VitessType(queryType.name(), jdbcId, enumSetValues), true, rawValue);
             this.javaValue = javaValue;
         }
 

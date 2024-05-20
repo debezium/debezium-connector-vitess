@@ -77,6 +77,98 @@ public class VgtidTest {
             TEST_GTID2,
             TEST_MULTIPLE_TABLE_PKS_JSON);
 
+    public static final String VGTID_EMPTY_AND_GTID = String.format(
+            TestHelper.VGTID_JSON_TEMPLATE,
+            TestHelper.TEST_SHARDED_KEYSPACE,
+            TestHelper.TEST_SHARD1,
+            Vgtid.EMPTY_GTID,
+            TestHelper.TEST_SHARDED_KEYSPACE,
+            TestHelper.TEST_SHARD2,
+            TestHelper.TEST_GTID);
+
+    public static final String VGTID_BOTH_EMPTY = String.format(
+            TestHelper.VGTID_JSON_TEMPLATE,
+            TestHelper.TEST_SHARDED_KEYSPACE,
+            TestHelper.TEST_SHARD1,
+            Vgtid.EMPTY_GTID,
+            TestHelper.TEST_SHARDED_KEYSPACE,
+            TestHelper.TEST_SHARD2,
+            Vgtid.EMPTY_GTID);
+
+    public static final String VGTID_BOTH_CURRENT = String.format(
+            TestHelper.VGTID_JSON_TEMPLATE,
+            TestHelper.TEST_SHARDED_KEYSPACE,
+            TestHelper.TEST_SHARD1,
+            Vgtid.CURRENT_GTID,
+            TestHelper.TEST_SHARDED_KEYSPACE,
+            TestHelper.TEST_SHARD2,
+            Vgtid.CURRENT_GTID);
+
+    public static final String VGTID_EMPTY_AND_CURRENT = String.format(
+            TestHelper.VGTID_JSON_TEMPLATE,
+            TestHelper.TEST_SHARDED_KEYSPACE,
+            TestHelper.TEST_SHARD1,
+            Vgtid.EMPTY_GTID,
+            TestHelper.TEST_SHARDED_KEYSPACE,
+            TestHelper.TEST_SHARD2,
+            Vgtid.CURRENT_GTID);
+
+    @Test
+    public void isInCopyPhaseEmptyAndGtid() {
+        Vgtid vgtid = Vgtid.of(VGTID_EMPTY_AND_GTID);
+        boolean isInCopyPhase = vgtid.willTriggerVStreamCopy();
+        assertThat(isInCopyPhase).isTrue();
+    }
+
+    @Test
+    public void isInCopyPhaseBothEmpty() {
+        Vgtid vgtid = Vgtid.of(VGTID_BOTH_EMPTY);
+        boolean isInCopyPhase = vgtid.willTriggerVStreamCopy();
+        assertThat(isInCopyPhase).isTrue();
+    }
+
+    @Test
+    public void isInCopyPhaseEmptyAndCurrent() {
+        Vgtid vgtid = Vgtid.of(VGTID_EMPTY_AND_CURRENT);
+        boolean isInCopyPhase = vgtid.willTriggerVStreamCopy();
+        assertThat(isInCopyPhase).isTrue();
+    }
+
+    @Test
+    public void isInCopyPhaseBothCurrent() {
+        Vgtid vgtid = Vgtid.of(VGTID_BOTH_CURRENT);
+        boolean isInCopyPhase = vgtid.willTriggerVStreamCopy();
+        assertThat(isInCopyPhase).isFalse();
+    }
+
+    @Test
+    public void isInCopyPhaseGtidWithPks() {
+        Vgtid vgtid = Vgtid.of(VGTID_JSON_WITH_LAST_PK);
+        boolean isInCopyPhase = vgtid.willTriggerVStreamCopy();
+        assertThat(isInCopyPhase).isTrue();
+    }
+
+    @Test
+    public void isInCopyPhaseGtidWithMultiTablePks() {
+        Vgtid vgtid = Vgtid.of(VGTID_JSON_WITH_MULTIPLE_TABLE_LAST_PK);
+        boolean isInCopyPhase = vgtid.willTriggerVStreamCopy();
+        assertThat(isInCopyPhase).isTrue();
+    }
+
+    @Test
+    public void isInCopyPhaseGtidWithBothGtid() {
+        Vgtid vgtid = Vgtid.of(VGTID_JSON);
+        boolean isInCopyPhase = vgtid.willTriggerVStreamCopy();
+        assertThat(isInCopyPhase).isFalse();
+    }
+
+    @Test
+    public void isInCopyPhaseGtidWithBothGtidNoPks() {
+        Vgtid vgtid = Vgtid.of(VGTID_JSON_NO_PKS);
+        boolean isInCopyPhase = vgtid.willTriggerVStreamCopy();
+        assertThat(isInCopyPhase).isFalse();
+    }
+
     @Test
     public void shouldCreateFromRawVgtid() {
         // setup fixture

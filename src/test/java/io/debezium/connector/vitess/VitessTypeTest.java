@@ -47,7 +47,7 @@ public class VitessTypeTest {
     }
 
     @Test
-    public void shouldResolveEnumToVitessType() {
+    public void shouldResolveEnumToVitessTypeWithIntMappingWhenNotInCopyPhase() {
         Query.Field enumField = Query.Field.newBuilder()
                 .setType(Query.Type.ENUM)
                 .setColumnType("enum('eu','us','asia')")
@@ -78,7 +78,38 @@ public class VitessTypeTest {
     }
 
     @Test
-    public void shouldResolveSetToVitessType() {
+    public void shouldResolveEnumToVitessTypeWithStringValueWhenInCopyPhase() {
+        Query.Field enumField = Query.Field.newBuilder()
+                .setType(Query.Type.ENUM)
+                .setColumnType("enum('eu','us','asia')")
+                .build();
+        assertThat(VitessType.resolve(enumField, true))
+                .isEqualTo(new VitessType(Query.Type.ENUM.name(), Types.VARCHAR, Arrays.asList("eu", "us", "asia")));
+
+        enumField = Query.Field.newBuilder()
+                .setType(Query.Type.ENUM)
+                .setColumnType("enum('e,u','us','asia')")
+                .build();
+        assertThat(VitessType.resolve(enumField, true))
+                .isEqualTo(new VitessType(Query.Type.ENUM.name(), Types.VARCHAR, Arrays.asList("e,u", "us", "asia")));
+
+        enumField = Query.Field.newBuilder()
+                .setType(Query.Type.ENUM)
+                .setColumnType("enum('e'',u','us','asia')")
+                .build();
+        assertThat(VitessType.resolve(enumField, true))
+                .isEqualTo(new VitessType(Query.Type.ENUM.name(), Types.VARCHAR, Arrays.asList("e',u", "us", "asia")));
+
+        enumField = Query.Field.newBuilder()
+                .setType(Query.Type.ENUM)
+                .setColumnType("enum('e'','',''u','us','asia')")
+                .build();
+        assertThat(VitessType.resolve(enumField, true))
+                .isEqualTo(new VitessType(Query.Type.ENUM.name(), Types.VARCHAR, Arrays.asList("e',','u", "us", "asia")));
+    }
+
+    @Test
+    public void shouldResolveSetToVitessTypeIntWhenNotInCopyPhase() {
         Query.Field setField = Query.Field.newBuilder()
                 .setType(Query.Type.SET)
                 .setColumnType("set('eu','us','asia')")
@@ -108,7 +139,42 @@ public class VitessTypeTest {
                 .isEqualTo(new VitessType(Query.Type.SET.name(), Types.BIGINT, Arrays.asList("e',','u", "us", "asia")));
     }
 
+    @Test
+    public void shouldResolveSetToVitessTypeStringWhenInCopyPhase() {
+        Query.Field setField = Query.Field.newBuilder()
+                .setType(Query.Type.SET)
+                .setColumnType("set('eu','us','asia')")
+                .build();
+        assertThat(VitessType.resolve(setField, true))
+                .isEqualTo(new VitessType(Query.Type.SET.name(), Types.VARCHAR, Arrays.asList("eu", "us", "asia")));
+
+        setField = Query.Field.newBuilder()
+                .setType(Query.Type.SET)
+                .setColumnType("set('e,u','us','asia')")
+                .build();
+        assertThat(VitessType.resolve(setField, true))
+                .isEqualTo(new VitessType(Query.Type.SET.name(), Types.VARCHAR, Arrays.asList("e,u", "us", "asia")));
+
+        setField = Query.Field.newBuilder()
+                .setType(Query.Type.SET)
+                .setColumnType("set('e'',u','us','asia')")
+                .build();
+        assertThat(VitessType.resolve(setField, true))
+                .isEqualTo(new VitessType(Query.Type.SET.name(), Types.VARCHAR, Arrays.asList("e',u", "us", "asia")));
+
+        setField = Query.Field.newBuilder()
+                .setType(Query.Type.SET)
+                .setColumnType("set('e'','',''u','us','asia')")
+                .build();
+        assertThat(VitessType.resolve(setField, true))
+                .isEqualTo(new VitessType(Query.Type.SET.name(), Types.VARCHAR, Arrays.asList("e',','u", "us", "asia")));
+    }
+
     private Query.Field asField(Query.Type type) {
         return Query.Field.newBuilder().setType(type).build();
+    }
+
+    private Query.Field asFieldWithColumnType(Query.Type type, String columnType) {
+        return Query.Field.newBuilder().setType(type).setColumnType(columnType).build();
     }
 }

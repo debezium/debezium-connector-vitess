@@ -89,6 +89,15 @@ public class Vgtid {
         return shardGtids;
     }
 
+    public boolean willTriggerVStreamCopy() {
+        for (ShardGtid shardGtid : shardGtids) {
+            if (shardGtid.getGtid().equals(EMPTY_GTID) || !shardGtid.getTableLastPrimaryKeys().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public ShardGtid getShardGtid(String shard) {
         for (ShardGtid shardGtid : shardGtids) {
             if (shardGtid.shard.equals(shard)) {

@@ -113,6 +113,8 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
             + "mediumblob_col)"
             + " VALUES ('d', 'ef', 'op', 'qs');";
     protected static final String INSERT_ENUM_TYPE_STMT = "INSERT INTO enum_table (enum_col)" + " VALUES ('large');";
+
+    protected static final String INSERT_ENUM_AMBIGUOUS_TYPE_STMT = "INSERT INTO enum_ambiguous_table (enum_col)" + " VALUES ('2');";
     protected static final String INSERT_SET_TYPE_STMT = "INSERT INTO set_table (set_col)" + " VALUES ('a,c');";
 
     protected static final String TIME = "01:02:03";
@@ -245,6 +247,14 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         fields.addAll(
                 Arrays.asList(
                         new SchemaAndValueField("enum_col", io.debezium.data.Enum.builder("small,medium,large").build(), "large")));
+        return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForEnumTypeAmbiguous() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField("enum_col", io.debezium.data.Enum.builder("2,0,1").build(), "2")));
         return fields;
     }
 

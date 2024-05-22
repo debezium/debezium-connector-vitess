@@ -281,7 +281,7 @@ public class VitessValueConverter extends JdbcValueConverters {
                 r.deliver(data);
             }
             else {
-                // The binlog will contain a long with the indexes of the options in the set value ...
+                // The binlog will contain a 64-bit bitmask with the indexes of the options in the set value ...
                 long indexes = ((Long) data).longValue();
                 r.deliver(convertSetValue(column, indexes, options));
             }
@@ -294,7 +294,7 @@ public class VitessValueConverter extends JdbcValueConverters {
         boolean first = true;
         int optionLen = options.size();
         while (indexes != 0L) {
-            if (indexes % 2L != 0) {
+            if ((indexes & 1) == 1) {
                 if (first) {
                     first = false;
                 }

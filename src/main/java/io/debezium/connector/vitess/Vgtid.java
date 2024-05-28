@@ -6,6 +6,7 @@
 package io.debezium.connector.vitess;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 
@@ -36,17 +37,24 @@ public class Vgtid {
     @JsonIgnore
     private final Binlogdata.VGtid rawVgtid;
     private final List<ShardGtid> shardGtids = new ArrayList<>();
+    private final HashMap<String, ShardGtid> shardNameToShardGtid = new HashMap<>();
 
     private Vgtid(Binlogdata.VGtid rawVgtid) {
         this.rawVgtid = rawVgtid;
         for (Binlogdata.ShardGtid shardGtid : rawVgtid.getShardGtidsList()) {
             TablePrimaryKeys tabletablePrimaryKeys = new TablePrimaryKeys(shardGtid.getTablePKsList());
-            shardGtids.add(new ShardGtid(shardGtid.getKeyspace(), shardGtid.getShard(), shardGtid.getGtid(), tabletablePrimaryKeys.getTableLastPrimaryKeys()));
+            ShardGtid currentShardGtid = new ShardGtid(
+                    shardGtid.getKeyspace(), shardGtid.getShard(), shardGtid.getGtid(), tabletablePrimaryKeys.getTableLastPrimaryKeys());
+            shardGtids.add(currentShardGtid);
+            shardNameToShardGtid.put(shardGtid.getShard(), currentShardGtid);
         }
     }
 
     private Vgtid(List<ShardGtid> shardGtids) {
         this.shardGtids.addAll(shardGtids);
+        for (ShardGtid shardGtid : shardGtids) {
+            this.shardNameToShardGtid.put(shardGtid.shard, shardGtid);
+        }
 
         Binlogdata.VGtid.Builder builder = Binlogdata.VGtid.newBuilder();
         for (ShardGtid shardGtid : shardGtids) {
@@ -97,14 +105,16 @@ public class Vgtid {
         }
         return false;
     }
+    public Vgtid getLocalVgtid(String shard) {
+        return Vgtid.of(List.of(getShardGtid(shard)));
+    }
 
     public ShardGtid getShardGtid(String shard) {
-        for (ShardGtid shardGtid : shardGtids) {
-            if (shardGtid.shard.equals(shard)) {
-                return shardGtid;
-            }
+        ShardGtid shardGtid = shardNameToShardGtid.get(shard);
+        if (shardGtid == null) {
+            throw new DebeziumException("Gtid for shard missing, shard: " + shard + "vgtid: " + this.rawVgtid.toString());
         }
-        throw new DebeziumException("Gtid for shard missing, shard: " + shard + "vgtid: " + this.rawVgtid.toString());
+        return shardGtid;
     }
 
     public boolean isSingleShard() {

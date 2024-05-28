@@ -406,6 +406,13 @@ public class VgtidTest {
     }
 
     @Test
+    public void shouldGetLocalVgtid() {
+        Vgtid vgtid = Vgtid.of(VGTID_JSON);
+        Vgtid shardGtid = vgtid.getLocalVgtid(TEST_SHARD);
+        assertThat(shardGtid).isEqualTo(Vgtid.of(List.of(new Vgtid.ShardGtid(TEST_KEYSPACE, TEST_SHARD, TEST_GTID))));
+    }
+
+    @Test
     public void shouldGetMissingShardGtidThrowsDebeziumException() {
         Vgtid vgtid1 = Vgtid.of(VGTID_JSON);
         assertThatThrownBy(() -> {

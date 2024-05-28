@@ -61,6 +61,7 @@ import io.debezium.embedded.EmbeddedEngine;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.TableId;
+import io.debezium.transforms.ExcludeTransactionComponents;
 import io.debezium.util.Collect;
 import io.debezium.util.Testing;
 
@@ -582,6 +583,64 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
             Vgtid actualVgtid = Vgtid.of(txId);
             // The current vgtid is not the previous vgtid.
             assertThat(actualVgtid).isNotEqualTo(baseVgtid);
+        }
+        assertRecordEnd(expectedTxId1, expectedRecordsCount);
+    }
+
+    @Test
+    public void shouldUseLocalVgtid() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(config -> config
+                .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true)
+                .with("transforms", "useLocalVgtid")
+                .with("transforms.useLocalVgtid.type", "io.debezium.connector.vitess.transforms.UseLocalVgtid"),
+                true,
+                "-80,80-");
+        assertConnectorIsRunning();
+
+        Vgtid baseVgtid = TestHelper.getCurrentVgtid();
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount + 2);
+
+        String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
+        String insertQuery = "INSERT INTO numeric_table ("
+                + "tinyint_col,"
+                + "tinyint_unsigned_col,"
+                + "smallint_col,"
+                + "smallint_unsigned_col,"
+                + "mediumint_col,"
+                + "mediumint_unsigned_col,"
+                + "int_col,"
+                + "int_unsigned_col,"
+                + "bigint_col,"
+                + "bigint_unsigned_col,"
+                + "bigint_unsigned_overflow_col,"
+                + "float_col,"
+                + "double_col,"
+                + "decimal_col,"
+                + "boolean_col)"
+                + " VALUES " + rowValue;
+        StringBuilder insertRows = new StringBuilder().append(insertQuery);
+        for (int i = 1; i < expectedRecordsCount; i++) {
+            insertRows.append(", ").append(rowValue);
+        }
+
+        String insertRowsStatement = insertRows.toString();
+
+        // exercise SUT
+        executeAndWait(insertRowsStatement, TEST_SHARDED_KEYSPACE);
+        // First transaction.
+        SourceRecord beginRecord = assertRecordBeginSourceRecord();
+        String expectedTxId1 = ((Struct) beginRecord.value()).getString("id");
+        Long expectedEpoch = 0L;
+        for (int i = 1; i <= expectedRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
+            Struct source = (Struct) ((Struct) record.value()).get("source");
+            Vgtid sourceVgtid = Vgtid.of(source.getString("vgtid"));
+            // We have two shards for multi-shard keyspace, a local vgtid should only have one shard
+            assertThat(sourceVgtid.getShardGtids().size()).isEqualTo(1);
+            assertThat(sourceVgtid.getShardGtids().get(0).getShard()).isEqualTo(source.getString("shard"));
         }
         assertRecordEnd(expectedTxId1, expectedRecordsCount);
     }

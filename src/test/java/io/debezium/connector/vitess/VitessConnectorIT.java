@@ -630,6 +630,137 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    public void shouldProvideTransactionMetadataWithoutIdOrTransactionTopic() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(config -> config
+                        .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true)
+                        .with("transforms", "excludeTransactionComponents")
+                        .with("transforms.excludeTransactionComponents.type", "io.debezium.transforms.ExcludeTransactionComponents")
+                        .with("transforms.excludeTransactionComponents." + ExcludeTransactionComponents.COMPONENTS_CONF,
+                                "id,transaction_topic")
+                        .with(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
+                        .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true),
+                true,
+                "-80,80-");
+        assertConnectorIsRunning();
+
+        Vgtid baseVgtid = TestHelper.getCurrentVgtid();
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
+        String insertQuery = "INSERT INTO numeric_table ("
+                + "tinyint_col,"
+                + "tinyint_unsigned_col,"
+                + "smallint_col,"
+                + "smallint_unsigned_col,"
+                + "mediumint_col,"
+                + "mediumint_unsigned_col,"
+                + "int_col,"
+                + "int_unsigned_col,"
+                + "bigint_col,"
+                + "bigint_unsigned_col,"
+                + "bigint_unsigned_overflow_col,"
+                + "float_col,"
+                + "double_col,"
+                + "decimal_col,"
+                + "boolean_col)"
+                + " VALUES " + rowValue;
+        StringBuilder insertRows = new StringBuilder().append(insertQuery);
+        for (int i = 1; i < expectedRecordsCount; i++) {
+            insertRows.append(", ").append(rowValue);
+        }
+
+        String insertRowsStatement = insertRows.toString();
+
+        // exercise SUT
+        executeAndWait(insertRowsStatement, TEST_SHARDED_KEYSPACE);
+        // First transaction.
+        Long expectedEpoch = 0L;
+        for (int i = 1; i <= expectedRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
+            Struct source = (Struct) ((Struct) record.value()).get("source");
+            String shard = source.getString("shard");
+            String vgtid = source.getString("vgtid");
+            Vgtid actualVgtid = Vgtid.of(vgtid);
+            final Struct txn = ((Struct) record.value()).getStruct("transaction");
+            assertThat(txn.schema().field("id")).isNull();
+            assertThat(txn.get("transaction_epoch")).isEqualTo(expectedEpoch);
+            BigDecimal expectedRank = VitessRankProvider.getRank(actualVgtid.getShardGtid(shard).getGtid());
+            assertThat(txn.get("transaction_rank")).isEqualTo(expectedRank);
+        }
+    }
+
+    @Test
+    public void shouldProvideTransactionMetadataWithoutIdOrTransactionTopicAndUseLocalVgtid() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(config -> config
+                        .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true)
+                        .with("transforms", "excludeTransactionComponents,useLocalVgtid")
+                        .with("transforms.excludeTransactionComponents.type", "io.debezium.transforms.ExcludeTransactionComponents")
+                        .with("transforms.excludeTransactionComponents." + ExcludeTransactionComponents.COMPONENTS_CONF,
+                                "id,transaction_topic")
+                        .with("transforms.useLocalVgtid.type", "io.debezium.connector.vitess.transforms.UseLocalVgtid")
+                        .with(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
+                        .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true),
+                true,
+                "-80,80-");
+        assertConnectorIsRunning();
+
+        Vgtid baseVgtid = TestHelper.getCurrentVgtid();
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
+        String insertQuery = "INSERT INTO numeric_table ("
+                + "tinyint_col,"
+                + "tinyint_unsigned_col,"
+                + "smallint_col,"
+                + "smallint_unsigned_col,"
+                + "mediumint_col,"
+                + "mediumint_unsigned_col,"
+                + "int_col,"
+                + "int_unsigned_col,"
+                + "bigint_col,"
+                + "bigint_unsigned_col,"
+                + "bigint_unsigned_overflow_col,"
+                + "float_col,"
+                + "double_col,"
+                + "decimal_col,"
+                + "boolean_col)"
+                + " VALUES " + rowValue;
+        StringBuilder insertRows = new StringBuilder().append(insertQuery);
+        for (int i = 1; i < expectedRecordsCount; i++) {
+            insertRows.append(", ").append(rowValue);
+        }
+
+        String insertRowsStatement = insertRows.toString();
+
+        // exercise SUT
+        executeAndWait(insertRowsStatement, TEST_SHARDED_KEYSPACE);
+        // First transaction.
+        Long expectedEpoch = 0L;
+        for (int i = 1; i <= expectedRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
+            Struct source = (Struct) ((Struct) record.value()).get("source");
+            String shard = source.getString("shard");
+            Vgtid sourceVgtid = Vgtid.of(source.getString("vgtid"));
+            final Struct txn = ((Struct) record.value()).getStruct("transaction");
+            assertThat(txn.schema().field("id")).isNull();
+            assertThat(txn.get("transaction_epoch")).isEqualTo(expectedEpoch);
+            BigDecimal expectedRank = VitessRankProvider.getRank(sourceVgtid.getShardGtid(shard).getGtid());
+            assertThat(txn.get("transaction_rank")).isEqualTo(expectedRank);
+            assertThat(txn.get("total_order")).isEqualTo(1L);
+            // We have two shards for multi-shard keyspace, a local vgtid should only have one shard
+            assertThat(sourceVgtid.getShardGtids().size()).isEqualTo(1);
+            assertThat(sourceVgtid.getShardGtids().get(0).getShard()).isEqualTo(source.getString("shard"));
+        }
+    }
+
+
+    @Test
     @FixFor("DBZ-5063")
     public void shouldUseSameTransactionIdWhenMultiGrpcResponses() throws Exception {
         Testing.Print.disable();

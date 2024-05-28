@@ -61,7 +61,6 @@ import io.debezium.embedded.EmbeddedEngine;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.TableId;
-import io.debezium.transforms.ExcludeTransactionComponents;
 import io.debezium.util.Collect;
 import io.debezium.util.Testing;
 

@@ -10,6 +10,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import io.debezium.DebeziumException;
+
 class Gtid {
 
     public String getVersion() {
@@ -52,18 +54,25 @@ class Gtid {
     }
 
     Gtid(String transactionId) {
-        initializeVersion(transactionId);
-        parseGtid(transactionId);
+        try {
+            initializeVersion(transactionId);
+            parseGtid(transactionId);
+        }
+        catch (Exception e) {
+            throw new DebeziumException("Error parsing GTID: " + transactionId, e);
+        }
     }
 
     private void parseGtid(String transactionId) {
         transactionId = trimVersion(transactionId);
         String[] transactions = transactionId.split(",");
         for (String transaction : transactions) {
-            String[] parts = transaction.split(":");
-            String hostname = parts[0];
+            String[] hostAndPositions = transaction.split(":");
+            String hostname = hostAndPositions[0];
             hosts.add(hostname);
-            String maxSequenceValue = parts[1].split("-")[1];
+            // This is either a range format eg 1-10 or a single position eg 8, either case we want the last number
+            String[] positions = hostAndPositions[1].split("-");
+            String maxSequenceValue = positions[positions.length - 1];
             sequenceValues.add(maxSequenceValue);
         }
     }

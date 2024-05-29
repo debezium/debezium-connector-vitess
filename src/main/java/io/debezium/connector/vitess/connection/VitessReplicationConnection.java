@@ -230,6 +230,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
             @Override
             public void onError(Throwable t) {
                 LOGGER.error("VStream streaming onError. Status: {}", Status.fromThrowable(t), t);
+                LOGGER.error("Error caused by", t.getCause());
                 // Only propagate the first error
                 error.compareAndSet(null, t);
                 reset();

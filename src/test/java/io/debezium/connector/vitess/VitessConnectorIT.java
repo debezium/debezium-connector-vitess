@@ -250,6 +250,28 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    public void shouldConsumeEventsWithExcludedColumn() throws Exception {
+        String columnToExlude = "mediumtext_col";
+        String someColumnIncluded = "varchar_col";
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(builder -> builder.with("column.exclude.list",
+                TEST_UNSHARDED_KEYSPACE + ".string_table." + columnToExlude), false,
+                false, 1, -1, -1, null,
+                VitessConnectorConfig.SnapshotMode.NEVER, "");
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        SourceRecord record = assertInsert(INSERT_STRING_TYPES_STMT, schemasAndValuesForStringTypesExcludedColumn(), TestHelper.PK_FIELD);
+        Struct value = (Struct) record.value();
+        Struct after = (Struct) value.get("after");
+        assertThat(after.schema().field(columnToExlude)).isNull();
+        assertThat(after.schema().field(someColumnIncluded)).isNotNull();
+    }
+
+    @Test
     public void shouldReceiveBytesAsBytes() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         startConnector(config -> config.with(CommonConnectorConfig.BINARY_HANDLING_MODE, CommonConnectorConfig.BinaryHandlingMode.BYTES), false);

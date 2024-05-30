@@ -489,7 +489,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                 config,
                 null, x -> x.schema() + "." + x.table(),
                 -1,
-                ColumnFilterMode.CATALOG,
+                ColumnFilterMode.SCHEMA,
                 true);
     }
 

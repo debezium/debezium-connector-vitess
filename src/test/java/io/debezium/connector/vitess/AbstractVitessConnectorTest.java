@@ -209,6 +209,22 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         return fields;
     }
 
+    protected List<SchemaAndValueField> schemasAndValuesForStringTypesExcludedColumn() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField("char_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "a"),
+                        new SchemaAndValueField("varchar_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "bc"),
+                        new SchemaAndValueField("varchar_ko_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "상품 명1"),
+                        new SchemaAndValueField("varchar_ja_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "リンゴ"),
+                        new SchemaAndValueField("tinytext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "gh"),
+                        new SchemaAndValueField("text_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "ij"),
+                        new SchemaAndValueField("longtext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "mn"),
+                        new SchemaAndValueField("json_col", Json.builder().optional().build(),
+                                "{\"key1\":\"value1\",\"key2\":{\"key21\":\"value21\",\"key22\":\"value22\"}}")));
+        return fields;
+    }
+
     protected List<SchemaAndValueField> schemasAndValuesForBytesTypesAsBytes() {
         final List<SchemaAndValueField> fields = new ArrayList<>();
         fields.addAll(

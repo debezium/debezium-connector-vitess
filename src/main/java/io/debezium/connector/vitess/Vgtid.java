@@ -105,6 +105,7 @@ public class Vgtid {
         }
         return false;
     }
+
     public Vgtid getLocalVgtid(String shard) {
         return Vgtid.of(List.of(getShardGtid(shard)));
     }

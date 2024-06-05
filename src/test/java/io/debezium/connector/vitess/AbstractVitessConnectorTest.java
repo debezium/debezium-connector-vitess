@@ -110,8 +110,9 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
             + "binary_col,"
             + "varbinary_col,"
             + "blob_col,"
-            + "mediumblob_col)"
-            + " VALUES ('d', 'ef', 'op', 'qs');";
+            + "mediumblob_col,"
+            + "longblob_col)"
+            + " VALUES ('d', 'ef', 'op', 'qs', 'th');";
     protected static final String INSERT_ENUM_TYPE_STMT = "INSERT INTO enum_table (enum_col)" + " VALUES ('large');";
 
     protected static final String INSERT_ENUM_AMBIGUOUS_TYPE_STMT = "INSERT INTO enum_ambiguous_table (enum_col)" + " VALUES ('2');";
@@ -206,6 +207,29 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
                         new SchemaAndValueField("longtext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "mn"),
                         new SchemaAndValueField("json_col", Json.builder().optional().build(),
                                 "{\"key1\":\"value1\",\"key2\":{\"key21\":\"value21\",\"key22\":\"value22\"}}")));
+        return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForStringTypesTruncatedBlob() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        ByteBuffer byteBufferTruncated = ByteBuffer.wrap(Arrays.copyOfRange("op".getBytes(), 0, 1));
+        ByteBuffer byteBufferTruncatedMedium = ByteBuffer.wrap(Arrays.copyOfRange("qs".getBytes(), 0, 1));
+        ByteBuffer byteBufferTruncatedLong = ByteBuffer.wrap(Arrays.copyOfRange("th".getBytes(), 0, 1));
+        ByteBuffer byteBufferTruncatedBinary = ByteBuffer.wrap(Arrays.copyOfRange("d".getBytes(), 0, 1));
+        ByteBuffer byteBufferTruncatedVarBinary = ByteBuffer.wrap(Arrays.copyOfRange("ef".getBytes(), 0, 1));
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField("blob_col", SchemaBuilder.bytes().optional()
+                                .parameter("truncateLength", "1").build(), byteBufferTruncated),
+                        new SchemaAndValueField("mediumblob_col", SchemaBuilder.bytes().optional()
+                                .parameter("truncateLength", "1").build(), byteBufferTruncatedMedium),
+                        new SchemaAndValueField("longblob_col", SchemaBuilder.bytes().optional()
+                                .parameter("truncateLength", "1").build(), byteBufferTruncatedLong),
+                        new SchemaAndValueField("binary_col", SchemaBuilder.bytes().optional()
+                                .parameter("truncateLength", "1").build(), byteBufferTruncatedBinary),
+                        new SchemaAndValueField("varbinary_col", SchemaBuilder.bytes().optional()
+                                .parameter("truncateLength", "1").build(), byteBufferTruncatedVarBinary)
+                ));
         return fields;
     }
 

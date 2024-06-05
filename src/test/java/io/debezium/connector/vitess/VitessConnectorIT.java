@@ -251,6 +251,29 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    public void shouldTruncateByteArray() throws Exception {
+
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(builder -> builder.with(
+                        "column.truncate.to.1.chars",
+                        TEST_UNSHARDED_KEYSPACE + ".string_table.blob_col,"
+                        + TEST_UNSHARDED_KEYSPACE + ".string_table.mediumblob_col,"
+                        + TEST_UNSHARDED_KEYSPACE + ".string_table.longblob_col,"
+                        + TEST_UNSHARDED_KEYSPACE + ".string_table.varbinary_col,"
+                        + TEST_UNSHARDED_KEYSPACE + ".string_table.binary_col"
+                ), false,
+                false, 1, -1, -1, null,
+                VitessConnectorConfig.SnapshotMode.NEVER, "");
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_BYTES_TYPES_STMT, schemasAndValuesForStringTypesTruncatedBlob(), TestHelper.PK_FIELD);
+    }
+
+    @Test
     public void shouldConsumeEventsWithExcludedColumn() throws Exception {
         String columnToExlude = "mediumtext_col";
         String someColumnIncluded = "varchar_col";

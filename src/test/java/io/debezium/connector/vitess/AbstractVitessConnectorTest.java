@@ -228,8 +228,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
                         new SchemaAndValueField("binary_col", SchemaBuilder.bytes().optional()
                                 .parameter("truncateLength", "1").build(), byteBufferTruncatedBinary),
                         new SchemaAndValueField("varbinary_col", SchemaBuilder.bytes().optional()
-                                .parameter("truncateLength", "1").build(), byteBufferTruncatedVarBinary)
-                ));
+                                .parameter("truncateLength", "1").build(), byteBufferTruncatedVarBinary)));
         return fields;
     }
 

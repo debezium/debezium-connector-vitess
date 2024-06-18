@@ -24,7 +24,8 @@ public interface ReplicationMessage {
         BEGIN,
         COMMIT,
         DDL,
-        OTHER
+        OTHER,
+        HEARTBEAT
     }
 
     /** A representation of column value delivered as a part of replication message */

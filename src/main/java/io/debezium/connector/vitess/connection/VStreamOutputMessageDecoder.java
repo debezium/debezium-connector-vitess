@@ -81,6 +81,8 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             case OTHER:
                 handleOther(vEvent, processor, newVgtid);
                 break;
+            case HEARTBEAT:
+                handleHeartbeat(vEvent, processor, newVgtid);
             case VGTID:
             case VERSION:
                 break;
@@ -109,6 +111,11 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         }
         processor.process(
                 new OtherMessage(transactionId, eventTimestamp), newVgtid, false);
+    }
+
+    private void handleHeartbeat(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid) throws InterruptedException {
+        Instant eventTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
+        processor.process(new HeartbeatMessage(eventTimestamp), newVgtid, false);
     }
 
     private void handleBeginMessage(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)

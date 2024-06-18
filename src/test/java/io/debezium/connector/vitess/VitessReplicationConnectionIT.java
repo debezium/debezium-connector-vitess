@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.doc.FixFor;
+import io.debezium.heartbeat.Heartbeat;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.schema.DefaultTopicNamingStrategy;
@@ -286,6 +287,69 @@ public class VitessReplicationConnectionIT {
             assertThat(messages.get(0).getMessage().getOperation().name()).isEqualTo("BEGIN");
             assertThat(messages.get(1).getMessage().getOperation().name()).isEqualTo("INSERT");
             assertThat(messages.get(2).getMessage().getOperation().name()).isEqualTo("COMMIT");
+        }
+        finally {
+            if (error.get() != null) {
+                LOGGER.error("Error during streaming", error.get());
+            }
+        }
+    }
+
+    @Test
+    public void shouldSendHeartbeatMessage() throws Exception {
+        // setup fixture
+        final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().with(
+                Heartbeat.HEARTBEAT_INTERVAL, 1000).build());
+        final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
+
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
+            Vgtid startingVgtid = Vgtid.of(
+                    Binlogdata.VGtid.newBuilder()
+                            .addShardGtids(
+                                    Binlogdata.ShardGtid.newBuilder()
+                                            .setKeyspace(conf.getKeyspace())
+                                            .setShard(conf.getShard().get(0))
+                                            .setGtid(Vgtid.CURRENT_GTID)
+                                            .build())
+                            .build());
+
+            BlockingQueue<MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
+            AtomicBoolean started = new AtomicBoolean(false);
+            connection.startStreaming(
+                    startingVgtid,
+                    (message, vgtid, isLastRowEventOfTransaction) -> {
+                        if (!started.get()) {
+                            started.set(true);
+                        }
+                        consumedMessages.add(new MessageAndVgtid(message, vgtid));
+                    },
+                    error);
+            // Since we are using the "current" as the starting position, there is a race here
+            // if we execute INSERT_STMT before the vstream starts we will never receive the update
+            // therefore, we wait until the stream is setup and then do the insertion
+            Awaitility
+                    .await()
+                    .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                    .until(started::get);
+            consumedMessages.clear();
+            int expectedNumOfMessages = 1;
+            List<MessageAndVgtid> messages = awaitMessages(
+                    TestHelper.waitTimeForRecords(),
+                    SECONDS,
+                    expectedNumOfMessages,
+                    () -> {
+                        try {
+                            return consumedMessages.poll(pollTimeoutInMs, TimeUnit.MILLISECONDS);
+                        }
+                        catch (InterruptedException e) {
+                            return null;
+                        }
+                    });
+
+            // verify outcome
+            assertThat(messages.get(0).getMessage().getOperation().name()).isEqualTo("HEARTBEAT");
         }
         finally {
             if (error.get() != null) {

@@ -58,7 +58,9 @@ import io.debezium.converters.spi.CloudEventsMaker;
 import io.debezium.data.Envelope;
 import io.debezium.data.VerifyRecord;
 import io.debezium.doc.FixFor;
+import io.debezium.embedded.AbstractConnectorTest;
 import io.debezium.embedded.EmbeddedEngine;
+import io.debezium.heartbeat.Heartbeat;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.TableId;
@@ -146,6 +148,24 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         consumer.expects(expectedRecordsCount);
         assertInsert(INSERT_SET_TYPE_STMT, schemasAndValuesForSetType(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    @FixFor("DBZ-2776")
+    public void shouldReceiveHeartbeatEvents() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(config -> config.with(
+                Heartbeat.HEARTBEAT_INTERVAL.name(), 1000),
+                true);
+        assertConnectorIsRunning();
+
+        String topic = Heartbeat.HEARTBEAT_TOPICS_PREFIX.defaultValueAsString() + "." + TEST_SERVER;
+        int expectedHeartbeatRecords = 1;
+        // Sleep for 3 seconds, heartbeat sent every 1 second
+        Thread.sleep(3 * 1000);
+
+        AbstractConnectorTest.SourceRecords records = consumeRecordsByTopic(expectedHeartbeatRecords, 1);
+        assertThat(records.recordsForTopic(topic).size()).isEqualTo(expectedHeartbeatRecords);
     }
 
     @Test

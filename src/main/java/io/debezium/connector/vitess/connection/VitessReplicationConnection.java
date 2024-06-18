@@ -109,6 +109,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 LOGGER.debug("Received {} VEvents in the VStreamResponse:",
                         response.getEventsCount());
                 boolean sendNow = false;
+                boolean heartbeatReceived = false;
                 for (VEvent event : response.getEventsList()) {
                     LOGGER.debug("VEvent: {}", event);
                     switch (event.getType()) {
@@ -179,6 +180,11 @@ public class VitessReplicationConnection implements ReplicationConnection {
                             // [VGTID, OTHER]. This is the first response if "current" is used as starting gtid.
                             sendNow = true;
                             break;
+                        case HEARTBEAT:
+                            heartbeatReceived = true;
+                            // Mark sendNow true since begin/commit events may not have been received for just heartbeat events
+                            sendNow = true;
+                            break;
                     }
                     bufferedEvents.add(event);
                 }
@@ -194,7 +200,8 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 if (numResponses > 1) {
                     LOGGER.debug("Processing multi-response transaction: number of responses is {}", numResponses);
                 }
-                if (newVgtid == null) {
+                // If there is a heartbeat event we do not want to skip (we want to send the heartbeat)
+                if (newVgtid == null && !heartbeatReceived) {
                     LOGGER.warn("Skipping because no vgtid is found in buffered event types: {}",
                             bufferedEvents.stream().map(VEvent::getType).map(Objects::toString).collect(Collectors.joining(", ")));
                     reset();
@@ -264,6 +271,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
 
         Vtgate.VStreamFlags vStreamFlags = Vtgate.VStreamFlags.newBuilder()
                 .setStopOnReshard(config.getStopOnReshard())
+                .setHeartbeatInterval(getHeartbeatSeconds())
                 .build();
         // Add filtering for whitelist tables
         Binlogdata.Filter.Builder filterBuilder = Binlogdata.Filter.newBuilder();
@@ -290,10 +298,22 @@ public class VitessReplicationConnection implements ReplicationConnection {
         if (filterBuilder.getRulesCount() > 0) {
             vstreamBuilder.setFilter(filterBuilder);
         }
+        Vtgate.VStreamRequest request = vstreamBuilder.build();
         stub.vStream(
-                vstreamBuilder.build(),
+                request,
                 responseObserver);
-        LOGGER.info("Started VStream");
+        LOGGER.info("Started VStream {}", request);
+    }
+
+    private int getHeartbeatSeconds() {
+        long secondsLong = config.getHeartbeatInterval().toSeconds();
+        if (secondsLong > Integer.MAX_VALUE) {
+            LOGGER.warn("Heartbeat interval {} seconds exceeds the maximum value of integer, using max value", secondsLong);
+            return Integer.MAX_VALUE;
+        }
+        else {
+            return (int) secondsLong;
+        }
     }
 
     private VitessGrpc.VitessStub newStub(ManagedChannel channel) {

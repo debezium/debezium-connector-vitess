@@ -110,6 +110,9 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
                 // DDL event or OTHER event
                 offsetContext.rotateVgtid(newVgtid, message.getCommitTime());
             }
+            else if (message.getOperation().equals(ReplicationMessage.Operation.HEARTBEAT)) {
+                dispatcher.dispatchHeartbeatEvent(partition, offsetContext);
+            }
             else {
                 // DML event
                 TableId tableId = VitessDatabaseSchema.parse(message.getTable());

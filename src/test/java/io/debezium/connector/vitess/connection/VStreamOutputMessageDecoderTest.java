@@ -80,6 +80,34 @@ public class VStreamOutputMessageDecoderTest {
     }
 
     @Test
+    public void shouldProcessHeartbeatEvent() throws Exception {
+        // setup fixture
+        String expectedShard = "shard";
+        Binlogdata.VEvent event = Binlogdata.VEvent.newBuilder()
+                .setType(Binlogdata.VEventType.HEARTBEAT)
+                .setShard(expectedShard)
+                .setTimestamp(AnonymousValue.getLong())
+                .build();
+        Vgtid newVgtid = Vgtid.of(VgtidTest.VGTID_JSON);
+
+        // exercise SUT
+        final boolean[] processed = { false };
+        decoder.processMessage(
+                event,
+                (message, vgtid, isLastRowEventOfTransaction) -> {
+                    // verify outcome
+                    assertThat(message).isNotNull();
+                    assertThat(message).isInstanceOf(HeartbeatMessage.class);
+                    assertThat(message.getOperation()).isEqualTo(ReplicationMessage.Operation.HEARTBEAT);
+                    processed[0] = true;
+                },
+                newVgtid,
+                false,
+                false);
+        assertThat(processed[0]).isTrue();
+    }
+
+    @Test
     @FixFor("DBZ-4667")
     public void shouldNotProcessBeginEventIfNoVgtid() throws Exception {
         // setup fixture

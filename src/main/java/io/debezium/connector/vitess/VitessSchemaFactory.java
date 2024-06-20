@@ -9,11 +9,16 @@ import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 
+import io.debezium.connector.AbstractSourceInfo;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionContext;
 import io.debezium.pipeline.txmetadata.TransactionStructMaker;
 import io.debezium.schema.SchemaFactory;
+import io.debezium.schema.SchemaNameAdjuster;
 
 public class VitessSchemaFactory extends SchemaFactory {
+
+    private static final String VITESS_HEARTBEAT_VALUE_SCHEMA_NAME = "io.debezium.connector.vitess.Heartbeat";
+    private static final int VITESS_HEARTBEAT_VALUE_SCHEMA_VERSION = 1;
 
     public VitessSchemaFactory() {
         super();
@@ -36,5 +41,16 @@ public class VitessSchemaFactory extends SchemaFactory {
                 .field(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, Schema.INT64_SCHEMA)
                 .field(VitessOrderedTransactionContext.OFFSET_TRANSACTION_RANK, rankSchema)
                 .build();
+    }
+
+    @Override
+    public Schema heartbeatValueSchema(SchemaNameAdjuster adjuster) {
+        return SchemaBuilder.struct()
+                .name(adjuster.adjust(VITESS_HEARTBEAT_VALUE_SCHEMA_NAME))
+                .version(VITESS_HEARTBEAT_VALUE_SCHEMA_VERSION)
+                .field(SourceInfo.VGTID_KEY, Schema.STRING_SCHEMA)
+                .field(AbstractSourceInfo.TIMESTAMP_KEY, Schema.INT64_SCHEMA)
+                .build();
+
     }
 }

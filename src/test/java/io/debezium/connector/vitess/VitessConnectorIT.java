@@ -151,12 +151,12 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
-    @FixFor("DBZ-2776")
+    @FixFor("DBZ-7962")
     public void shouldReceiveHeartbeatEvents() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         startConnector(config -> config.with(
                 Heartbeat.HEARTBEAT_INTERVAL.name(), 1000),
-                true);
+                false);
         assertConnectorIsRunning();
 
         String topic = Heartbeat.HEARTBEAT_TOPICS_PREFIX.defaultValueAsString() + "." + TEST_SERVER;
@@ -166,6 +166,31 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         AbstractConnectorTest.SourceRecords records = consumeRecordsByTopic(expectedHeartbeatRecords, 1);
         assertThat(records.recordsForTopic(topic).size()).isEqualTo(expectedHeartbeatRecords);
+    }
+
+    @Test
+    @FixFor("DBZ-7962")
+    public void shouldReceiveHeartbeatEventsShardedKeyspace() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        String expectedShard = "-80";
+        startConnector(config -> config.with(
+                Heartbeat.HEARTBEAT_INTERVAL.name(), 1000).with(
+                        VitessConnectorConfig.SHARD, expectedShard),
+                true);
+        assertConnectorIsRunning();
+
+        String topic = Heartbeat.HEARTBEAT_TOPICS_PREFIX.defaultValueAsString() + "." + TEST_SERVER;
+        int expectedHeartbeatRecords = 1;
+        // Sleep for 3 seconds, heartbeat sent every 1 second
+        Thread.sleep(3 * 1000);
+
+        AbstractConnectorTest.SourceRecords records = consumeRecordsByTopic(expectedHeartbeatRecords, 1);
+        List<SourceRecord> recordsForTopic = records.recordsForTopic(topic);
+        assertThat(recordsForTopic.size()).isEqualTo(expectedHeartbeatRecords);
+        Struct value = (Struct) recordsForTopic.get(0).value();
+        Vgtid vgtid = Vgtid.of(value.getString("vgtid"));
+        assertThat(vgtid.getShardGtids().size()).isEqualTo(1);
+        assertThat(vgtid.getShardGtids().get(0).getShard()).isEqualTo(expectedShard);
     }
 
     @Test

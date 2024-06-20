@@ -31,10 +31,15 @@ import io.debezium.config.Field;
 import io.debezium.config.Field.ValidationOutput;
 import io.debezium.connector.SourceInfoStructMaker;
 import io.debezium.connector.vitess.connection.VitessTabletType;
+import io.debezium.heartbeat.Heartbeat;
+import io.debezium.heartbeat.HeartbeatConnectionProvider;
+import io.debezium.heartbeat.HeartbeatErrorHandler;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.schema.SchemaNameAdjuster;
+import io.debezium.spi.topic.TopicNamingStrategy;
 
 /**
  * Vitess connector configuration, including its specific configurations and the common
@@ -652,6 +657,15 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     @Override
     public Optional<EnumeratedValue> getSnapshotLockingMode() {
         return Optional.empty();
+    }
+
+    @Override
+    public Heartbeat createHeartbeat(TopicNamingStrategy topicNamingStrategy, SchemaNameAdjuster schemaNameAdjuster,
+                                     HeartbeatConnectionProvider connectionProvider, HeartbeatErrorHandler errorHandler) {
+        if (getHeartbeatInterval().isZero()) {
+            return Heartbeat.DEFAULT_NOOP_HEARTBEAT;
+        }
+        return new VitessHeartbeatImpl(getHeartbeatInterval(), topicNamingStrategy.heartbeatTopic(), getLogicalName(), schemaNameAdjuster);
     }
 
     public BigIntUnsignedHandlingMode getBigIntUnsgnedHandlingMode() {

@@ -83,6 +83,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                 break;
             case HEARTBEAT:
                 handleHeartbeat(vEvent, processor, newVgtid);
+                break;
             case VGTID:
             case VERSION:
                 break;

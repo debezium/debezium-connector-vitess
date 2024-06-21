@@ -161,8 +161,11 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         String topic = Heartbeat.HEARTBEAT_TOPICS_PREFIX.defaultValueAsString() + "." + TEST_SERVER;
         int expectedHeartbeatRecords = 1;
-        // Sleep for 3 seconds, heartbeat sent every 1 second
-        Thread.sleep(3 * 1000);
+        Awaitility
+                .await()
+                .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                .pollInterval(Duration.ofSeconds(1))
+                .until(() -> consumeRecordsByTopic(expectedHeartbeatRecords).allRecordsInOrder().size() >= expectedHeartbeatRecords);
 
         AbstractConnectorTest.SourceRecords records = consumeRecordsByTopic(expectedHeartbeatRecords, 1);
         assertThat(records.recordsForTopic(topic).size()).isEqualTo(expectedHeartbeatRecords);
@@ -181,8 +184,11 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         String topic = Heartbeat.HEARTBEAT_TOPICS_PREFIX.defaultValueAsString() + "." + TEST_SERVER;
         int expectedHeartbeatRecords = 1;
-        // Sleep for 3 seconds, heartbeat sent every 1 second
-        Thread.sleep(3 * 1000);
+        Awaitility
+                .await()
+                .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                .pollInterval(Duration.ofSeconds(1))
+                .until(() -> consumeRecordsByTopic(expectedHeartbeatRecords).allRecordsInOrder().size() >= expectedHeartbeatRecords);
 
         AbstractConnectorTest.SourceRecords records = consumeRecordsByTopic(expectedHeartbeatRecords, 1);
         List<SourceRecord> recordsForTopic = records.recordsForTopic(topic);

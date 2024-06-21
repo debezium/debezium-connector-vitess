@@ -103,6 +103,8 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
                 else if (message.getOperation() == ReplicationMessage.Operation.COMMIT) {
                     // send to transaction topic
                     dispatcher.dispatchTransactionCommittedEvent(partition, offsetContext, message.getCommitTime());
+                    // Send a heartbeat event if time has elapsed
+                    dispatcher.dispatchHeartbeatEvent(partition, offsetContext);
                 }
                 return;
             }

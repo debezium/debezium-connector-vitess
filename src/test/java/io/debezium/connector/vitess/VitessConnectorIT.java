@@ -5,6 +5,8 @@
  */
 package io.debezium.connector.vitess;
 
+import static io.debezium.connector.vitess.TestHelper.TEST_EMPTY_SHARD_KEYSPACE;
+import static io.debezium.connector.vitess.TestHelper.TEST_NON_EMPTY_SHARD;
 import static io.debezium.connector.vitess.TestHelper.TEST_SERVER;
 import static io.debezium.connector.vitess.TestHelper.TEST_SHARDED_KEYSPACE;
 import static io.debezium.connector.vitess.TestHelper.TEST_UNSHARDED_KEYSPACE;
@@ -63,6 +65,7 @@ import io.debezium.embedded.EmbeddedEngine;
 import io.debezium.heartbeat.Heartbeat;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.junit.logging.LogInterceptor;
+import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
 import io.debezium.util.Collect;
 import io.debezium.util.Testing;
@@ -1026,6 +1029,152 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    public void shouldStreamFromKeyspaceWithEmptyShardsAndExplicitShardList() throws Exception {
+        final boolean hasMultipleShards = false;
+        Configuration.Builder configBuilder = TestHelper.defaultConfig(true, true, 1, 0, 1, null, null);
+        configBuilder = configBuilder
+                .with(VitessConnectorConfig.KEYSPACE, TEST_EMPTY_SHARD_KEYSPACE)
+                .with(VitessConnectorConfig.SHARD, TEST_NON_EMPTY_SHARD)
+                .with(VitessConnectorConfig.EXCLUDE_EMPTY_SHARDS, true);
+        VitessConnectorConfig config = new VitessConnectorConfig(configBuilder.build());
+
+        TestHelper.executeDDL("vitess_create_tables.ddl", config, TEST_NON_EMPTY_SHARD);
+        startConnector(
+                builder -> builder.with(VitessConnectorConfig.KEYSPACE, TEST_EMPTY_SHARD_KEYSPACE)
+                        .with(VitessConnectorConfig.SHARD, TEST_NON_EMPTY_SHARD)
+                        .with(VitessConnectorConfig.EXCLUDE_EMPTY_SHARDS, true),
+                hasMultipleShards,
+                true,
+                1,
+                0,
+                1,
+                null,
+                null);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        assertInsert(
+                config,
+                INSERT_NUMERIC_TYPES_STMT,
+                schemasAndValuesForNumericTypes(),
+                TEST_EMPTY_SHARD_KEYSPACE,
+                TestHelper.PK_FIELD,
+                hasMultipleShards,
+                TEST_NON_EMPTY_SHARD);
+    }
+
+    @Test
+    public void shouldAutoFilterEmptyShardsFromKeyspace() throws Exception {
+        final boolean hasMultipleShards = false;
+        Configuration.Builder configBuilder = TestHelper.defaultConfig(true, true, 1, 0, 1, null, null);
+        configBuilder = configBuilder
+                .with(VitessConnectorConfig.KEYSPACE, TEST_EMPTY_SHARD_KEYSPACE)
+                .with(VitessConnectorConfig.EXCLUDE_EMPTY_SHARDS, true);
+        VitessConnectorConfig config = new VitessConnectorConfig(configBuilder.build());
+
+        TestHelper.executeDDL("vitess_create_tables.ddl", config, TEST_NON_EMPTY_SHARD);
+        startConnector(
+                builder -> builder.with(VitessConnectorConfig.KEYSPACE, TEST_EMPTY_SHARD_KEYSPACE)
+                        .with(VitessConnectorConfig.EXCLUDE_EMPTY_SHARDS, true),
+                hasMultipleShards,
+                true,
+                1,
+                0,
+                1,
+                null,
+                null);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        assertInsert(
+                config,
+                INSERT_NUMERIC_TYPES_STMT,
+                schemasAndValuesForNumericTypes(),
+                TEST_EMPTY_SHARD_KEYSPACE,
+                TestHelper.PK_FIELD,
+                hasMultipleShards,
+                TEST_NON_EMPTY_SHARD);
+    }
+
+    @Test
+    public void shouldAutoFilterEmptyShardsWithTableIncludeList() throws Exception {
+        final boolean hasMultipleShards = false;
+        String tableInclude = TEST_EMPTY_SHARD_KEYSPACE + ".numeric_table";
+        Configuration.Builder configBuilder = TestHelper.defaultConfig(true, true, 1, 0, 1, null, null);
+        configBuilder = configBuilder
+                .with(VitessConnectorConfig.KEYSPACE, TEST_EMPTY_SHARD_KEYSPACE)
+                .with(VitessConnectorConfig.EXCLUDE_EMPTY_SHARDS, true)
+                .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude);
+        VitessConnectorConfig config = new VitessConnectorConfig(configBuilder.build());
+
+        TestHelper.executeDDL("vitess_create_tables.ddl", config, TEST_NON_EMPTY_SHARD);
+        startConnector(
+                builder -> builder.with(VitessConnectorConfig.KEYSPACE, TEST_EMPTY_SHARD_KEYSPACE)
+                        .with(VitessConnectorConfig.EXCLUDE_EMPTY_SHARDS, true)
+                        .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude),
+                hasMultipleShards,
+                true,
+                1,
+                0,
+                1,
+                null,
+                null);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        assertInsert(
+                config,
+                INSERT_NUMERIC_TYPES_STMT,
+                schemasAndValuesForNumericTypes(),
+                TEST_EMPTY_SHARD_KEYSPACE,
+                TestHelper.PK_FIELD,
+                hasMultipleShards,
+                TEST_NON_EMPTY_SHARD);
+    }
+
+    @Test
+    public void shouldAutoFilterEmptyShardsWithTableIncludeListAndShardList() throws Exception {
+        final boolean hasMultipleShards = false;
+        String tableInclude = TEST_EMPTY_SHARD_KEYSPACE + ".numeric_table";
+        Configuration.Builder configBuilder = TestHelper.defaultConfig(true, true, 1, 0, 1, null, null);
+        configBuilder = configBuilder
+                .with(VitessConnectorConfig.KEYSPACE, TEST_EMPTY_SHARD_KEYSPACE)
+                .with(VitessConnectorConfig.EXCLUDE_EMPTY_SHARDS, true)
+                .with(VitessConnectorConfig.SHARD, TEST_NON_EMPTY_SHARD)
+                .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude);
+        VitessConnectorConfig config = new VitessConnectorConfig(configBuilder.build());
+
+        TestHelper.executeDDL("vitess_create_tables.ddl", config, TEST_NON_EMPTY_SHARD);
+        startConnector(
+                builder -> builder.with(VitessConnectorConfig.KEYSPACE, TEST_EMPTY_SHARD_KEYSPACE)
+                        .with(VitessConnectorConfig.EXCLUDE_EMPTY_SHARDS, true)
+                        .with(VitessConnectorConfig.SHARD, TEST_NON_EMPTY_SHARD)
+                        .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude),
+                hasMultipleShards,
+                true,
+                1,
+                0,
+                1,
+                null,
+                null);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        assertInsert(
+                config,
+                INSERT_NUMERIC_TYPES_STMT,
+                schemasAndValuesForNumericTypes(),
+                TEST_EMPTY_SHARD_KEYSPACE,
+                TestHelper.PK_FIELD,
+                hasMultipleShards,
+                TEST_NON_EMPTY_SHARD);
+    }
+
+    @Test
     public void shouldMultiShardSubscriptionHaveMultiShardGtidsInVgtid() throws Exception {
         final boolean hasMultipleShards = true;
 
@@ -1325,7 +1474,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @Test
     public void testGetVitessShards() throws Exception {
         VitessConnectorConfig config = new VitessConnectorConfig(TestHelper.defaultConfig().build());
-        Set<String> shards = new HashSet<>(VitessConnector.getVitessShards(config));
+        Set<String> shards = new HashSet<>(VitessMetadata.getShards(config));
         assertEquals(new HashSet<>(Arrays.asList("0")), shards);
     }
 
@@ -1333,7 +1482,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     public void testGetKeyspaceTables() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         VitessConnectorConfig config = new VitessConnectorConfig(TestHelper.defaultConfig().build());
-        Set<String> tables = new HashSet<>(VitessConnector.getKeyspaceTables(config));
+        Set<String> tables = new HashSet<>(VitessMetadata.getTables(config));
         // Remove system tables starts with _
         tables = tables.stream().filter(t -> !t.startsWith("_")).collect(Collectors.toSet());
         List<String> expectedTables = Arrays.asList(
@@ -1827,6 +1976,37 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         try {
             executeAndWait(statement, keyspace);
+            SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(statement, keyspace), pkField);
+            assertRecordOffset(record, hasMultipleShards);
+            assertSourceInfo(record, TEST_SERVER, keyspace, table.table());
+            if (expectedSchemaAndValuesByColumn != null && !expectedSchemaAndValuesByColumn.isEmpty()) {
+                assertRecordSchemaAndValues(
+                        expectedSchemaAndValuesByColumn, record, Envelope.FieldName.AFTER);
+            }
+            return record;
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private SourceRecord assertInsert(
+                                      VitessConnectorConfig config,
+                                      String statement,
+                                      List<SchemaAndValueField> expectedSchemaAndValuesByColumn,
+                                      String keyspace,
+                                      String pkField,
+                                      boolean hasMultipleShards,
+                                      String shardToQuery) {
+        try {
+            TableId table = tableIdFromInsertStmt(statement, keyspace);
+            if (config.excludeEmptyShards() && shardToQuery != null) {
+                VitessMetadata.executeQuery(config, statement, shardToQuery);
+            }
+            else {
+                executeAndWait(statement);
+            }
+            consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
             SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(statement, keyspace), pkField);
             assertRecordOffset(record, hasMultipleShards);
             assertSourceInfo(record, TEST_SERVER, keyspace, table.table());

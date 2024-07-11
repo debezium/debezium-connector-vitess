@@ -33,8 +33,6 @@ import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
 import io.debezium.util.Strings;
 import io.grpc.StatusRuntimeException;
-import io.vitess.proto.Query;
-import io.vitess.proto.Vtgate;
 
 /** Vitess Connector entry point */
 public class VitessConnector extends RelationalBaseSourceConnector {
@@ -115,7 +113,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         if (connectorConfig.offsetStoragePerTask()) {
             shards = connectorConfig.getShard();
             if (shards == null) {
-                shards = getVitessShards(connectorConfig);
+                shards = VitessMetadata.getShards(connectorConfig);
             }
         }
         return taskConfigs(maxTasks, shards);
@@ -279,22 +277,6 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         }
     }
 
-    private static List<String> getRowsFromQuery(VitessConnectorConfig connectionConfig, String query) {
-        try (VitessReplicationConnection connection = new VitessReplicationConnection(connectionConfig, null)) {
-            Vtgate.ExecuteResponse response = connection.execute(query);
-            LOGGER.info("Got response: {} for query: {}", response, query);
-            assert response != null && !response.hasError() && response.hasResult()
-                    : String.format("Error response: %s", response);
-            Query.QueryResult result = response.getResult();
-            List<Query.Row> rows = result.getRowsList();
-            assert !rows.isEmpty() : String.format("Empty response: %s", response);
-            return rows.stream().map(s -> s.getValues().toStringUtf8()).collect(Collectors.toList());
-        }
-        catch (Exception e) {
-            throw new RuntimeException(String.format("Unexpected error while running query: %s", query), e);
-        }
-    }
-
     public static List<String> getIncludedTables(String keyspace, String tableIncludeList, List<String> allTables) {
         // table.include.list are list of patterns, filter all the tables in the keyspace through those patterns
         // to get the list of table names.
@@ -309,25 +291,6 @@ public class VitessConnector extends RelationalBaseSourceConnector {
             }
         }
         return includedTables;
-    }
-
-    public static List<String> getKeyspaceTables(VitessConnectorConfig connectionConfig) {
-        String query = String.format("SHOW TABLES FROM %s", connectionConfig.getKeyspace());
-        List<String> tables = getRowsFromQuery(connectionConfig, query);
-        LOGGER.info("All tables from keyspace {} are: {}", connectionConfig.getKeyspace(), tables);
-        return tables;
-    }
-
-    public static List<String> getVitessShards(VitessConnectorConfig connectionConfig) {
-        String query = String.format("SHOW VITESS_SHARDS LIKE '%s/%%'", connectionConfig.getKeyspace());
-        List<String> rows = getRowsFromQuery(connectionConfig, query);
-        List<String> shards = rows.stream().map(fieldValue -> {
-            String[] parts = fieldValue.split("/");
-            assert parts != null && parts.length == 2 : String.format("Wrong field format: %s", fieldValue);
-            return parts[1];
-        }).collect(Collectors.toList());
-        LOGGER.info("Shards: {}", shards);
-        return shards;
     }
 
     @Override
@@ -370,7 +333,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
     public List<TableId> getMatchingCollections(Configuration configuration) {
         VitessConnectorConfig vitessConnectorConfig = new VitessConnectorConfig(configuration);
         String keyspace = vitessConnectorConfig.getKeyspace();
-        List<String> allTables = getKeyspaceTables(vitessConnectorConfig);
+        List<String> allTables = VitessMetadata.getTables(vitessConnectorConfig);
         List<String> includedTables = getIncludedTables(keyspace,
                 vitessConnectorConfig.tableIncludeList(), allTables);
         return includedTables.stream()

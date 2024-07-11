@@ -40,6 +40,8 @@ public class TestHelper {
     protected static final String TEST_SERVER = "test_server";
     public static final String TEST_UNSHARDED_KEYSPACE = "test_unsharded_keyspace";
     public static final String TEST_SHARDED_KEYSPACE = "test_sharded_keyspace";
+    public static final String TEST_EMPTY_SHARD_KEYSPACE = "test_empty_shard_keyspace";
+    public static final String TEST_NON_EMPTY_SHARD = "-80";
     public static final String TEST_SHARD = "0";
     public static final String TEST_SHARD1 = "-80";
     public static final String TEST_SHARD2 = "80-";
@@ -206,6 +208,13 @@ public class TestHelper {
 
     protected static void executeDDL(String ddlFile) throws Exception {
         executeDDL(ddlFile, TEST_UNSHARDED_KEYSPACE);
+    }
+
+    public static void executeDDL(String ddlFile, VitessConnectorConfig config, String shard) throws IOException, URISyntaxException {
+        String statements = readStringFromFile(ddlFile);
+        for (String statement : Arrays.asList(statements.split(";"))) {
+            VitessMetadata.executeQuery(config, statement, shard);
+        }
     }
 
     protected static void executeDDL(String ddlFile, String database) throws Exception {

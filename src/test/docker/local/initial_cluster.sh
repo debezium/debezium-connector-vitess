@@ -13,7 +13,8 @@ CELL=zone1 ./scripts/etcd-up.sh
 CELL=zone1 ./scripts/vtctld-up.sh
 
 vtctldclient CreateKeyspace --durability-policy=semi_sync test_unsharded_keyspace || fail "Failed to create and configure unsharded keyspace"
-vtctldclient CreateKeyspace --durability-policy=semi_sync test_sharded_keyspace || fail "Failed to create and configure unsharded keyspace"
+vtctldclient CreateKeyspace --durability-policy=semi_sync test_sharded_keyspace || fail "Failed to create and configure sharded keyspace"
+vtctldclient CreateKeyspace --durability-policy=semi_sync test_empty_shard_keyspace || fail "Failed to create and configure empty shard keyspace"
 
 # start vttablets for unsharded keyspace test_unsharded_keyspace
 for i in 100 101 102; do
@@ -42,11 +43,29 @@ done
 wait_for_healthy_shard test_sharded_keyspace -80 || exit 1
 wait_for_healthy_shard test_sharded_keyspace 80- || exit 1
 
+# start vttablets for non-empty shard of the keyspace test_empty_shard_keyspace
+for i in 400 401 402; do
+	CELL=zone1 TABLET_UID=$i ./scripts/mysqlctl-up.sh
+	SHARD=-80 CELL=zone1 KEYSPACE=test_empty_shard_keyspace TABLET_UID=$i ./scripts/vttablet-up.sh
+done
+
+# intentionally do not start any tablets in the 80- shard
+
+wait_for_healthy_shard test_empty_shard_keyspace -80 || exit 1
+
+# Create the shard that will be empty with no tablets
+echo "Creating 80- shard"
+vtctlclient CreateShard test_empty_shard_keyspace/80-
+echo "Setting 80- shard as primary serving"
+vtctlclient SetShardIsPrimaryServing test_empty_shard_keyspace/80- true
+
 # create seq table unsharded keyspace, other tables and vschema in sharded keyspace
 vtctlclient ApplySchema -- --sql-file create_tables_unsharded.sql test_unsharded_keyspace
 vtctlclient ApplyVSchema -- --vschema_file vschema_tables_unsharded.json test_unsharded_keyspace
 vtctlclient ApplySchema -- --sql-file create_tables_sharded.sql test_sharded_keyspace
 vtctlclient ApplyVSchema -- --vschema_file vschema_tables_sharded.json test_sharded_keyspace
+vtctlclient ApplySchema -- --sql-file create_tables_sharded.sql test_empty_shard_keyspace
+# do not apply any vschema to the empty shard keyspace
 
 # start vtgate
 CELL=zone1 ./scripts/vtgate-up.sh

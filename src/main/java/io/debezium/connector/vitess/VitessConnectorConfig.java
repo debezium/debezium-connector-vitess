@@ -262,6 +262,14 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                             + " If not configured, the connector streams changes from the latest position for the given shard(s)."
                             + " If snapshot.mode is INITIAL (default), the connector starts copying the tables for the given shard(s) first regardless of gtid value.");
 
+    public static final Field EXCLUDE_EMPTY_SHARDS = Field.create(VITESS_CONFIG_GROUP_PREFIX + "exclude.empty.shards")
+            .withDisplayName("exclude.empty.shards")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.SHORT)
+            .withDefault(false)
+            .withImportance(ConfigDef.Importance.LOW)
+            .withDescription("Auto-detects and excludes empty shards from queries & shard lists used for VStreams");
+
     public static final Field TABLET_TYPE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "tablet.type")
             .withDisplayName("Tablet type to get data-changes")
             .withType(Type.STRING)
@@ -452,7 +460,8 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     SCHEMA_NAME_ADJUSTMENT_MODE,
                     OFFSET_STORAGE_PER_TASK,
                     OFFSET_STORAGE_TASK_KEY_GEN,
-                    PREV_NUM_TASKS)
+                    PREV_NUM_TASKS,
+                    EXCLUDE_EMPTY_SHARDS)
             .events(
                     INCLUDE_UNKNOWN_DATATYPES,
                     SOURCE_INFO_STRUCT_MAKER)
@@ -542,6 +551,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         }
         String value = getConfig().getString(VGTID);
         return (value != null && !VGTID.defaultValueAsString().equals(value)) ? value : Vgtid.CURRENT_GTID;
+    }
+
+    public boolean excludeEmptyShards() {
+        return getConfig().getBoolean(EXCLUDE_EMPTY_SHARDS);
     }
 
     private static int validateVgtids(Configuration config, Field field, ValidationOutput problems) {

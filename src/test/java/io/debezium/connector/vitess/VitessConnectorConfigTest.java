@@ -72,4 +72,12 @@ public class VitessConnectorConfigTest {
         assertThat(inputs.size()).isEqualTo(1);
     }
 
+    @Test
+    public void shouldExcludeEmptyShards() {
+        Configuration configuration = TestHelper.defaultConfig().with(
+                VitessConnectorConfig.EXCLUDE_EMPTY_SHARDS, true).build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.excludeEmptyShards()).isTrue();
+    }
+
 }

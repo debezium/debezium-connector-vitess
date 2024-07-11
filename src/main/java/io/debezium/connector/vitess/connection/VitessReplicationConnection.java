@@ -23,6 +23,7 @@ import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VitessConnector;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
+import io.debezium.connector.vitess.VitessMetadata;
 import io.debezium.util.Strings;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -71,6 +72,21 @@ public class VitessReplicationConnection implements ReplicationConnection {
 
         Vtgate.ExecuteRequest request = Vtgate.ExecuteRequest.newBuilder()
                 .setQuery(Proto.bindQuery(sqlStatement, Collections.emptyMap()))
+                .build();
+        return newBlockingStub(channel).execute(request);
+    }
+
+    public Vtgate.ExecuteResponse execute(String sqlStatement, String shard) {
+        LOGGER.info("Executing sqlStament {}", sqlStatement);
+        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize());
+        managedChannel.compareAndSet(null, channel);
+
+        String target = String.format("%s:%s@%s", config.getKeyspace(), shard, config.getTabletType());
+        Vtgate.Session session = Vtgate.Session.newBuilder().setTargetString(target).setAutocommit(true).build();
+        LOGGER.info("Autocommit {}", session.getAutocommit());
+        Vtgate.ExecuteRequest request = Vtgate.ExecuteRequest.newBuilder()
+                .setQuery(Proto.bindQuery(sqlStatement, Collections.emptyMap()))
+                .setSession(session)
                 .build();
         return newBlockingStub(channel).execute(request);
     }
@@ -277,7 +293,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
         Binlogdata.Filter.Builder filterBuilder = Binlogdata.Filter.newBuilder();
         if (!Strings.isNullOrEmpty(config.tableIncludeList())) {
             final String keyspace = config.getKeyspace();
-            final List<String> allTables = VitessConnector.getKeyspaceTables(config);
+            final List<String> allTables = VitessMetadata.getTables(config);
             List<String> includedTables = VitessConnector.getIncludedTables(config.getKeyspace(),
                     config.tableIncludeList(), allTables);
             for (String table : includedTables) {
@@ -398,7 +414,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
             if (config.getShard() == null || config.getShard().isEmpty()) {
                 // This case is not supported by the Vitess, so our workaround is to get all the shards from vtgate.
                 if (config.getVgtid() == Vgtid.EMPTY_GTID) {
-                    List<String> shards = VitessConnector.getVitessShards(config);
+                    List<String> shards = VitessMetadata.getShards(config);
                     List<String> gtids = Collections.nCopies(shards.size(), config.getVgtid());
                     vgtid = buildVgtid(config.getKeyspace(), shards, gtids);
                 }

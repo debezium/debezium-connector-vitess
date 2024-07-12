@@ -46,9 +46,10 @@ public class VitessMetadata {
     }
 
     public static List<String> getTables(VitessConnectorConfig config) {
-        List<String> tables;
+        Vtgate.ExecuteResponse response;
+        String query;
         if (config.excludeEmptyShards()) {
-            String query = String.format("SHOW TABLES", config.getKeyspace());
+            query = "SHOW TABLES";
             List<String> shardsToQuery;
             List<String> nonEmptyShards = getVitessShardsFromTablets(config);
             // If there is a shard list specified, then query one of its non-empty shards
@@ -61,19 +62,27 @@ public class VitessMetadata {
             }
             String randomNonEmptyShard = shardsToQuery.get(new Random().nextInt(shardsToQuery.size()));
             LOGGER.info("Get table list from non-empty shard: {}", randomNonEmptyShard);
-            tables = flattenAndConcat(getRowsFromQuery(config, query, randomNonEmptyShard));
+            response = executeQuery(config, query, randomNonEmptyShard);
         }
         else {
-            String query = String.format("SHOW TABLES FROM %s", config.getKeyspace());
-            tables = flattenAndConcat(getRowsFromQuery(config, query));
+            query = String.format("SHOW TABLES FROM %s", config.getKeyspace());
+            response = executeQuery(config, query);
         }
+        logResponse(response, query);
+        List<String> tables = getFlattenedRowsFromResponse(response);
         LOGGER.info("All tables from keyspace {} are: {}", config.getKeyspace(), tables);
         return tables;
     }
 
+    private static void logResponse(Vtgate.ExecuteResponse response, String query) {
+        LOGGER.info("Got response: {} for query: {}", response, query);
+    }
+
     private static List<String> getVitessShards(VitessConnectorConfig config) {
         String query = String.format("SHOW VITESS_SHARDS LIKE '%s/%%'", config.getKeyspace());
-        List<String> rows = flattenAndConcat(getRowsFromQuery(config, query));
+        Vtgate.ExecuteResponse response = executeQuery(config, query);
+        logResponse(response, query);
+        List<String> rows = getFlattenedRowsFromResponse(response);
         List<String> shards = rows.stream().map(fieldValue -> {
             String[] parts = fieldValue.split("/");
             assert parts != null && parts.length == 2 : String.format("Wrong field format: %s", fieldValue);
@@ -84,7 +93,9 @@ public class VitessMetadata {
 
     private static List<String> getVitessShardsFromTablets(VitessConnectorConfig config) {
         String query = "SHOW VITESS_TABLETS";
-        List<List<String>> rowValues = getRowsFromQuery(config, query);
+        Vtgate.ExecuteResponse response = executeQuery(config, query);
+        // Do not log the response since there is no way to filter tablets: it includes all tablets of all shards of all keyspaces
+        List<List<String>> rowValues = getRowsFromResponse(response);
         List<String> shards = VitessMetadata.getNonEmptyShards(rowValues, config.getKeyspace());
         return shards;
     }
@@ -104,7 +115,6 @@ public class VitessMetadata {
             else {
                 response = connection.execute(query);
             }
-            LOGGER.info("Got response: {} for query: {}", response, query);
             return response;
         }
         catch (Exception e) {
@@ -112,21 +122,19 @@ public class VitessMetadata {
         }
     }
 
+    private static List<String> getFlattenedRowsFromResponse(Vtgate.ExecuteResponse response) {
+        validateResponse(response);
+        Query.QueryResult result = response.getResult();
+        validateResult(result);
+        List<List<String>> rows = parseRows(result.getRowsList());
+        return flattenAndConcat(rows);
+    }
+
     private static List<List<String>> getRowsFromResponse(Vtgate.ExecuteResponse response) {
         validateResponse(response);
         Query.QueryResult result = response.getResult();
         validateResult(result);
         return parseRows(result.getRowsList());
-    }
-
-    private static List<List<String>> getRowsFromQuery(VitessConnectorConfig config, String query) {
-        Vtgate.ExecuteResponse response = executeQuery(config, query);
-        return getRowsFromResponse(response);
-    }
-
-    private static List<List<String>> getRowsFromQuery(VitessConnectorConfig config, String query, String shard) {
-        Vtgate.ExecuteResponse response = executeQuery(config, query, shard);
-        return getRowsFromResponse(response);
     }
 
     private static void validateResponse(Vtgate.ExecuteResponse response) {

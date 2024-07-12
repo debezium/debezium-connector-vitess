@@ -35,7 +35,7 @@ public class VitessMetadata {
     public static List<String> getShards(VitessConnectorConfig config) {
         List<String> shards;
         if (config.excludeEmptyShards()) {
-            LOGGER.info("Excluding empty shards from shard list");
+            LOGGER.info("Excluding empty shards");
             shards = getVitessShardsFromTablets(config);
         }
         else {
@@ -51,18 +51,17 @@ public class VitessMetadata {
         if (config.excludeEmptyShards()) {
             query = "SHOW TABLES";
             List<String> shardsToQuery;
-            List<String> nonEmptyShards = getVitessShardsFromTablets(config);
-            // If there is a shard list specified, then query one of its non-empty shards
             if (config.getShard() != null && !config.getShard().isEmpty()) {
-                List<String> shardList = config.getShard();
-                shardsToQuery = intersect(shardList, nonEmptyShards);
+                LOGGER.info("Getting tables from one of the configured shards");
+                shardsToQuery = config.getShard();
             }
             else {
-                shardsToQuery = nonEmptyShards;
+                LOGGER.info("Getting tables from a non-empty shard");
+                shardsToQuery = getVitessShardsFromTablets(config);
             }
-            String randomNonEmptyShard = shardsToQuery.get(new Random().nextInt(shardsToQuery.size()));
-            LOGGER.info("Get table list from non-empty shard: {}", randomNonEmptyShard);
-            response = executeQuery(config, query, randomNonEmptyShard);
+            String randomShard = shardsToQuery.get(new Random().nextInt(shardsToQuery.size()));
+            LOGGER.info("Get tables from shard: {}", randomShard);
+            response = executeQuery(config, query, randomShard);
         }
         else {
             query = String.format("SHOW TABLES FROM %s", config.getKeyspace());
@@ -194,12 +193,4 @@ public class VitessMetadata {
                 .map(innerList -> String.join("", innerList))
                 .collect(Collectors.toList());
     }
-
-    @VisibleForTesting
-    protected static List<String> intersect(List<String> list1, List<String> list2) {
-        List<String> intersection = new ArrayList<>(list1);
-        intersection.retainAll(list2);
-        return intersection;
-    }
-
 }

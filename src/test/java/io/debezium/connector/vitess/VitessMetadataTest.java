@@ -52,9 +52,4 @@ public class VitessMetadataTest {
         List<List<String>> input = List.of(List.of("foo"), List.of("bar"));
         assertThat(VitessMetadata.flattenAndConcat(input)).isEqualTo(expected);
     }
-
-    @Test
-    public void shouldIntersect() {
-        assertThat(VitessMetadata.intersect(List.of("foo", "baz"), List.of("foo", "bar"))).isEqualTo(List.of("foo"));
-    }
 }

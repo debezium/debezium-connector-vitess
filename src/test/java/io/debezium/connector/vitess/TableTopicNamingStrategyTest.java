@@ -28,4 +28,16 @@ public class TableTopicNamingStrategyTest {
         assertThat(topicName).isEqualTo("prefix.table");
     }
 
+    @Test
+    public void shouldGetOverrideDataChangeTopic() {
+        TableId tableId = new TableId("shard", "keyspace", "table");
+        final Properties props = new Properties();
+        props.put("topic.delimiter", ".");
+        props.put("topic.prefix", "prefix");
+        props.put(VitessConnectorConfig.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX.name(), "override-prefix");
+        TopicNamingStrategy strategy = new TableTopicNamingStrategy(props);
+        String topicName = strategy.dataChangeTopic(tableId);
+        assertThat(topicName).isEqualTo("override-prefix.table");
+    }
+
 }

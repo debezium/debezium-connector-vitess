@@ -8,6 +8,7 @@ package io.debezium.connector.vitess;
 import java.util.Properties;
 
 import io.debezium.config.CommonConnectorConfig;
+import io.debezium.config.Configuration;
 import io.debezium.relational.TableId;
 import io.debezium.schema.AbstractTopicNamingStrategy;
 import io.debezium.util.Collect;
@@ -19,8 +20,12 @@ import io.debezium.util.Collect;
  */
 public class TableTopicNamingStrategy extends AbstractTopicNamingStrategy<TableId> {
 
+    private final String overrideDataChangeTopicPrefix;
+
     public TableTopicNamingStrategy(Properties props) {
         super(props);
+        Configuration config = Configuration.from(props);
+        this.overrideDataChangeTopicPrefix = config.getString(VitessConnectorConfig.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX);
     }
 
     public static TableTopicNamingStrategy create(CommonConnectorConfig config) {
@@ -29,7 +34,13 @@ public class TableTopicNamingStrategy extends AbstractTopicNamingStrategy<TableI
 
     @Override
     public String dataChangeTopic(TableId id) {
-        String topicName = mkString(Collect.arrayListOf(prefix, id.table()), delimiter);
+        String topicName;
+        if (overrideDataChangeTopicPrefix != null) {
+            topicName = mkString(Collect.arrayListOf(overrideDataChangeTopicPrefix, id.table()), delimiter);
+        }
+        else {
+            topicName = mkString(Collect.arrayListOf(prefix, id.table()), delimiter);
+        }
         return topicNames.computeIfAbsent(id, t -> sanitizedTopicName(topicName));
     }
 }

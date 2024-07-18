@@ -12,6 +12,7 @@ import io.debezium.config.Configuration;
 import io.debezium.relational.TableId;
 import io.debezium.schema.AbstractTopicNamingStrategy;
 import io.debezium.util.Collect;
+import io.debezium.util.Strings;
 
 /**
  * Topic naming strategy where only the table name is added. This is used to avoid including
@@ -35,7 +36,7 @@ public class TableTopicNamingStrategy extends AbstractTopicNamingStrategy<TableI
     @Override
     public String dataChangeTopic(TableId id) {
         String topicName;
-        if (overrideDataChangeTopicPrefix != null) {
+        if (!Strings.isNullOrBlank(overrideDataChangeTopicPrefix)) {
             topicName = mkString(Collect.arrayListOf(overrideDataChangeTopicPrefix, id.table()), delimiter);
         }
         else {

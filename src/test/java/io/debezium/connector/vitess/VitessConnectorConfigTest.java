@@ -8,6 +8,10 @@ package io.debezium.connector.vitess;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
 import org.junit.Test;
 
 import io.debezium.config.Configuration;
@@ -42,6 +46,30 @@ public class VitessConnectorConfigTest {
                 null);
         assertThat(heartbeat).isNotNull();
         assertThat(heartbeat).isEqualTo(Heartbeat.DEFAULT_NOOP_HEARTBEAT);
+    }
+
+    @Test
+    public void shouldImproperOverrideTopicPrefixFailValidation() {
+        Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX, "hello@world").build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX), printConsumer);
+        assertThat(inputs.size()).isEqualTo(1);
+    }
+
+    @Test
+    public void shouldBlankOverrideTopicPrefixFailValidation() {
+        Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX, "").build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX), printConsumer);
+        assertThat(inputs.size()).isEqualTo(1);
     }
 
 }

@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.vitess.pipeline.txmetadata;
 
+import static io.debezium.connector.vitess.TestHelper.TEST_SHARD1;
 import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_TEMPLATE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Java6Assertions.assertThatThrownBy;
@@ -75,6 +76,25 @@ public class VitessEpochProviderTest {
                 Vgtid.EMPTY_GTID);
         Long epoch = provider.getEpoch(VgtidTest.TEST_SHARD, vgtidJsonCurrent, VgtidTest.VGTID_JSON);
         assertThat(epoch).isEqualTo(1L);
+    }
+
+    @Test
+    public void nullPreviousVgtidWithStoredEpochShouldThrowException() {
+        VitessEpochProvider provider = new VitessEpochProvider();
+        int expectedEpoch = 1;
+        String shardToEpoch = String.format("{\"%s\": %d}", TEST_SHARD1, expectedEpoch);
+        provider.load(Map.of(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, shardToEpoch));
+        assertThatThrownBy(() -> {
+            provider.getEpoch(VgtidTest.TEST_SHARD, null, VgtidTest.VGTID_JSON);
+        }).isInstanceOf(DebeziumException.class).hasMessageContaining("Previous VGTID is null but shardToEpoch map is not null");
+    }
+
+    @Test
+    public void nullPreviousVgtidWithoutStoredEpochShouldReturnZero() {
+        VitessEpochProvider provider = new VitessEpochProvider();
+        int expectedEpoch = 0;
+        Long epoch = provider.getEpoch(VgtidTest.TEST_SHARD, null, VgtidTest.VGTID_JSON);
+        assertThat(epoch).isEqualTo(expectedEpoch);
     }
 
     @Test

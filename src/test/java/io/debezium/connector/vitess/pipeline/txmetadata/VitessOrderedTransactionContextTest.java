@@ -18,7 +18,6 @@ import org.junit.Test;
 
 import io.debezium.connector.vitess.SourceInfo;
 import io.debezium.connector.vitess.VgtidTest;
-import io.debezium.pipeline.txmetadata.TransactionContext;
 
 public class VitessOrderedTransactionContextTest {
 
@@ -35,7 +34,7 @@ public class VitessOrderedTransactionContextTest {
         String expectedEpoch = "{\"-80\": 5}";
         Map offsets = Map.of(
                 VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, expectedEpoch,
-                TransactionContext.OFFSET_TRANSACTION_ID, expectedId);
+                SourceInfo.VGTID_KEY, expectedId);
         VitessOrderedTransactionContext context = VitessOrderedTransactionContext.load(offsets);
         assertThat(context.previousVgtid).isEqualTo(expectedId);
         context.beginTransaction(new VitessTransactionInfo(VgtidTest.VGTID_JSON, "-80"));

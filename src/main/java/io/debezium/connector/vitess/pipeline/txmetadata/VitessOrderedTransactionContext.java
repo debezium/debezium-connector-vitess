@@ -8,6 +8,7 @@ package io.debezium.connector.vitess.pipeline.txmetadata;
 import java.math.BigDecimal;
 import java.util.Map;
 
+import io.debezium.connector.vitess.SourceInfo;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.debezium.pipeline.txmetadata.TransactionInfo;
@@ -73,7 +74,7 @@ public class VitessOrderedTransactionContext extends TransactionContext {
     public static VitessOrderedTransactionContext load(Map<String, ?> offsets) {
         TransactionContext transactionContext = TransactionContext.load(offsets);
         VitessOrderedTransactionContext vitessOrderedTransactionContext = new VitessOrderedTransactionContext(transactionContext);
-        vitessOrderedTransactionContext.previousVgtid = (String) offsets.get(TransactionContext.OFFSET_TRANSACTION_ID);
+        vitessOrderedTransactionContext.previousVgtid = (String) offsets.get(SourceInfo.VGTID_KEY);
         vitessOrderedTransactionContext.epochProvider.load(offsets);
         return vitessOrderedTransactionContext;
     }

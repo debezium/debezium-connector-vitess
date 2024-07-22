@@ -868,7 +868,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 Vgtid.CURRENT_GTID);
         Map<String, Long> shardToEpoch = Map.of(VgtidTest.TEST_SHARD, 2L, VgtidTest.TEST_SHARD2, 3L);
         Map<String, String> offsetId = Map.of(
-                VitessOrderedTransactionContext.OFFSET_TRANSACTION_ID, currentVgtid,
                 VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, mapper.writeValueAsString(shardToEpoch),
                 SourceInfo.VGTID_KEY, currentVgtid);
         Map<Map<String, ?>, Map<String, ?>> offsets = Map.of(srcPartition, offsetId);

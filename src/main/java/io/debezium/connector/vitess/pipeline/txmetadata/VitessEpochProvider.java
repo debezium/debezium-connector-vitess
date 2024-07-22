@@ -70,16 +70,22 @@ public class VitessEpochProvider {
             }
         }
         catch (JsonProcessingException e) {
-            throw new RuntimeException("Cannot read epoch: " + shardToEpoch.toString());
+            throw new RuntimeException("Cannot read shardToEpoch from offsets: " + offsets);
         }
     }
 
     public Long getEpoch(String shard, String previousVgtidString, String vgtidString) {
-        if (previousVgtidString == null) {
+        if (previousVgtidString == null && shardToEpoch.get(shard) != null) {
+            throw new DebeziumException("Previous VGTID is null but shardToEpoch map is not null: " + shardToEpoch.toString() +
+                    ", update VGTID in offsets to resume");
+        }
+        else if (previousVgtidString == null) {
+            // When the connector is first created it has no previous VGTID in offsets (and there is no epoch stored)
             long epoch = 0L;
             storeEpoch(shard, epoch);
             return epoch;
         }
+
         Vgtid vgtid = Vgtid.of(vgtidString);
         Vgtid previousVgtid = Vgtid.of(previousVgtidString);
         String previousGtid = previousVgtid.getShardGtid(shard).getGtid();

@@ -75,11 +75,11 @@ public class VitessEpochProvider {
     }
 
     public Long getEpoch(String shard, String previousVgtidString, String vgtidString) {
-        if (previousVgtidString == null && shardToEpoch.get(shard) != null) {
-            throw new DebeziumException("Previous VGTID is null but shardToEpoch map is not null: " + shardToEpoch.toString() +
-                    ", update VGTID in offsets to resume");
-        }
-        else if (previousVgtidString == null) {
+        if (previousVgtidString == null) {
+            if (shardToEpoch.get(shard) != null) {
+                throw new DebeziumException("Previous VGTID is null but shardToEpoch map is not null: " + shardToEpoch.toString() +
+                        ", update VGTID in offsets to resume");
+            }
             // When the connector is first created it has no previous VGTID in offsets (and there is no epoch stored)
             long epoch = 0L;
             storeEpoch(shard, epoch);

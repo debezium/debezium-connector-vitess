@@ -213,7 +213,7 @@ public class TestHelper {
     public static void executeDDL(String ddlFile, VitessConnectorConfig config, String shard) throws IOException, URISyntaxException {
         String statements = readStringFromFile(ddlFile);
         for (String statement : Arrays.asList(statements.split(";"))) {
-            VitessMetadata.executeQuery(config, statement, shard);
+            new VitessMetadata(config).executeQuery(statement, shard);
         }
     }
 

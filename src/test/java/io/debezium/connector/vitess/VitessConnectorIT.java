@@ -1474,7 +1474,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @Test
     public void testGetVitessShards() throws Exception {
         VitessConnectorConfig config = new VitessConnectorConfig(TestHelper.defaultConfig().build());
-        Set<String> shards = new HashSet<>(VitessMetadata.getShards(config));
+        Set<String> shards = new HashSet<>(new VitessMetadata(config).getShards());
         assertEquals(new HashSet<>(Arrays.asList("0")), shards);
     }
 
@@ -1482,7 +1482,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     public void testGetKeyspaceTables() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         VitessConnectorConfig config = new VitessConnectorConfig(TestHelper.defaultConfig().build());
-        Set<String> tables = new HashSet<>(VitessMetadata.getTables(config));
+        Set<String> tables = new HashSet<>(new VitessMetadata(config).getTables());
         // Remove system tables starts with _
         tables = tables.stream().filter(t -> !t.startsWith("_")).collect(Collectors.toSet());
         List<String> expectedTables = Arrays.asList(
@@ -2001,7 +2001,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         try {
             TableId table = tableIdFromInsertStmt(statement, keyspace);
             if (config.excludeEmptyShards() && shardToQuery != null) {
-                VitessMetadata.executeQuery(config, statement, shardToQuery);
+                new VitessMetadata(config).executeQuery(statement, shardToQuery);
             }
             else {
                 executeAndWait(statement);

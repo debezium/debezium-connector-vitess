@@ -31,21 +31,26 @@ import io.vitess.proto.Vtgate;
 public class VitessMetadata {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessMetadata.class);
+    private VitessConnectorConfig config;
 
-    public static List<String> getShards(VitessConnectorConfig config) {
+    public VitessMetadata(VitessConnectorConfig config) {
+        this.config = config;
+    }
+
+    public List<String> getShards() {
         List<String> shards;
         if (config.excludeEmptyShards()) {
             LOGGER.info("Excluding empty shards");
-            shards = getVitessShardsFromTablets(config);
+            shards = getVitessShardsFromTablets();
         }
         else {
-            shards = getVitessShards(config);
+            shards = getVitessShards();
         }
         LOGGER.info("Shards: {}", shards);
         return shards;
     }
 
-    public static List<String> getTables(VitessConnectorConfig config) {
+    public List<String> getTables() {
         Vtgate.ExecuteResponse response;
         String query;
         if (config.excludeEmptyShards()) {
@@ -57,15 +62,15 @@ public class VitessMetadata {
             }
             else {
                 LOGGER.info("Getting tables from a non-empty shard");
-                shardsToQuery = getVitessShardsFromTablets(config);
+                shardsToQuery = getVitessShardsFromTablets();
             }
             String randomShard = shardsToQuery.get(new Random().nextInt(shardsToQuery.size()));
             LOGGER.info("Get tables from shard: {}", randomShard);
-            response = executeQuery(config, query, randomShard);
+            response = executeQuery(query, randomShard);
         }
         else {
             query = String.format("SHOW TABLES FROM %s", config.getKeyspace());
-            response = executeQuery(config, query);
+            response = executeQuery(query);
         }
         logResponse(response, query);
         List<String> tables = getFlattenedRowsFromResponse(response);
@@ -77,9 +82,9 @@ public class VitessMetadata {
         LOGGER.info("Got response: {} for query: {}", response, query);
     }
 
-    private static List<String> getVitessShards(VitessConnectorConfig config) {
+    private List<String> getVitessShards() {
         String query = String.format("SHOW VITESS_SHARDS LIKE '%s/%%'", config.getKeyspace());
-        Vtgate.ExecuteResponse response = executeQuery(config, query);
+        Vtgate.ExecuteResponse response = executeQuery(query);
         logResponse(response, query);
         List<String> rows = getFlattenedRowsFromResponse(response);
         List<String> shards = rows.stream().map(fieldValue -> {
@@ -90,21 +95,21 @@ public class VitessMetadata {
         return shards;
     }
 
-    private static List<String> getVitessShardsFromTablets(VitessConnectorConfig config) {
+    private List<String> getVitessShardsFromTablets() {
         String query = "SHOW VITESS_TABLETS";
-        Vtgate.ExecuteResponse response = executeQuery(config, query);
+        Vtgate.ExecuteResponse response = executeQuery(query);
         // Do not log the response since there is no way to filter tablets: it includes all tablets of all shards of all keyspaces
         List<List<String>> rowValues = getRowsFromResponse(response);
         List<String> shards = VitessMetadata.getNonEmptyShards(rowValues, config.getKeyspace());
         return shards;
     }
 
-    private static Vtgate.ExecuteResponse executeQuery(VitessConnectorConfig config, String query) {
-        return executeQuery(config, query, null);
+    private Vtgate.ExecuteResponse executeQuery(String query) {
+        return executeQuery(query, null);
     }
 
     @VisibleForTesting
-    protected static Vtgate.ExecuteResponse executeQuery(VitessConnectorConfig config, String query, String shard) {
+    protected Vtgate.ExecuteResponse executeQuery(String query, String shard) {
         // Some tests need to be issue a shard-specific query, so make this visible
         try (VitessReplicationConnection connection = new VitessReplicationConnection(config, null)) {
             Vtgate.ExecuteResponse response;

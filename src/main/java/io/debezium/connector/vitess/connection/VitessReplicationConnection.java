@@ -293,7 +293,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
         Binlogdata.Filter.Builder filterBuilder = Binlogdata.Filter.newBuilder();
         if (!Strings.isNullOrEmpty(config.tableIncludeList())) {
             final String keyspace = config.getKeyspace();
-            final List<String> allTables = VitessMetadata.getTables(config);
+            final List<String> allTables = new VitessMetadata(config).getTables();
             List<String> includedTables = VitessConnector.getIncludedTables(config.getKeyspace(),
                     config.tableIncludeList(), allTables);
             for (String table : includedTables) {
@@ -414,7 +414,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
             if (config.getShard() == null || config.getShard().isEmpty()) {
                 // This case is not supported by the Vitess, so our workaround is to get all the shards from vtgate.
                 if (config.getVgtid() == Vgtid.EMPTY_GTID) {
-                    List<String> shards = VitessMetadata.getShards(config);
+                    List<String> shards = new VitessMetadata(config).getShards();
                     List<String> gtids = Collections.nCopies(shards.size(), config.getVgtid());
                     vgtid = buildVgtid(config.getKeyspace(), shards, gtids);
                 }

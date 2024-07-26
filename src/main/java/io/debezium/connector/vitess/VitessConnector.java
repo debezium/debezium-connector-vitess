@@ -41,12 +41,14 @@ public class VitessConnector extends RelationalBaseSourceConnector {
 
     private Map<String, String> properties;
     private VitessConnectorConfig connectorConfig;
+    private VitessMetadata vitessMetadata;
 
     @Override
     public void start(Map<String, String> props) {
         LOGGER.info("Starting Vitess Connector");
         this.properties = Collections.unmodifiableMap(props);
         this.connectorConfig = new VitessConnectorConfig(Configuration.from(properties));
+        this.vitessMetadata = new VitessMetadata(connectorConfig);
 
     }
 
@@ -113,7 +115,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         if (connectorConfig.offsetStoragePerTask()) {
             shards = connectorConfig.getShard();
             if (shards == null) {
-                shards = VitessMetadata.getShards(connectorConfig);
+                shards = vitessMetadata.getShards();
             }
         }
         return taskConfigs(maxTasks, shards);
@@ -333,7 +335,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
     public List<TableId> getMatchingCollections(Configuration configuration) {
         VitessConnectorConfig vitessConnectorConfig = new VitessConnectorConfig(configuration);
         String keyspace = vitessConnectorConfig.getKeyspace();
-        List<String> allTables = VitessMetadata.getTables(vitessConnectorConfig);
+        List<String> allTables = vitessMetadata.getTables();
         List<String> includedTables = getIncludedTables(keyspace,
                 vitessConnectorConfig.tableIncludeList(), allTables);
         return includedTables.stream()

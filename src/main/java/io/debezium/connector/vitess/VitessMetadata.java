@@ -79,7 +79,7 @@ public class VitessMetadata {
     }
 
     private static void logResponse(Vtgate.ExecuteResponse response, String query) {
-        LOGGER.info("Got response: {} for query: {}", response, query);
+        LOGGER.debug("Got response: {} for query: {}", response, query);
     }
 
     private List<String> getVitessShards() {

@@ -66,7 +66,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
      * @throws StatusRuntimeException if the connection is not valid, or SQL statement can not be successfully exected
      */
     public Vtgate.ExecuteResponse execute(String sqlStatement) {
-        LOGGER.info("Executing sqlStament {}", sqlStatement);
+        LOGGER.debug("Executing sqlStament {}", sqlStatement);
         ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize());
         managedChannel.compareAndSet(null, channel);
 
@@ -83,7 +83,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
 
         String target = String.format("%s:%s@%s", config.getKeyspace(), shard, config.getTabletType());
         Vtgate.Session session = Vtgate.Session.newBuilder().setTargetString(target).setAutocommit(true).build();
-        LOGGER.info("Autocommit {}", session.getAutocommit());
+        LOGGER.debug("Autocommit {}", session.getAutocommit());
         Vtgate.ExecuteRequest request = Vtgate.ExecuteRequest.newBuilder()
                 .setQuery(Proto.bindQuery(sqlStatement, Collections.emptyMap()))
                 .setSession(session)

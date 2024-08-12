@@ -11,7 +11,7 @@ import io.debezium.connector.common.CdcSourceTaskContext;
 public class VitessTaskContext extends CdcSourceTaskContext {
 
     public VitessTaskContext(VitessConnectorConfig config, VitessDatabaseSchema schema) {
-        super(config.getContextName(), config.getLogicalName(), getTaskId(config), config.getCustomMetricTags(), schema::tableIds);
+        super(config, getTaskId(config), config.getCustomMetricTags(), schema::tableIds);
     }
 
     public static String getTaskId(VitessConnectorConfig config) {

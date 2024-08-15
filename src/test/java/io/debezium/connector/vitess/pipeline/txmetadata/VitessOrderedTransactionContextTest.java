@@ -65,8 +65,9 @@ public class VitessOrderedTransactionContextTest {
                 0,
                 0,
                 null,
-                VitessConnectorConfig.SnapshotMode.NEVER).with(
-                        VitessConnectorConfig.VGTID, expectedTxId)
+                VitessConnectorConfig.SnapshotMode.NEVER)
+                .with(VitessConnectorConfig.VGTID, expectedTxId)
+                .with(VitessConnectorConfig.SHARD, "-80")
                 .build());
         VitessOrderedTransactionContext metadata = VitessOrderedTransactionContext.initialize(config);
 
@@ -116,8 +117,9 @@ public class VitessOrderedTransactionContextTest {
                 0,
                 0,
                 null,
-                VitessConnectorConfig.SnapshotMode.NEVER).with(
-                        VitessConnectorConfig.VGTID, expectedTxId)
+                VitessConnectorConfig.SnapshotMode.NEVER)
+                .with(VitessConnectorConfig.VGTID, expectedTxId)
+                .with(VitessConnectorConfig.SHARD, "-80")
                 .build());
         VitessOrderedTransactionContext metadata = VitessOrderedTransactionContext.initialize(config);
 
@@ -127,7 +129,7 @@ public class VitessOrderedTransactionContextTest {
         metadata.beginTransaction(transactionInfo);
 
         Map offsets = new HashMap();
-        String expectedEpoch = "{\"-80\":0,\"80-\":0}";
+        String expectedEpoch = "{\"-80\":0}";
         Map actualOffsets = metadata.store(offsets);
         assertThat(actualOffsets.get(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH)).isEqualTo(expectedEpoch);
     }

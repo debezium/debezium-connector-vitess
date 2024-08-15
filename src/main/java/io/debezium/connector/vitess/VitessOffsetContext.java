@@ -45,7 +45,15 @@ public class VitessOffsetContext extends CommonOffsetContext<SourceInfo> {
         this.transactionContext = transactionContext;
     }
 
-    /** Initialize VitessOffsetContext if no previous offset exists */
+    /**
+     * Initialize VitessOffsetContext if no previous offset exists. This happens if either
+     * 1. This is a new connector
+     * 2. The generation has changed
+     *
+     * @param connectorConfig
+     * @param clock
+     * @return
+     */
     public static VitessOffsetContext initialContext(
                                                      VitessConnectorConfig connectorConfig, Clock clock) {
         LOGGER.info("No previous offset exists. Use default VGTID.");
@@ -144,6 +152,14 @@ public class VitessOffsetContext extends CommonOffsetContext<SourceInfo> {
             this.connectorConfig = connectorConfig;
         }
 
+        /**
+         * Loads the previously stored offsets for vgtid & transaction context (e.g., epoch).
+         * If offset storage per task mode is enabled, this is called only if there is no generation change.
+         * If offset storage per task mode is disabled, this is called only if previous offsets exist.
+         *
+         * @param offset
+         * @return
+         */
         @Override
         public VitessOffsetContext load(Map<String, ?> offset) {
             LOGGER.info("Previous offset exists, load from {}", offset);

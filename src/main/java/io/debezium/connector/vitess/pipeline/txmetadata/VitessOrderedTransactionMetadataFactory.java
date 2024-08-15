@@ -7,25 +7,28 @@
 package io.debezium.connector.vitess.pipeline.txmetadata;
 
 import io.debezium.config.Configuration;
+import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.debezium.pipeline.txmetadata.TransactionStructMaker;
 import io.debezium.pipeline.txmetadata.spi.TransactionMetadataFactory;
 
 public class VitessOrderedTransactionMetadataFactory implements TransactionMetadataFactory {
 
-    private final Configuration configuraiton;
+    private final Configuration configuration;
 
     public VitessOrderedTransactionMetadataFactory(Configuration configuration) {
-        this.configuraiton = configuration;
+        this.configuration = configuration;
     }
 
     @Override
     public TransactionContext getTransactionContext() {
-        return new VitessOrderedTransactionContext();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        VitessOrderedTransactionContext context = VitessOrderedTransactionContext.initialize(connectorConfig);
+        return context;
     }
 
     @Override
     public TransactionStructMaker getTransactionStructMaker() {
-        return new VitessOrderedTransactionStructMaker(configuraiton);
+        return new VitessOrderedTransactionStructMaker(configuration);
     }
 }

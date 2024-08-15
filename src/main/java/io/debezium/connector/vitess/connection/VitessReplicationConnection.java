@@ -24,6 +24,7 @@ import io.debezium.connector.vitess.VitessConnector;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.debezium.connector.vitess.VitessMetadata;
+import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
 import io.debezium.util.Strings;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -401,7 +402,14 @@ public class VitessReplicationConnection implements ReplicationConnection {
         return vgtid;
     }
 
-    /** Get latest replication position */
+    /**
+     * Get latest replication position. If offset storage mode is enabled, then read the vgtid that was set
+     * by {@link io.debezium.connector.vitess.VitessConnectorTask#getConfigWithOffsets} for the task vgtid
+     * property. If not then read it from the configs or get the shards from Vitess to initialize.
+     *
+     * @param config
+     * @return default vgtid
+     */
     public static Vgtid defaultVgtid(VitessConnectorConfig config) {
         Vgtid vgtid;
         if (config.offsetStoragePerTask()) {
@@ -411,6 +419,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                     vgtid, config.getKeyspace(), shards);
         }
         else {
+            // If offset storage per task is disabled, then find the vgtid elsewhere
             if (config.getShard() == null || config.getShard().isEmpty()) {
                 // This case is not supported by the Vitess, so our workaround is to get all the shards from vtgate.
                 if (config.getVgtid() == Vgtid.EMPTY_GTID) {
@@ -419,12 +428,14 @@ public class VitessReplicationConnection implements ReplicationConnection {
                     vgtid = buildVgtid(config.getKeyspace(), shards, gtids);
                 }
                 else {
+                    // Passing in empty lists will result in "CURRENT" set for all shards
                     vgtid = buildVgtid(config.getKeyspace(), Collections.emptyList(), Collections.emptyList());
                 }
                 LOGGER.info("Default VGTID '{}' is set to the current gtid of all shards from keyspace: {}",
                         vgtid, config.getKeyspace());
             }
             else {
+                // There is a shard specified in the config
                 List<String> shards = config.getShard();
                 String vgtidString = config.getVgtid();
                 List<String> gtids;
@@ -434,6 +445,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                     vgtid = buildVgtid(config.getKeyspace(), shards, gtids);
                 }
                 else {
+                    // If it's not current or empty, then it must be an actual vgtid
                     vgtid = Vgtid.of(vgtidString);
                 }
                 LOGGER.info("VGTID '{}' is set to the GTID {} for keyspace: {} shard: {}",
@@ -441,6 +453,38 @@ public class VitessReplicationConnection implements ReplicationConnection {
             }
         }
         return vgtid;
+    }
+
+    /**
+     * Get latest shard epoch map. If offset storage mode is enabled, then read the epoch that was set
+     * by {@link io.debezium.connector.vitess.VitessConnectorTask#getConfigWithOffsets} for the task shard epoch map
+     * property. If not then read it from the configs or get the shards from Vitess to initialize.
+     *
+     * @param config
+     * @return
+     */
+    public static ShardEpochMap defaultShardEpochMap(VitessConnectorConfig config) {
+        ShardEpochMap shardEpochMap;
+        if (config.offsetStoragePerTask()) {
+            // The epoch values are read or initialized to zero in VitessConnectorTask
+            shardEpochMap = config.getVitessTaskShardEpochMap();
+            LOGGER.info("ShardEpochMap '{}' is set for the keyspace: {}",
+                    shardEpochMap, config.getKeyspace());
+        }
+        else {
+            if (!config.getShardEpochMap().isEmpty()) {
+                shardEpochMap = ShardEpochMap.of(config.getShardEpochMap());
+            }
+            else if (config.getShard() == null || config.getShard().isEmpty()) {
+                List<String> shards = new VitessMetadata(config).getShards();
+                shardEpochMap = ShardEpochMap.init(shards);
+            }
+            else {
+                List<String> shards = config.getShard();
+                shardEpochMap = ShardEpochMap.init(shards);
+            }
+        }
+        return shardEpochMap;
     }
 
     public String connectionString() {

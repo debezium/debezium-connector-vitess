@@ -18,8 +18,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.debezium.DebeziumException;
-
 import binlogdata.Binlogdata;
 
 /** Vitess source position coordinates. */
@@ -112,9 +110,6 @@ public class Vgtid {
 
     public ShardGtid getShardGtid(String shard) {
         ShardGtid shardGtid = shardNameToShardGtid.get(shard);
-        if (shardGtid == null) {
-            throw new DebeziumException("Gtid for shard missing, shard: " + shard + "vgtid: " + this.rawVgtid.toString());
-        }
         return shardGtid;
     }
 

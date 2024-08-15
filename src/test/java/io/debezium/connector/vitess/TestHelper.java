@@ -17,6 +17,7 @@ import java.sql.Types;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -29,6 +30,7 @@ import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageColumn;
 import io.debezium.connector.vitess.connection.VitessTabletType;
+import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
 import io.vitess.proto.Query;
@@ -45,6 +47,9 @@ public class TestHelper {
     public static final String TEST_SHARD = "0";
     public static final String TEST_SHARD1 = "-80";
     public static final String TEST_SHARD2 = "80-";
+    public static final Long TEST_SHARD1_EPOCH = 2L;
+    public static final Long TEST_SHARD2_EPOCH = 3L;
+    public static final ShardEpochMap TEST_SHARD_TO_EPOCH = new ShardEpochMap(Map.of(TEST_SHARD1, TEST_SHARD1_EPOCH, TEST_SHARD2, TEST_SHARD2_EPOCH));
 
     public static final String TEST_GTID = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-1513";
     public static final String TEST_TABLE = "test_table";

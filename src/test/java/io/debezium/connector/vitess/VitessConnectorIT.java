@@ -8,7 +8,12 @@ package io.debezium.connector.vitess;
 import static io.debezium.connector.vitess.TestHelper.TEST_EMPTY_SHARD_KEYSPACE;
 import static io.debezium.connector.vitess.TestHelper.TEST_NON_EMPTY_SHARD;
 import static io.debezium.connector.vitess.TestHelper.TEST_SERVER;
+import static io.debezium.connector.vitess.TestHelper.TEST_SHARD1;
+import static io.debezium.connector.vitess.TestHelper.TEST_SHARD1_EPOCH;
+import static io.debezium.connector.vitess.TestHelper.TEST_SHARD2;
+import static io.debezium.connector.vitess.TestHelper.TEST_SHARD2_EPOCH;
 import static io.debezium.connector.vitess.TestHelper.TEST_SHARDED_KEYSPACE;
+import static io.debezium.connector.vitess.TestHelper.TEST_SHARD_TO_EPOCH;
 import static io.debezium.connector.vitess.TestHelper.TEST_UNSHARDED_KEYSPACE;
 import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_TEMPLATE;
 import static junit.framework.TestCase.assertEquals;
@@ -51,6 +56,7 @@ import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
+import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionContext;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionMetadataFactory;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessRankProvider;
@@ -645,7 +651,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         SourceRecord beginRecord = assertRecordBeginSourceRecord();
         assertThat(beginRecord.sourceOffset()).containsKey("transaction_epoch");
         String expectedTxId1 = ((Struct) beginRecord.value()).getString("id");
-        Long expectedEpoch = 0L;
+        // A 0 epoch is only used by a connector that starts with a valid gtid in its config.
+        // For a connector that starts with current (default) or snapshot (empty), increment epoch (in this case from 0 -> 1
+        Long expectedEpoch = 1L;
         for (int i = 1; i <= expectedRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
             Struct source = (Struct) ((Struct) record.value()).get("source");
@@ -771,7 +779,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // exercise SUT
         executeAndWait(insertRowsStatement, TEST_SHARDED_KEYSPACE);
         // First transaction.
-        Long expectedEpoch = 0L;
+        // A 0 epoch is only used by a connector that starts with a valid gtid in its config.
+        // For a connector that starts with current (default) or snapshot (empty), increment epoch (in this case from 0 -> 1
+        Long expectedEpoch = 1L;
         for (int i = 1; i <= expectedRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
             Struct source = (Struct) ((Struct) record.value()).get("source");
@@ -836,7 +846,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // exercise SUT
         executeAndWait(insertRowsStatement, TEST_SHARDED_KEYSPACE);
         // First transaction.
-        Long expectedEpoch = 0L;
+        // A 0 epoch is only used by a connector that starts with a valid gtid in its config.
+        // For a connector that starts with current (default) or snapshot (empty), increment epoch (in this case from 0 -> 1
+        Long expectedEpoch = 1L;
         for (int i = 1; i <= expectedRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
             Struct source = (Struct) ((Struct) record.value()).get("source");
@@ -1213,6 +1225,109 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
         assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TEST_SHARDED_KEYSPACE, TestHelper.PK_FIELD, hasMultipleShards);
+    }
+
+    @Test
+    public void shouldMaintainEpochMapWithChangeInOffsetStoragePerTask() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+
+        Map<String, String> srcPartition = Collect.hashMapOf(VitessPartition.SERVER_PARTITION_KEY, TEST_SERVER);
+        String currentVgtid = String.format(
+                VGTID_JSON_TEMPLATE,
+                TEST_SHARDED_KEYSPACE,
+                VgtidTest.TEST_SHARD,
+                Vgtid.CURRENT_GTID,
+                TEST_SHARDED_KEYSPACE,
+                VgtidTest.TEST_SHARD2,
+                Vgtid.CURRENT_GTID);
+        Map<String, String> offsetId = Map.of(
+                VitessOrderedTransactionContext.OFFSET_TRANSACTION_ID, currentVgtid,
+                VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, TEST_SHARD_TO_EPOCH.toString(),
+                SourceInfo.VGTID_KEY, currentVgtid);
+        Map<Map<String, ?>, Map<String, ?>> offsets = Map.of(srcPartition, offsetId);
+        Configuration config = TestHelper.defaultConfig()
+                .with(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
+                .with(CommonConnectorConfig.TOPIC_PREFIX, TEST_SERVER)
+                .with(VitessConnectorConfig.KEYSPACE, TEST_SHARDED_KEYSPACE)
+                .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true)
+                .with(VitessConnectorConfig.SHARD, "-80,80-")
+                .build();
+
+        storeOffsets(config, offsets);
+
+        startConnector(config);
+        assertConnectorIsRunning();
+
+        Vgtid baseVgtid = TestHelper.getCurrentVgtid();
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount + 2);
+
+        // exercise SUT
+        executeAndWait(INSERT_NUMERIC_TYPES_STMT, TEST_SHARDED_KEYSPACE);
+        // First transaction.
+        SourceRecord beginRecord = assertRecordBeginSourceRecord();
+
+        ShardEpochMap beginShardToEpoch = ShardEpochMap.of((String) beginRecord.sourceOffset().get("transaction_epoch"));
+        assertThat(beginShardToEpoch.get(TEST_SHARD1)).isEqualTo(TEST_SHARD1_EPOCH + 1);
+        assertThat(beginShardToEpoch.get(TEST_SHARD2)).isEqualTo(TEST_SHARD2_EPOCH + 1);
+        String expectedTxId = ((Struct) beginRecord.value()).getString("id");
+
+        for (int i = 1; i <= expectedRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
+            Struct source = (Struct) ((Struct) record.value()).get("source");
+            String shard = source.getString("shard");
+
+            ShardEpochMap shardToEpoch = ShardEpochMap.of((String) record.sourceOffset().get("transaction_epoch"));
+            assertThat(shardToEpoch.get(TEST_SHARD1)).isEqualTo(TEST_SHARD1_EPOCH + 1);
+            assertThat(shardToEpoch.get(TEST_SHARD2)).isEqualTo(TEST_SHARD2_EPOCH + 1);
+
+            final Struct txn = ((Struct) record.value()).getStruct("transaction");
+            Long epoch = (Long) txn.get("transaction_epoch");
+            assertThat(epoch).isEqualTo(TEST_SHARD_TO_EPOCH.get(shard) + 1);
+
+        }
+        assertRecordEnd(expectedTxId, expectedRecordsCount);
+
+        stopConnector();
+
+        Configuration config2 = TestHelper.defaultConfig()
+                .with(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
+                .with(CommonConnectorConfig.TOPIC_PREFIX, TEST_SERVER)
+                .with(VitessConnectorConfig.KEYSPACE, TEST_SHARDED_KEYSPACE)
+                .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true)
+                .with(VitessConnectorConfig.SHARD, "-80,80-")
+                .with(VitessConnectorConfig.TASKS_MAX_CONFIG, 2)
+                .with(VitessConnectorConfig.OFFSET_STORAGE_PER_TASK, "true")
+                .with(VitessConnectorConfig.OFFSET_STORAGE_TASK_KEY_GEN, "0")
+                .with(VitessConnectorConfig.PREV_NUM_TASKS, "1")
+                .build();
+        startConnector(config2);
+        assertConnectorIsRunning();
+
+        consumer = testConsumer(expectedRecordsCount + 2);
+        executeAndWait(INSERT_NUMERIC_TYPES_STMT, TEST_SHARDED_KEYSPACE);
+
+        SourceRecord beginRecord2 = assertRecordBeginSourceRecord();
+        assertThat(beginRecord2.sourceOffset()).containsKey("transaction_epoch");
+        String expectedTxId2 = ((Struct) beginRecord2.value()).getString("id");
+        for (int i = 1; i <= expectedRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
+            Struct source = (Struct) ((Struct) record.value()).get("source");
+            String shard = source.getString("shard");
+            Long expectedEpoch = TEST_SHARD_TO_EPOCH.get(shard) + 1;
+            final Struct txn = ((Struct) record.value()).getStruct("transaction");
+            String txId = txn.getString("id");
+            assertThat(txId).isNotNull();
+            assertThat(txId).isEqualTo(expectedTxId2);
+            assertThat(txn.get("transaction_epoch")).isEqualTo(expectedEpoch);
+            BigDecimal expectedRank = VitessRankProvider.getRank(Vgtid.of(expectedTxId2).getShardGtid(shard).getGtid());
+            assertThat(txn.get("transaction_rank")).isEqualTo(expectedRank);
+            Vgtid actualVgtid = Vgtid.of(txId);
+            // The current vgtid is not the previous vgtid.
+            assertThat(actualVgtid).isNotEqualTo(baseVgtid);
+        }
+        assertRecordEnd(expectedTxId2, expectedRecordsCount);
     }
 
     @Test

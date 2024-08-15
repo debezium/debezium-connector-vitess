@@ -143,6 +143,7 @@ public class VitessOffsetContextTest {
         TransactionContext transactionContext = context.getTransactionContext();
         assertThat(transactionContext).isInstanceOf(VitessOrderedTransactionContext.class);
         VitessOrderedTransactionContext orderedTransactionContext = (VitessOrderedTransactionContext) transactionContext;
-        assertThat(orderedTransactionContext.getPreviousVgtid()).isEqualTo(null);
+        assertThat(orderedTransactionContext.getPreviousVgtid()).isEqualTo(
+                "[{\"keyspace\":\"test_unsharded_keyspace\",\"shard\":\"0\",\"gtid\":\"current\",\"table_p_ks\":[]}]");
     }
 }

@@ -6,6 +6,7 @@
 
 package io.debezium.connector.vitess;
 
+import static io.debezium.connector.vitess.TestHelper.TEST_SHARD_TO_EPOCH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
@@ -78,6 +79,41 @@ public class VitessConnectorConfigTest {
                 VitessConnectorConfig.EXCLUDE_EMPTY_SHARDS, true).build();
         VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
         assertThat(connectorConfig.excludeEmptyShards()).isTrue();
+    }
+
+    @Test
+    public void shouldGetVitessTaskEpochShardMapConfig() {
+        Configuration configuration = TestHelper.defaultConfig().with(
+                VitessConnectorConfig.VITESS_TASK_SHARD_EPOCH_MAP_CONFIG, TEST_SHARD_TO_EPOCH.toString()).build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getVitessTaskShardEpochMap()).isEqualTo(TEST_SHARD_TO_EPOCH);
+    }
+
+    @Test
+    public void shouldGetVitessEpochShardMapConfig() {
+        Configuration configuration = TestHelper.defaultConfig().with(
+                VitessConnectorConfig.SHARD_EPOCH_MAP, TEST_SHARD_TO_EPOCH.toString()).build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getShardEpochMap()).isEqualTo(TEST_SHARD_TO_EPOCH.toString());
+    }
+
+    @Test
+    public void shouldGetVitessEpochShardMapConfigDefault() {
+        Configuration configuration = TestHelper.defaultConfig().build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getShardEpochMap()).isEqualTo("");
+    }
+
+    @Test
+    public void shouldImproperShardEpochMapFailValidation() {
+        Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.SHARD_EPOCH_MAP, "foo").build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.SHARD_EPOCH_MAP), printConsumer);
+        assertThat(inputs.size()).isEqualTo(1);
     }
 
 }

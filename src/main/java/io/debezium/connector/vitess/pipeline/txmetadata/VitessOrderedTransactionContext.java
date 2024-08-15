@@ -10,6 +10,8 @@ import java.util.Map;
 
 import io.debezium.connector.vitess.SourceInfo;
 import io.debezium.connector.vitess.Vgtid;
+import io.debezium.connector.vitess.VitessConnectorConfig;
+import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.debezium.pipeline.txmetadata.TransactionInfo;
 
@@ -66,6 +68,12 @@ public class VitessOrderedTransactionContext extends TransactionContext {
         return epochProvider.store(offset);
     }
 
+    /**
+     * Called when there are previous offsets, and we need to create a {@link VitessOrderedTransactionContext}
+     * from those offsets.
+     * @param offsets Offsets to load
+     * @return
+     */
     @Override
     public TransactionContext newTransactionContextFromOffsets(Map<String, ?> offsets) {
         return VitessOrderedTransactionContext.load(offsets);
@@ -76,6 +84,21 @@ public class VitessOrderedTransactionContext extends TransactionContext {
         VitessOrderedTransactionContext vitessOrderedTransactionContext = new VitessOrderedTransactionContext(transactionContext);
         vitessOrderedTransactionContext.previousVgtid = (String) offsets.get(SourceInfo.VGTID_KEY);
         vitessOrderedTransactionContext.epochProvider.load(offsets);
+        return vitessOrderedTransactionContext;
+    }
+
+    /**
+     * Always called when we need to create a TransactionContext. Returns a {@link VitessOrderedTransactionContext} initialized
+     * based on the {@link VitessConnectorConfig}. If offsets exist, then it will be followed by a call to
+     * {@link VitessOrderedTransactionContext#newTransactionContextFromOffsets(Map)}
+     * from those offsets.
+     * @param config
+     * @return {@link VitessOrderedTransactionContext}
+     */
+    public static VitessOrderedTransactionContext initialize(VitessConnectorConfig config) {
+        VitessOrderedTransactionContext vitessOrderedTransactionContext = new VitessOrderedTransactionContext();
+        vitessOrderedTransactionContext.epochProvider = VitessEpochProvider.initialize(config);
+        vitessOrderedTransactionContext.previousVgtid = VitessReplicationConnection.defaultVgtid(config).toString();
         return vitessOrderedTransactionContext;
     }
 

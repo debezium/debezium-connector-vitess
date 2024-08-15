@@ -31,6 +31,7 @@ import io.debezium.config.Field;
 import io.debezium.config.Field.ValidationOutput;
 import io.debezium.connector.SourceInfoStructMaker;
 import io.debezium.connector.vitess.connection.VitessTabletType;
+import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
 import io.debezium.heartbeat.Heartbeat;
 import io.debezium.heartbeat.HeartbeatConnectionProvider;
 import io.debezium.heartbeat.HeartbeatErrorHandler;
@@ -247,6 +248,17 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                             + " It has to be set together with vitess.shard."
                             + " If not configured, the connector streams changes from the latest position for the given shard(s)."
                             + " If snapshot.mode is INITIAL (default), the connector starts copying the tables for the given shard(s) first regardless of gtid value.");
+
+    public static final Field SHARD_EPOCH_MAP = Field.create(VITESS_CONFIG_GROUP_PREFIX + "shard.epoch.map")
+            .withDisplayName("shard.epoch.map")
+            .withType(Type.STRING)
+            .withWidth(Width.LONG)
+            .withDefault("")
+            .withImportance(ConfigDef.Importance.LOW)
+            .withValidation(VitessConnectorConfig::validateShardEpochMap)
+            .withDescription(
+                    "ShardEpochMap to use for the initial epoch values for the given shards. If not configured the connector streams changes" +
+                            "from a default value of 0.");
 
     public static final Field GTID = Field.create(VITESS_CONFIG_GROUP_PREFIX + "gtid")
             .withDisplayName("gtid")
@@ -492,11 +504,16 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     // VitessConnector will populate the value of this param and pass on to VitessConnectorTask
     protected static final String VITESS_TASK_SHARDS_CONFIG = "vitess.task.shards";
 
+    // The vitess.task.shard.to.epoch config, the value is a JSON map with vitess shard names mapping
+    // to epoch values. The vitess connector will populate the value of this param and pass on to
+    // VitessConnectorTask when the TransactionContextFactory is set to VitessOrderedTransactionContext
+    public static final String VITESS_TASK_SHARD_EPOCH_MAP_CONFIG = "vitess.task.shard.epoch.map";
+
     // The vgtid assigned to the given task in the json format, this is the same format as we would see
     // in the Kafka offset storage.
     // e.g. [{\"keyspace\":\"ks\",\"shard\":\"-80\",\"gtid\":\"MySQL56/0001:1-114\"},
     // {\"keyspace\":\"ks\",\"shard\":\"80-\",\"gtid\":\"MySQL56/0002:1-122\"}]
-    protected static final String VITESS_TASK_VGTID_CONFIG = "vitess.task.vgtid";
+    public static final String VITESS_TASK_VGTID_CONFIG = "vitess.task.vgtid";
 
     /**
      * The set of {@link Field}s defined as part of this configuration.
@@ -553,6 +570,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return (value != null && !VGTID.defaultValueAsString().equals(value)) ? value : Vgtid.CURRENT_GTID;
     }
 
+    public String getShardEpochMap() {
+        return getConfig().getString(SHARD_EPOCH_MAP);
+    }
+
     public boolean excludeEmptyShards() {
         return getConfig().getBoolean(EXCLUDE_EMPTY_SHARDS);
     }
@@ -580,6 +601,22 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         Set<String> vgtidConfigShards = vgtid.getShardGtids().stream().map(shardGtid -> shardGtid.getShard()).collect(Collectors.toSet());
         if (!configShards.equals(vgtidConfigShards)) {
             problems.accept(field, vgtid, "If GTIDs are specified must be specified for matching shards");
+            return 1;
+        }
+        return 0;
+    }
+
+    private static int validateShardEpochMap(Configuration config, Field field, ValidationOutput problems) {
+        // Get the GTID as a string so that the default value is used if GTID is not set
+        String shardEpochMapString = config.getString(field);
+        if (shardEpochMapString.isEmpty()) {
+            return 0;
+        }
+        try {
+            ShardEpochMap shardEpochMap = ShardEpochMap.of(shardEpochMapString);
+        }
+        catch (IllegalStateException e) {
+            problems.accept(field, shardEpochMapString, "Shard epoch map string improperly formatted");
             return 1;
         }
         return 0;
@@ -665,6 +702,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public List<String> getVitessTaskKeyShards() {
         return getConfig().getStrings(VITESS_TASK_SHARDS_CONFIG, CSV_DELIMITER);
+    }
+
+    public ShardEpochMap getVitessTaskShardEpochMap() {
+        return ShardEpochMap.of(getConfig().getString(VITESS_TASK_SHARD_EPOCH_MAP_CONFIG));
     }
 
     public Vgtid getVitessTaskVgtid() {

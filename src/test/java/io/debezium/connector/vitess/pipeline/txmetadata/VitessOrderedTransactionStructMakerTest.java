@@ -29,7 +29,7 @@ public class VitessOrderedTransactionStructMakerTest {
     public void prepareTxStruct() {
         VitessConnectorConfig config = new VitessConnectorConfig(TestHelper.defaultConfig().build());
         VitessOrderedTransactionStructMaker maker = new VitessOrderedTransactionStructMaker(Configuration.empty());
-        TransactionContext transactionContext = new VitessOrderedTransactionContext();
+        TransactionContext transactionContext = VitessOrderedTransactionContext.initialize(config);
         transactionContext.beginTransaction(new VitessTransactionInfo(VgtidTest.VGTID_JSON, VgtidTest.TEST_SHARD));
         OffsetContext context = new VitessOffsetContext(config, Vgtid.of(VgtidTest.VGTID_JSON), Instant.now(), transactionContext);
         Struct struct = maker.addTransactionBlock(context, 0, null);

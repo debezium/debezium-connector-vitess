@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -27,6 +28,7 @@ import io.debezium.connector.common.BaseSourceTask;
 import io.debezium.connector.vitess.connection.ReplicationConnection;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.connector.vitess.metrics.VitessChangeEventSourceMetricsFactory;
+import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
 import io.debezium.pipeline.ChangeEventSourceCoordinator;
 import io.debezium.pipeline.DataChangeEvent;
 import io.debezium.pipeline.ErrorHandler;
@@ -148,52 +150,104 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
     }
 
     @VisibleForTesting
-    protected Configuration getConfigWithOffsets(Configuration config) {
+    public Configuration getConfigWithOffsets(Configuration config) {
         VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
         if (connectorConfig.offsetStoragePerTask()) {
-            int gen = connectorConfig.getOffsetStorageTaskKeyGen();
-            int prevGen = gen - 1;
-            Map<String, String> prevGtidsPerShard = VitessConnector.getGtidPerShardFromStorage(
-                    context.offsetStorageReader(),
-                    connectorConfig,
-                    connectorConfig.getPrevNumTasks(),
-                    prevGen,
-                    true);
-            LOGGER.info("prevGtidsPerShard {}", prevGtidsPerShard);
-            Map<String, String> gtidsPerShard = VitessConnector.getGtidPerShardFromStorage(
-                    context.offsetStorageReader(),
-                    connectorConfig,
-                    connectorConfig.getVitessTotalTasksConfig(),
-                    gen,
-                    false);
-            LOGGER.info("gtidsPerShard {}", gtidsPerShard);
-            List<String> shards = connectorConfig.getVitessTaskKeyShards();
-            Map<String, String> configGtidsPerShard = getConfigGtidsPerShard(connectorConfig, shards);
-            LOGGER.info("configGtidsPerShard {}", configGtidsPerShard);
-            final String keyspace = connectorConfig.getKeyspace();
-
-            List<Vgtid.ShardGtid> shardGtids = new ArrayList<>();
-            for (String shard : shards) {
-                String gtidStr;
-                if (gtidsPerShard.containsKey(shard)) {
-                    gtidStr = gtidsPerShard.get(shard);
-                    LOGGER.info("Using offsets from current gen: shard {}, gen {}, gtid {}", shard, gen, gtidStr);
-                }
-                else if (prevGtidsPerShard.containsKey(shard)) {
-                    gtidStr = prevGtidsPerShard.get(shard);
-                    LOGGER.warn("Using offsets from previous gen: shard {}, gen {}, gtid {}", shard, gen, gtidStr);
-                }
-                else {
-                    gtidStr = configGtidsPerShard.getOrDefault(shard, null);
-                    LOGGER.warn("Using offsets from config: shard {}, gtid {}", shard, gtidStr);
-                }
-                shardGtids.add(new Vgtid.ShardGtid(keyspace, shard, gtidStr));
+            config = getVitessTaskValuePerShard(config, connectorConfig, VitessOffsetRetriever.ValueType.GTID);
+            if (VitessOffsetRetriever.isShardEpochMapEnabled(connectorConfig)) {
+                config = getVitessTaskValuePerShard(config, connectorConfig, VitessOffsetRetriever.ValueType.EPOCH);
             }
-            return config.edit().with(VitessConnectorConfig.VITESS_TASK_VGTID_CONFIG, Vgtid.of(shardGtids)).build();
+        }
+        return config;
+    }
+
+    private Configuration getVitessTaskValuePerShard(Configuration config, VitessConnectorConfig connectorConfig, VitessOffsetRetriever.ValueType valueType) {
+        int gen = connectorConfig.getOffsetStorageTaskKeyGen();
+        int prevGen = gen - 1;
+        VitessOffsetRetriever prevGenRetriever = new VitessOffsetRetriever(
+                connectorConfig,
+                connectorConfig.getPrevNumTasks(),
+                prevGen,
+                true,
+                context.offsetStorageReader());
+        Map<String, ?> prevGenValuesPerShard = prevGenRetriever.getValuePerShardFromStorage(valueType);
+        LOGGER.info("{} per shard: {}", valueType.name(), prevGenValuesPerShard);
+        VitessOffsetRetriever retriever = new VitessOffsetRetriever(
+                connectorConfig,
+                connectorConfig.getVitessTotalTasksConfig(),
+                gen,
+                false,
+                context.offsetStorageReader());
+        Map<String, ?> curGenValuesPerShard = retriever.getValuePerShardFromStorage(valueType);
+        LOGGER.info("{} per shard {}", valueType.name(), curGenValuesPerShard);
+        List<String> shards = connectorConfig.getVitessTaskKeyShards();
+        Map<String, ?> configValuesPerShard = null;
+        switch (valueType) {
+            case GTID:
+                configValuesPerShard = getConfigGtidsPerShard(connectorConfig, shards);
+                break;
+            case EPOCH:
+                configValuesPerShard = getConfigShardEpochMapPerShard(connectorConfig, shards);
+                break;
+        }
+        LOGGER.info("config {} per shard {}", valueType.name(), configValuesPerShard);
+        final String keyspace = connectorConfig.getKeyspace();
+
+        Map<String, Object> valuesPerShard = new TreeMap();
+        for (String shard : shards) {
+            Object value;
+            if (curGenValuesPerShard != null && curGenValuesPerShard.containsKey(shard)) {
+                value = curGenValuesPerShard.get(shard);
+                LOGGER.info("Using offsets from current gen: shard {}, gen {}, {} {}", shard, gen, valueType.name(), value);
+            }
+            else if (prevGenValuesPerShard != null && prevGenValuesPerShard.containsKey(shard)) {
+                value = prevGenValuesPerShard.get(shard);
+                LOGGER.warn("Using offsets from previous gen: shard {}, gen {}, {} {}", shard, gen, valueType.name(), value);
+            }
+            else {
+                value = configValuesPerShard.getOrDefault(shard, null);
+                LOGGER.warn("Using offsets from config: shard {}, {} {}", shard, valueType.name(), valueType.name(), value);
+            }
+            valuesPerShard.put(shard, value);
+        }
+        switch (valueType) {
+            case GTID:
+                Map<String, String> gtidsPerShard = (Map) valuesPerShard;
+                Vgtid vgtid = getVgtid(gtidsPerShard, keyspace);
+                config = config.edit().with(VitessConnectorConfig.VITESS_TASK_VGTID_CONFIG, vgtid).build();
+                break;
+            case EPOCH:
+                Map<String, Long> epochsPerShard = (Map) valuesPerShard;
+                ShardEpochMap shardEpochMap = getShardEpochMap(epochsPerShard);
+                config = config.edit().with(VitessConnectorConfig.VITESS_TASK_SHARD_EPOCH_MAP_CONFIG, shardEpochMap).build();
+                break;
+        }
+        return config;
+    }
+
+    private ShardEpochMap getShardEpochMap(Map<String, Long> epochMap) {
+        return new ShardEpochMap(epochMap);
+    }
+
+    private Vgtid getVgtid(Map<String, String> gtidsPerShard, String keyspace) {
+        List<Vgtid.ShardGtid> shardGtids = new ArrayList();
+        for (Map.Entry<String, String> entry : gtidsPerShard.entrySet()) {
+            shardGtids.add(new Vgtid.ShardGtid(keyspace, entry.getKey(), entry.getValue()));
+        }
+        return Vgtid.of(shardGtids);
+    }
+
+    private static Map<String, Long> getConfigShardEpochMapPerShard(VitessConnectorConfig connectorConfig, List<String> shards) {
+        String shardEpochMapString = connectorConfig.getShardEpochMap();
+        Function<Integer, Long> initEpoch = x -> 0L;
+        Map<String, Long> shardEpochMap;
+        if (shardEpochMapString.isEmpty()) {
+            shardEpochMap = buildMap(shards, initEpoch);
         }
         else {
-            return config;
+            shardEpochMap = ShardEpochMap.of(shardEpochMapString).getMap();
         }
+        return shardEpochMap;
     }
 
     private static Map<String, String> getConfigGtidsPerShard(VitessConnectorConfig connectorConfig, List<String> shards) {
@@ -220,7 +274,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
         return configGtidsPerShard;
     }
 
-    private static Map<String, String> buildMap(List<String> keys, Function<Integer, String> function) {
+    private static <T> Map<String, T> buildMap(List<String> keys, Function<Integer, T> function) {
         return IntStream.range(0, keys.size())
                 .boxed()
                 .collect(Collectors.toMap(keys::get, function));

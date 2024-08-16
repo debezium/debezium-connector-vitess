@@ -7,7 +7,6 @@
 package io.debezium.connector.vitess;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
@@ -16,8 +15,6 @@ import org.apache.kafka.connect.storage.OffsetStorageReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
-import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionContext;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionMetadataFactory;
 
 /**
@@ -50,43 +47,16 @@ public class VitessOffsetRetriever {
         this.expectsOffset = expectsOffset;
     }
 
-    public enum ValueType {
-        GTID(SourceInfo.VGTID_KEY, ValueType::parseGtid),
-        EPOCH(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, ValueType::parseEpoch);
-
-        private final String typeName;
-        private final Function<String, Map<String, Object>> parserFunction;
-
-        ValueType(String typeName, Function<String, Map<String, Object>> parserFunction) {
-            this.typeName = typeName;
-            this.parserFunction = parserFunction;
-        }
-
-        private static Map<String, Object> parseGtid(String vgtidStr) {
-            Map<String, Object> shardToGtid = new HashMap<>();
-            List<Vgtid.ShardGtid> shardGtids = Vgtid.of(vgtidStr).getShardGtids();
-            for (Vgtid.ShardGtid shardGtid : shardGtids) {
-                shardToGtid.put(shardGtid.getShard(), shardGtid.getGtid());
-            }
-            return shardToGtid;
-        }
-
-        private static Map<String, Object> parseEpoch(String epochString) {
-            ShardEpochMap shardToEpoch = ShardEpochMap.of(epochString);
-            return (Map) shardToEpoch.getMap();
-        }
-    }
-
     public Map<String, String> getGtidPerShard() {
-        return (Map) getValuePerShardFromStorage(ValueType.GTID);
+        return (Map) getValuePerShardFromStorage(OffsetValueType.GTID);
     }
 
     public Map<String, Long> getEpochPerShard() {
-        return (Map) getValuePerShardFromStorage(ValueType.EPOCH);
+        return (Map) getValuePerShardFromStorage(OffsetValueType.EPOCH);
     }
 
-    public Map<String, ?> getValuePerShardFromStorage(ValueType valueType) {
-        String key = valueType.typeName;
+    public Map<String, ?> getValuePerShardFromStorage(OffsetValueType valueType) {
+        String key = valueType.name;
         Function<String, Map<String, Object>> valueReader = valueType.parserFunction;
         return getValuePerShardFromStorage(
                 key,

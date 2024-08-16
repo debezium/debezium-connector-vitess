@@ -106,14 +106,14 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                     connectorConfig, tasks, gen, false, context().offsetStorageReader());
 
             Map<String, String> gtidsPerShard = currentGen.getGtidPerShard();
-            validateCurrentGen(currentGen, gtidsPerShard, currentShards, VitessOffsetRetriever.ValueType.GTID);
+            validateCurrentGen(currentGen, gtidsPerShard, currentShards, OffsetValueType.GTID);
             List<String> shards = determineShards(prevGtidsPerShard, gtidsPerShard, currentShards);
 
             if (VitessOffsetRetriever.isShardEpochMapEnabled(connectorConfig)) {
                 Map<String, Long> prevEpochsPerShard = previousGen.getEpochPerShard();
                 validateNoLostShardData(prevEpochsPerShard, currentShards, "epochs");
                 Map<String, Long> epochsPerShard = currentGen.getEpochPerShard();
-                validateCurrentGen(currentGen, epochsPerShard, currentShards, VitessOffsetRetriever.ValueType.EPOCH);
+                validateCurrentGen(currentGen, epochsPerShard, currentShards, OffsetValueType.EPOCH);
                 List<String> shardsFromEpoch = determineShards(prevEpochsPerShard, epochsPerShard, currentShards);
                 if (!shardsFromEpoch.equals(shards)) {
                     throw new IllegalArgumentException(String.format(
@@ -180,7 +180,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
     }
 
     private Map<String, ?> validateCurrentGen(VitessOffsetRetriever retriever, Map<String, ?> valuePerShard, List<String> currentShards,
-                                              VitessOffsetRetriever.ValueType valueType) {
+                                              OffsetValueType valueType) {
         if (valuePerShard != null && !hasSameShards(valuePerShard.keySet(), currentShards)) {
             LOGGER.warn("Some shards {} for the current generation {} are not persisted.  Expected shards: {}",
                     valueType.name(), valuePerShard.keySet(), currentShards);

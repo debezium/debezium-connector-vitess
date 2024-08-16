@@ -5,20 +5,15 @@
  */
 package io.debezium.connector.vitess;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.debezium.DebeziumException;
 import io.debezium.annotation.VisibleForTesting;
 import io.debezium.bean.StandardBeanNames;
 import io.debezium.config.CommonConnectorConfig;
@@ -29,7 +24,6 @@ import io.debezium.connector.common.BaseSourceTask;
 import io.debezium.connector.vitess.connection.ReplicationConnection;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.connector.vitess.metrics.VitessChangeEventSourceMetricsFactory;
-import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
 import io.debezium.pipeline.ChangeEventSourceCoordinator;
 import io.debezium.pipeline.DataChangeEvent;
 import io.debezium.pipeline.ErrorHandler;
@@ -154,17 +148,17 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
     public Configuration getConfigWithOffsets(Configuration config) {
         VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
         if (connectorConfig.offsetStoragePerTask()) {
-            Object vgtid = getVitessTaskValuePerShard(connectorConfig, VitessOffsetRetriever.ValueType.GTID);
+            Object vgtid = getVitessTaskValuePerShard(connectorConfig, OffsetValueType.GTID);
             config = config.edit().with(VitessConnectorConfig.VITESS_TASK_VGTID_CONFIG, vgtid).build();
             if (VitessOffsetRetriever.isShardEpochMapEnabled(connectorConfig)) {
-                Object shardEpochMap = getVitessTaskValuePerShard(connectorConfig, VitessOffsetRetriever.ValueType.EPOCH);
+                Object shardEpochMap = getVitessTaskValuePerShard(connectorConfig, OffsetValueType.EPOCH);
                 config = config.edit().with(VitessConnectorConfig.VITESS_TASK_SHARD_EPOCH_MAP_CONFIG, shardEpochMap).build();
             }
         }
         return config;
     }
 
-    private Object getVitessTaskValuePerShard(VitessConnectorConfig connectorConfig, VitessOffsetRetriever.ValueType valueType) {
+    private Object getVitessTaskValuePerShard(VitessConnectorConfig connectorConfig, OffsetValueType valueType) {
         int gen = connectorConfig.getOffsetStorageTaskKeyGen();
         int prevGen = gen - 1;
         VitessOffsetRetriever prevGenRetriever = new VitessOffsetRetriever(
@@ -184,15 +178,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
         Map<String, ?> curGenValuesPerShard = retriever.getValuePerShardFromStorage(valueType);
         LOGGER.info("{} per shard {}", valueType.name(), curGenValuesPerShard);
         List<String> shards = connectorConfig.getVitessTaskKeyShards();
-        Map<String, ?> configValuesPerShard = null;
-        switch (valueType) {
-            case GTID:
-                configValuesPerShard = getConfigGtidsPerShard(connectorConfig, shards);
-                break;
-            case EPOCH:
-                configValuesPerShard = getConfigShardEpochMapPerShard(connectorConfig, shards);
-                break;
-        }
+        Map<String, Object> configValuesPerShard = valueType.configValuesFunction.apply(connectorConfig, shards);
         LOGGER.info("config {} per shard {}", valueType.name(), configValuesPerShard);
         final String keyspace = connectorConfig.getKeyspace();
 
@@ -213,71 +199,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
             }
             valuesPerShard.put(shard, value);
         }
-        switch (valueType) {
-            case GTID:
-                Map<String, String> gtidsPerShard = (Map) valuesPerShard;
-                return getVgtid(gtidsPerShard, keyspace);
-            case EPOCH:
-                Map<String, Long> epochsPerShard = (Map) valuesPerShard;
-                return getShardEpochMap(epochsPerShard);
-            default:
-                throw new DebeziumException(String.format("Unknown value type %s", valueType.name()));
-        }
-    }
-
-    private ShardEpochMap getShardEpochMap(Map<String, Long> epochMap) {
-        return new ShardEpochMap(epochMap);
-    }
-
-    private Vgtid getVgtid(Map<String, String> gtidsPerShard, String keyspace) {
-        List<Vgtid.ShardGtid> shardGtids = new ArrayList();
-        for (Map.Entry<String, String> entry : gtidsPerShard.entrySet()) {
-            shardGtids.add(new Vgtid.ShardGtid(keyspace, entry.getKey(), entry.getValue()));
-        }
-        return Vgtid.of(shardGtids);
-    }
-
-    private static Map<String, Long> getConfigShardEpochMapPerShard(VitessConnectorConfig connectorConfig, List<String> shards) {
-        String shardEpochMapString = connectorConfig.getShardEpochMap();
-        Function<Integer, Long> initEpoch = x -> 0L;
-        Map<String, Long> shardEpochMap;
-        if (shardEpochMapString.isEmpty()) {
-            shardEpochMap = buildMap(shards, initEpoch);
-        }
-        else {
-            shardEpochMap = ShardEpochMap.of(shardEpochMapString).getMap();
-        }
-        return shardEpochMap;
-    }
-
-    private static Map<String, String> getConfigGtidsPerShard(VitessConnectorConfig connectorConfig, List<String> shards) {
-        String gtids = connectorConfig.getVgtid();
-        Map<String, String> configGtidsPerShard = null;
-        if (shards != null && gtids.equals(Vgtid.EMPTY_GTID)) {
-            Function<Integer, String> emptyGtid = x -> Vgtid.EMPTY_GTID;
-            configGtidsPerShard = buildMap(shards, emptyGtid);
-        }
-        else if (shards != null && gtids.equals(Vgtid.CURRENT_GTID)) {
-            Function<Integer, String> currentGtid = x -> Vgtid.CURRENT_GTID;
-            configGtidsPerShard = buildMap(shards, currentGtid);
-        }
-        else if (shards != null) {
-            List<Vgtid.ShardGtid> shardGtids = Vgtid.of(gtids).getShardGtids();
-            Map<String, String> shardsToGtid = new HashMap<>();
-            for (Vgtid.ShardGtid shardGtid : shardGtids) {
-                shardsToGtid.put(shardGtid.getShard(), shardGtid.getGtid());
-            }
-            Function<Integer, String> shardGtid = (i -> shardsToGtid.get(shards.get(i)));
-            configGtidsPerShard = buildMap(shards, shardGtid);
-        }
-        LOGGER.info("Found GTIDs per shard in config {}", configGtidsPerShard);
-        return configGtidsPerShard;
-    }
-
-    private static <T> Map<String, T> buildMap(List<String> keys, Function<Integer, T> function) {
-        return IntStream.range(0, keys.size())
-                .boxed()
-                .collect(Collectors.toMap(keys::get, function));
+        return valueType.conversionFunction.apply(valuesPerShard, keyspace);
     }
 
     @Override

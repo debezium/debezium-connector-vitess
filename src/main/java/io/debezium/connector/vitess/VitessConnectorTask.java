@@ -18,6 +18,7 @@ import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.DebeziumException;
 import io.debezium.annotation.VisibleForTesting;
 import io.debezium.bean.StandardBeanNames;
 import io.debezium.config.CommonConnectorConfig;
@@ -153,15 +154,17 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
     public Configuration getConfigWithOffsets(Configuration config) {
         VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
         if (connectorConfig.offsetStoragePerTask()) {
-            config = getVitessTaskValuePerShard(config, connectorConfig, VitessOffsetRetriever.ValueType.GTID);
+            Object vgtid = getVitessTaskValuePerShard(connectorConfig, VitessOffsetRetriever.ValueType.GTID);
+            config = config.edit().with(VitessConnectorConfig.VITESS_TASK_VGTID_CONFIG, vgtid).build();
             if (VitessOffsetRetriever.isShardEpochMapEnabled(connectorConfig)) {
-                config = getVitessTaskValuePerShard(config, connectorConfig, VitessOffsetRetriever.ValueType.EPOCH);
+                Object shardEpochMap = getVitessTaskValuePerShard(connectorConfig, VitessOffsetRetriever.ValueType.EPOCH);
+                config = config.edit().with(VitessConnectorConfig.VITESS_TASK_SHARD_EPOCH_MAP_CONFIG, shardEpochMap).build();
             }
         }
         return config;
     }
 
-    private Configuration getVitessTaskValuePerShard(Configuration config, VitessConnectorConfig connectorConfig, VitessOffsetRetriever.ValueType valueType) {
+    private Object getVitessTaskValuePerShard(VitessConnectorConfig connectorConfig, VitessOffsetRetriever.ValueType valueType) {
         int gen = connectorConfig.getOffsetStorageTaskKeyGen();
         int prevGen = gen - 1;
         VitessOffsetRetriever prevGenRetriever = new VitessOffsetRetriever(
@@ -213,16 +216,13 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
         switch (valueType) {
             case GTID:
                 Map<String, String> gtidsPerShard = (Map) valuesPerShard;
-                Vgtid vgtid = getVgtid(gtidsPerShard, keyspace);
-                config = config.edit().with(VitessConnectorConfig.VITESS_TASK_VGTID_CONFIG, vgtid).build();
-                break;
+                return getVgtid(gtidsPerShard, keyspace);
             case EPOCH:
                 Map<String, Long> epochsPerShard = (Map) valuesPerShard;
-                ShardEpochMap shardEpochMap = getShardEpochMap(epochsPerShard);
-                config = config.edit().with(VitessConnectorConfig.VITESS_TASK_SHARD_EPOCH_MAP_CONFIG, shardEpochMap).build();
-                break;
+                return getShardEpochMap(epochsPerShard);
+            default:
+                throw new DebeziumException(String.format("Unknown value type %s", valueType.name()));
         }
-        return config;
     }
 
     private ShardEpochMap getShardEpochMap(Map<String, Long> epochMap) {

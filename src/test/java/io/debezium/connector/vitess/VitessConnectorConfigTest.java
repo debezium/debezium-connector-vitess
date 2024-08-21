@@ -15,7 +15,9 @@ import java.util.function.Consumer;
 
 import org.junit.Test;
 
+import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
+import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionMetadataFactory;
 import io.debezium.heartbeat.Heartbeat;
 import io.debezium.schema.DefaultTopicNamingStrategy;
 import io.debezium.schema.SchemaNameAdjuster;
@@ -114,6 +116,40 @@ public class VitessConnectorConfigTest {
         };
         connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.SHARD_EPOCH_MAP), printConsumer);
         assertThat(inputs.size()).isEqualTo(1);
+    }
+
+    @Test
+    public void shouldEnableInheritEpoch() {
+        Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.INHERIT_EPOCH, true).build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getInheritEpoch()).isTrue();
+    }
+
+    @Test
+    public void shouldValidateInheritEpochWithoutOrderedTransactionMetadata() {
+        Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.INHERIT_EPOCH, true).build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.INHERIT_EPOCH), printConsumer);
+        assertThat(inputs.size()).isEqualTo(1);
+    }
+
+    @Test
+    public void shouldValidateInheritEpochWithOrderedTransactionMetadata() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.INHERIT_EPOCH, true)
+                .with(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.INHERIT_EPOCH), printConsumer);
+        assertThat(inputs.size()).isEqualTo(0);
     }
 
 }

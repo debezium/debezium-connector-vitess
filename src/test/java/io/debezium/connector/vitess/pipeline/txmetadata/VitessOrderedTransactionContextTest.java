@@ -19,6 +19,7 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.junit.Test;
 
+import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.SourceInfo;
 import io.debezium.connector.vitess.TestHelper;
 import io.debezium.connector.vitess.VgtidTest;
@@ -39,7 +40,8 @@ public class VitessOrderedTransactionContextTest {
         Map offsets = Map.of(
                 VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, TEST_SHARD_TO_EPOCH.toString(),
                 SourceInfo.VGTID_KEY, expectedId);
-        VitessOrderedTransactionContext context = VitessOrderedTransactionContext.load(offsets);
+        VitessConnectorConfig config = new VitessConnectorConfig(Configuration.empty());
+        VitessOrderedTransactionContext context = VitessOrderedTransactionContext.load(offsets, config);
         assertThat(context.previousVgtid).isEqualTo(expectedId);
         context.beginTransaction(new VitessTransactionInfo(VgtidTest.VGTID_JSON, TEST_SHARD1));
         assertThat(context.transactionEpoch).isEqualTo(TEST_SHARD1_EPOCH);
@@ -78,7 +80,7 @@ public class VitessOrderedTransactionContextTest {
         VitessTransactionInfo transactionInfo = new VitessTransactionInfo(expectedTxId, expectedShard);
         metadata.beginTransaction(transactionInfo);
         assertThat(metadata.transactionRank).isEqualTo(expectedRank);
-        assertThat(metadata.transactionEpoch).isEqualTo(expectedEpoch);
+        assertThat(metadata.getTransactionEpoch()).isEqualTo(expectedEpoch);
 
         String expectedTxId2 = "[{\"keyspace\": \"foo\", \"gtid\": \"host1:1-3\", \"shard\": \"-80\"}]";
         BigDecimal expectedRank2 = new BigDecimal("3");
@@ -88,6 +90,43 @@ public class VitessOrderedTransactionContextTest {
         metadata.beginTransaction(transactionInfo2);
         assertThat(metadata.transactionRank).isEqualTo(expectedRank2);
         assertThat(metadata.transactionEpoch).isEqualTo(expectedEpoch2);
+    }
+
+    @Test
+    public void shouldInheritEpoch() {
+        String expectedTxId = "[{\"keyspace\": \"foo\", \"gtid\": \"host1:1-3,host2:3-4\", \"shard\": \"0\"}]";
+        VitessConnectorConfig config = new VitessConnectorConfig(TestHelper.defaultConfig(true,
+                false,
+                0,
+                0,
+                0,
+                null,
+                VitessConnectorConfig.SnapshotMode.NEVER)
+                .with(VitessConnectorConfig.VGTID, expectedTxId)
+                .with(VitessConnectorConfig.SHARD, "0")
+                .with(VitessConnectorConfig.INHERIT_EPOCH, true)
+                .build());
+        VitessOrderedTransactionContext metadata = VitessOrderedTransactionContext.initialize(config);
+
+        BigDecimal expectedRank = new BigDecimal("7");
+        long expectedEpoch = 0;
+        String expectedShard = "0";
+
+        VitessTransactionInfo transactionInfo = new VitessTransactionInfo(expectedTxId, expectedShard);
+        metadata.beginTransaction(transactionInfo);
+        assertThat(metadata.getTransactionRank()).isEqualTo(expectedRank);
+        assertThat(metadata.getTransactionEpoch()).isEqualTo(expectedEpoch);
+
+        String expectedTxId2 = "[{\"keyspace\": \"foo\", \"gtid\": \"host1:1-3\", \"shard\": \"-80\"}," +
+                "{\"keyspace\": \"foo\", \"gtid\": \"host1:1-3\", \"shard\": \"80-\"}]";
+        BigDecimal expectedRank2 = new BigDecimal("3");
+        long expectedEpoch2 = 1;
+
+        String expectedShard2 = "-80";
+        VitessTransactionInfo transactionInfo2 = new VitessTransactionInfo(expectedTxId2, expectedShard2);
+        metadata.beginTransaction(transactionInfo2);
+        assertThat(metadata.getTransactionRank()).isEqualTo(expectedRank2);
+        assertThat(metadata.getTransactionEpoch()).isEqualTo(expectedEpoch2);
     }
 
     @Test

@@ -69,6 +69,10 @@ public class TestHelper {
             "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}" +
             "]";
 
+    public static final String VGTID_SINGLE_SHARD_JSON_TEMPLATE = "[" +
+            "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\",\"table_p_ks\":[]}" +
+            "]";
+
     public static final String VGTID_JSON_TEMPLATE = "[" +
             "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\",\"table_p_ks\":[]}," +
             "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\",\"table_p_ks\":[]}" +

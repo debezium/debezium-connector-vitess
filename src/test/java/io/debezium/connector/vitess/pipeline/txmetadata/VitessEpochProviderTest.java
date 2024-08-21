@@ -9,6 +9,7 @@ import static io.debezium.connector.vitess.TestHelper.TEST_SHARD1;
 import static io.debezium.connector.vitess.TestHelper.TEST_SHARD1_EPOCH;
 import static io.debezium.connector.vitess.TestHelper.TEST_SHARD_TO_EPOCH;
 import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_TEMPLATE;
+import static io.debezium.connector.vitess.TestHelper.VGTID_SINGLE_SHARD_JSON_TEMPLATE;
 import static io.debezium.connector.vitess.VgtidTest.VGTID_BOTH_CURRENT;
 import static io.debezium.connector.vitess.VgtidTest.VGTID_JSON;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,8 +62,9 @@ public class VitessEpochProviderTest {
 
     @Test
     public void testLoadsEpochFromOffsets() {
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards));
-        provider.load(Map.of(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, TEST_SHARD_TO_EPOCH.toString()));
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
+        VitessConnectorConfig config = new VitessConnectorConfig(Configuration.empty());
+        provider.load(Map.of(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, TEST_SHARD_TO_EPOCH.toString()), config);
         Long epoch = provider.getEpoch(TEST_SHARD1, VGTID_JSON, VGTID_JSON);
         assertThat(epoch).isEqualTo(TEST_SHARD1_EPOCH);
     }
@@ -90,8 +92,19 @@ public class VitessEpochProviderTest {
     }
 
     @Test
+    public void testInitializeConfigEpochWithInheritEpoch() {
+        Configuration config = Configuration.create()
+                .with(VitessConnectorConfig.SHARD, TestHelper.TEST_SHARD1)
+                .with(VitessConnectorConfig.INHERIT_EPOCH, true)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
+        VitessEpochProvider provider = VitessEpochProvider.initialize(connectorConfig);
+        assertThat(provider.isInheritEpochEnabled()).isEqualTo(true);
+    }
+
+    @Test
     public void snapshotIncrementsEpoch() {
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards));
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
         String vgtidJsonEmpty = String.format(
                 VGTID_JSON_TEMPLATE,
                 VgtidTest.TEST_KEYSPACE,
@@ -106,7 +119,7 @@ public class VitessEpochProviderTest {
 
     @Test
     public void fastForwardVgtidIncrementsEpoch() {
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards));
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
         String vgtidJsonCurrent = String.format(
                 VGTID_JSON_TEMPLATE,
                 VgtidTest.TEST_KEYSPACE,
@@ -121,7 +134,7 @@ public class VitessEpochProviderTest {
 
     @Test
     public void currentVgtidIncrementsEpochForAllShards() {
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards));
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
         Long epochShard1 = provider.getEpoch(VgtidTest.TEST_SHARD, vgtidJsonCurrent, VGTID_JSON);
         Long epochShard2 = provider.getEpoch(VgtidTest.TEST_SHARD2, VGTID_JSON, VGTID_JSON);
         assertThat(epochShard1).isEqualTo(1L);
@@ -155,11 +168,39 @@ public class VitessEpochProviderTest {
     }
 
     @Test
+    public void splitShardInheritsEpoch() {
+        VitessEpochProvider provider = new VitessEpochProvider(new ShardEpochMap(Map.of("0", 0L)), true);
+        String vgtidSingleCurrent = String.format(
+                VGTID_SINGLE_SHARD_JSON_TEMPLATE,
+                TestHelper.TEST_SHARDED_KEYSPACE,
+                TestHelper.TEST_SHARD,
+                Vgtid.CURRENT_GTID);
+        String vgtid1 = String.format(
+                VGTID_SINGLE_SHARD_JSON_TEMPLATE,
+                TestHelper.TEST_SHARDED_KEYSPACE,
+                TestHelper.TEST_SHARD,
+                txId);
+        String vgtid2 = String.format(
+                VGTID_JSON_TEMPLATE,
+                TestHelper.TEST_SHARDED_KEYSPACE,
+                TestHelper.TEST_SHARD1,
+                txId,
+                TestHelper.TEST_SHARDED_KEYSPACE,
+                TestHelper.TEST_SHARD2,
+                txId);
+        Long epochShard1 = provider.getEpoch(TestHelper.TEST_SHARD, vgtidSingleCurrent, vgtid1);
+        assertThat(epochShard1).isEqualTo(1L);
+        Long epochShard2 = provider.getEpoch(TestHelper.TEST_SHARD1, vgtid1, vgtid2);
+        assertThat(epochShard2).isEqualTo(2L);
+    }
+
+    @Test
     public void nullPreviousVgtidWithStoredEpochShouldThrowException() {
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards));
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
         int expectedEpoch = 1;
         String shardToEpoch = String.format("{\"%s\": %d}", TEST_SHARD1, expectedEpoch);
-        provider.load(Map.of(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, shardToEpoch));
+        VitessConnectorConfig config = new VitessConnectorConfig(Configuration.empty());
+        provider.load(Map.of(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, shardToEpoch), config);
         assertThatThrownBy(() -> {
             provider.getEpoch(VgtidTest.TEST_SHARD, null, VGTID_JSON);
         }).isInstanceOf(DebeziumException.class).hasMessageContaining("Previous vgtid string cannot be null");
@@ -170,7 +211,8 @@ public class VitessEpochProviderTest {
         VitessEpochProvider provider = new VitessEpochProvider();
         int expectedEpoch = 1;
         String shardToEpoch = String.format("{\"%s\": %d}", TEST_SHARD1, expectedEpoch);
-        provider.load(Map.of(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, shardToEpoch));
+        VitessConnectorConfig config = new VitessConnectorConfig(Configuration.empty());
+        provider.load(Map.of(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, shardToEpoch), config);
         assertThatThrownBy(() -> {
             provider.getEpoch(VgtidTest.TEST_SHARD, VGTID_JSON, VGTID_JSON);
         }).isInstanceOf(DebeziumException.class).hasMessageContaining("Previous epoch cannot be null");
@@ -178,7 +220,7 @@ public class VitessEpochProviderTest {
 
     @Test
     public void matchingGtidReturnsInitialEpoch() {
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards));
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
         int expectedEpoch = 0;
         Long epoch = provider.getEpoch(VgtidTest.TEST_SHARD, VGTID_JSON, VGTID_JSON);
         assertThat(epoch).isEqualTo(expectedEpoch);
@@ -187,7 +229,7 @@ public class VitessEpochProviderTest {
     @Test
     public void testInvalidCurrentGtid() {
         Long expectedEpoch = 0L;
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards));
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
         Long epoch = provider.getEpoch("-80", VGTID_JSON, VGTID_JSON);
         assertThat(epoch).isEqualTo(expectedEpoch);
         String vgtidJsonCurrent = String.format(
@@ -206,7 +248,7 @@ public class VitessEpochProviderTest {
     @Test
     public void testInvalidEmptyGtid() {
         Long expectedEpoch = 0L;
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards));
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
         Long epoch = provider.getEpoch("-80", VGTID_JSON, VGTID_JSON);
         assertThat(epoch).isEqualTo(expectedEpoch);
         String vgtidJsonEmpty = String.format(

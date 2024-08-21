@@ -22,13 +22,15 @@ public class VitessEpochProvider {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessEpochProvider.class);
     private ShardEpochMap shardEpochMap;
     private boolean isFirstTransaction = true;
+    private boolean isInheritEpochEnabled = false;
 
     public VitessEpochProvider() {
         shardEpochMap = new ShardEpochMap();
     }
 
-    public VitessEpochProvider(ShardEpochMap shardToEpoch) {
+    public VitessEpochProvider(ShardEpochMap shardToEpoch, boolean isInheritEpochEnabled) {
         this.shardEpochMap = shardToEpoch;
+        this.isInheritEpochEnabled = isInheritEpochEnabled;
     }
 
     private static boolean isInvalidGtid(String gtid) {
@@ -76,7 +78,8 @@ public class VitessEpochProvider {
      */
     public static VitessEpochProvider initialize(VitessConnectorConfig config) {
         ShardEpochMap shardEpochMap = VitessReplicationConnection.defaultShardEpochMap(config);
-        return new VitessEpochProvider(shardEpochMap);
+        boolean isInheritEpochEnabled = config.getInheritEpoch();
+        return new VitessEpochProvider(shardEpochMap, isInheritEpochEnabled);
     }
 
     public Map<String, Object> store(Map<String, Object> offset) {
@@ -90,11 +93,12 @@ public class VitessEpochProvider {
      *
      * @param offsets Offsets to load
      */
-    public void load(Map<String, ?> offsets) {
+    public void load(Map<String, ?> offsets, VitessConnectorConfig config) {
         String shardToEpochString = (String) offsets.get(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH);
         if (!Strings.isNullOrEmpty(shardToEpochString)) {
             shardEpochMap = ShardEpochMap.of(shardToEpochString);
         }
+        isInheritEpochEnabled = config.getInheritEpoch();
     }
 
     public Long getEpoch(String shard, String previousVgtidString, String vgtidString) {
@@ -103,14 +107,15 @@ public class VitessEpochProvider {
         }
         Vgtid vgtid = Vgtid.of(vgtidString);
         Vgtid previousVgtid = Vgtid.of(previousVgtidString);
-        processVgtid(previousVgtid, vgtid);
+        this.shardEpochMap = getNewShardEpochMap(previousVgtid, vgtid);
         if (isFirstTransaction) {
             isFirstTransaction = false;
         }
         return shardEpochMap.get(shard);
     }
 
-    private void processVgtid(Vgtid previousVgtid, Vgtid vgtid) {
+    private ShardEpochMap getNewShardEpochMap(Vgtid previousVgtid, Vgtid vgtid) {
+        ShardEpochMap newShardEpochMap = new ShardEpochMap();
         for (Vgtid.ShardGtid shardGtid : vgtid.getShardGtids()) {
             String shard = shardGtid.getShard();
             String gtid = shardGtid.getGtid();
@@ -125,17 +130,24 @@ public class VitessEpochProvider {
                             shard, previousVgtid));
                 }
                 Long epoch = getEpochForGtid(previousEpoch, previousGtid, gtid, isFirstTransaction);
-                shardEpochMap.put(shard, epoch);
+                newShardEpochMap.put(shard, epoch);
             }
             else {
-                // A re-shard happened while we are streaming set the new value to zero
-                // TODO: Add support to inherit epoch from ancestor shard
-                shardEpochMap.put(shard, 0L);
+                // A re-shard happened while we are streaming
+                Long epoch;
+                if (isInheritEpochEnabled) {
+                    epoch = ShardLineage.getInheritedEpoch(shard, shardEpochMap);
+                }
+                else {
+                    epoch = 0L;
+                }
+                newShardEpochMap.put(shard, epoch);
             }
         }
-        // Note: we could purge all shards from the shard epoch map that are not present in the current vgtid.
-        // However, this poses some risk of losing epoch values, so we leave them as is. There may be dormant shards
-        // that we still have epoch values for, but that should be fine. Once we allow for epochs to be inherited from other shards
-        // we could reconsider purging them to ensure the epoch shard map does not grow too large.
+        return newShardEpochMap;
+    }
+
+    public boolean isInheritEpochEnabled() {
+        return isInheritEpochEnabled;
     }
 }

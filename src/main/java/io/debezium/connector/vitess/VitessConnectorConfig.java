@@ -32,6 +32,7 @@ import io.debezium.config.Field.ValidationOutput;
 import io.debezium.connector.SourceInfoStructMaker;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
+import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionMetadataFactory;
 import io.debezium.heartbeat.Heartbeat;
 import io.debezium.heartbeat.HeartbeatConnectionProvider;
 import io.debezium.heartbeat.HeartbeatErrorHandler;
@@ -300,6 +301,15 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withImportance(ConfigDef.Importance.HIGH)
             .withDescription("Control StopOnReshard VStream flag."
                     + " If set true, the old VStream will be stopped after a reshard operation.");
+
+    public static final Field INHERIT_EPOCH = Field.create(VITESS_CONFIG_GROUP_PREFIX + "inherit_epoch")
+            .withDisplayName("Inherit epoch")
+            .withType(Type.BOOLEAN)
+            .withDefault(false)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.LOW)
+            .withValidation(VitessConnectorConfig::validateInheritEpoch)
+            .withDescription("Controls whether the epochs of a new shard after a re-shard operation inherits epochs from its parent shards");
 
     public static final Field KEEPALIVE_INTERVAL_MS = Field.create(VITESS_CONFIG_GROUP_PREFIX + "keepalive.interval.ms")
             .withDisplayName("VStream gRPC keepalive interval (ms)")
@@ -622,6 +632,15 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return 0;
     }
 
+    private static int validateInheritEpoch(Configuration config, Field field, ValidationOutput problems) {
+        Boolean inheritEpoch = config.getBoolean(field);
+        String factory = config.getString(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY);
+        if (inheritEpoch && !factory.equals(VitessOrderedTransactionMetadataFactory.class.getName())) {
+            problems.accept(field, inheritEpoch, "Inherit epoch cannot be enabled without VitessOrderedTransactionMetadataFactory");
+        }
+        return 0;
+    }
+
     public String getVtgateHost() {
         return getConfig().getString(VTGATE_HOST);
     }
@@ -644,6 +663,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public boolean getStopOnReshard() {
         return getConfig().getBoolean(STOP_ON_RESHARD_FLAG);
+    }
+
+    public boolean getInheritEpoch() {
+        return getConfig().getBoolean(INHERIT_EPOCH);
     }
 
     public Duration getKeepaliveInterval() {

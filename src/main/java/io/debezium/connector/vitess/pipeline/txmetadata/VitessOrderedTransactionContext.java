@@ -8,6 +8,7 @@ package io.debezium.connector.vitess.pipeline.txmetadata;
 import java.math.BigDecimal;
 import java.util.Map;
 
+import io.debezium.annotation.VisibleForTesting;
 import io.debezium.connector.vitess.SourceInfo;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VitessConnectorConfig;
@@ -22,6 +23,7 @@ public class VitessOrderedTransactionContext extends TransactionContext {
     protected Long transactionEpoch = 0L;
     protected BigDecimal transactionRank = null;
     private VitessEpochProvider epochProvider = new VitessEpochProvider();
+    private VitessConnectorConfig config = null;
 
     public VitessOrderedTransactionContext() {
     }
@@ -76,14 +78,14 @@ public class VitessOrderedTransactionContext extends TransactionContext {
      */
     @Override
     public TransactionContext newTransactionContextFromOffsets(Map<String, ?> offsets) {
-        return VitessOrderedTransactionContext.load(offsets);
+        return VitessOrderedTransactionContext.load(offsets, this.config);
     }
 
-    public static VitessOrderedTransactionContext load(Map<String, ?> offsets) {
+    public static VitessOrderedTransactionContext load(Map<String, ?> offsets, VitessConnectorConfig config) {
         TransactionContext transactionContext = TransactionContext.load(offsets);
         VitessOrderedTransactionContext vitessOrderedTransactionContext = new VitessOrderedTransactionContext(transactionContext);
         vitessOrderedTransactionContext.previousVgtid = (String) offsets.get(SourceInfo.VGTID_KEY);
-        vitessOrderedTransactionContext.epochProvider.load(offsets);
+        vitessOrderedTransactionContext.epochProvider.load(offsets, config);
         return vitessOrderedTransactionContext;
     }
 
@@ -99,6 +101,7 @@ public class VitessOrderedTransactionContext extends TransactionContext {
         VitessOrderedTransactionContext vitessOrderedTransactionContext = new VitessOrderedTransactionContext();
         vitessOrderedTransactionContext.epochProvider = VitessEpochProvider.initialize(config);
         vitessOrderedTransactionContext.previousVgtid = VitessReplicationConnection.defaultVgtid(config).toString();
+        vitessOrderedTransactionContext.config = config;
         return vitessOrderedTransactionContext;
     }
 
@@ -139,6 +142,11 @@ public class VitessOrderedTransactionContext extends TransactionContext {
 
     public BigDecimal getTransactionRank() {
         return transactionRank;
+    }
+
+    @VisibleForTesting
+    public VitessEpochProvider getEpochProvider() {
+        return epochProvider;
     }
 
 }

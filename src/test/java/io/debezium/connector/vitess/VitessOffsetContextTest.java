@@ -134,6 +134,32 @@ public class VitessOffsetContextTest {
     }
 
     @Test
+    public void shouldLoadVitessOrderedTransactionContextWithInheritEpoch() throws JsonProcessingException {
+        VitessConnectorConfig config = new VitessConnectorConfig(
+                TestHelper.defaultConfig()
+                        .with(VitessConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
+                        .with(VitessConnectorConfig.INHERIT_EPOCH, true)
+                        .build());
+        VitessOffsetContext.Loader loader = new VitessOffsetContext.Loader(config);
+        ObjectMapper objectMapper = new ObjectMapper();
+        Long expectedEpoch1 = 2L;
+        Long expectedEpoch2 = 3L;
+        String shard1 = "-80";
+        String shard2 = "80-";
+        Map offsets = Map.of(
+                SourceInfo.VGTID_KEY, VGTID_JSON,
+                TransactionContext.OFFSET_TRANSACTION_ID, VGTID_JSON,
+                VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, objectMapper.writeValueAsString(Map.of(
+                        shard1, expectedEpoch1,
+                        shard2, expectedEpoch2)));
+        VitessOffsetContext context = loader.load(offsets);
+        TransactionContext transactionContext = context.getTransactionContext();
+        assertThat(transactionContext).isInstanceOf(VitessOrderedTransactionContext.class);
+        VitessOrderedTransactionContext orderedTransactionContext = (VitessOrderedTransactionContext) transactionContext;
+        assertThat(orderedTransactionContext.getEpochProvider().isInheritEpochEnabled()).isTrue();
+    }
+
+    @Test
     public void shouldGetInitialVitessOrderedTransactionContext() {
         VitessConnectorConfig config = new VitessConnectorConfig(
                 TestHelper.defaultConfig()
@@ -145,5 +171,19 @@ public class VitessOffsetContextTest {
         VitessOrderedTransactionContext orderedTransactionContext = (VitessOrderedTransactionContext) transactionContext;
         assertThat(orderedTransactionContext.getPreviousVgtid()).isEqualTo(
                 "[{\"keyspace\":\"test_unsharded_keyspace\",\"shard\":\"0\",\"gtid\":\"current\",\"table_p_ks\":[]}]");
+    }
+
+    @Test
+    public void shouldGetInitialVitessOrderedTransactionContextWithInheritEpoch() {
+        VitessConnectorConfig config = new VitessConnectorConfig(
+                TestHelper.defaultConfig()
+                        .with(VitessConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
+                        .with(VitessConnectorConfig.INHERIT_EPOCH, true)
+                        .build());
+        VitessOffsetContext context = VitessOffsetContext.initialContext(config, Clock.system());
+        TransactionContext transactionContext = context.getTransactionContext();
+        assertThat(transactionContext).isInstanceOf(VitessOrderedTransactionContext.class);
+        VitessOrderedTransactionContext orderedTransactionContext = (VitessOrderedTransactionContext) transactionContext;
+        assertThat(orderedTransactionContext.getEpochProvider().isInheritEpochEnabled()).isTrue();
     }
 }

@@ -80,4 +80,20 @@ public class ShardLineageTest {
         Long epoch2 = ShardLineage.getInheritedEpoch("b750-b820", shardEpochMap);
         assertThat(epoch2).isEqualTo(parentEpoch1 + 1);
     }
+
+    @Test
+    public void shouldGetInheritedEpoch_OneToTwoShardsMixedCase() {
+        Long parentEpoch1 = 4L;
+        ShardEpochMap shardEpochMap = new ShardEpochMap(Map.of("B7-B8", parentEpoch1));
+        Long epoch = ShardLineage.getInheritedEpoch("b720-b750", shardEpochMap);
+        assertThat(epoch).isEqualTo(parentEpoch1 + 1);
+        Long epoch2 = ShardLineage.getInheritedEpoch("b750-b820", shardEpochMap);
+        assertThat(epoch2).isEqualTo(parentEpoch1 + 1);
+
+        ShardEpochMap shardEpochMap2 = new ShardEpochMap(Map.of("b7-b8", parentEpoch1));
+        Long epoch3 = ShardLineage.getInheritedEpoch("B720-B750", shardEpochMap);
+        assertThat(epoch3).isEqualTo(parentEpoch1 + 1);
+        Long epoch4 = ShardLineage.getInheritedEpoch("B750-B820", shardEpochMap);
+        assertThat(epoch4).isEqualTo(parentEpoch1 + 1);
+    }
 }

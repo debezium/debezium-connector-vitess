@@ -41,11 +41,16 @@ public class ShardLineage {
 
     private static class Shard {
 
-        private final ShardBound lowerBound;
-        private final ShardBound upperBound;
+        // A string lexicographically less than all other strings
+        public static final String NEGATIVE_INFINITY = "";
+        // A string lexicographically greater than all other strings
+        public static final String POSITIVE_INFINITY = "\uFFFF";
+
+        private final String lowerBound;
+        private final String upperBound;
 
         Shard(String shard) {
-            String[] shardInterval = getShardInterval(shard);
+            String[] shardInterval = getShardInterval(shard.toLowerCase());
             this.lowerBound = getLowerBound(shardInterval);
             this.upperBound = getUpperBound(shardInterval);
             validateBounds();
@@ -61,18 +66,18 @@ public class ShardLineage {
             return this.lowerBound.compareTo(shard.upperBound) < 0 && this.upperBound.compareTo(shard.lowerBound) > 0;
         }
 
-        private static ShardBound getLowerBound(String[] shardInterval) {
+        private static String getLowerBound(String[] shardInterval) {
             if (shardInterval.length < 1 || shardInterval[0].isEmpty()) {
-                return ShardBound.negativeInfinity();
+                return NEGATIVE_INFINITY;
             }
-            return new ShardBound(shardInterval[0]);
+            return shardInterval[0];
         }
 
-        private static ShardBound getUpperBound(String[] shardInterval) {
+        private static String getUpperBound(String[] shardInterval) {
             if (shardInterval.length != 2 || shardInterval[1].isEmpty()) {
-                return ShardBound.positiveInfinity();
+                return POSITIVE_INFINITY;
             }
-            return new ShardBound(shardInterval[1]);
+            return shardInterval[1];
         }
 
         private static String[] getShardInterval(String shard) {
@@ -82,46 +87,9 @@ public class ShardLineage {
         @Override
         public String toString() {
             return "Shard{" +
-                    "lowerBound=" + lowerBound.bound +
-                    ", upperBound=" + upperBound.bound +
+                    "lowerBound=" + lowerBound +
+                    ", upperBound=" + upperBound +
                     "}";
         }
-
-        private static class ShardBound implements Comparable<ShardBound> {
-            public static final String NEGATIVE_INFINITY = "NEG_INF";
-            public static final String POSITIVE_INFINITY = "POS_INF";
-            private final String bound;
-
-            ShardBound(String bound) {
-                this.bound = bound;
-            }
-
-            public static ShardBound negativeInfinity() {
-                return new ShardBound(NEGATIVE_INFINITY);
-            }
-
-            public static ShardBound positiveInfinity() {
-                return new ShardBound(POSITIVE_INFINITY);
-            }
-
-            @Override
-            public int compareTo(ShardBound o) {
-                if (this.bound.equals(NEGATIVE_INFINITY) || o.bound.equals(POSITIVE_INFINITY)) {
-                    return -1;
-                }
-                if (this.bound.equals(POSITIVE_INFINITY) || o.bound.equals(NEGATIVE_INFINITY)) {
-                    return 1;
-                }
-                return this.bound.compareTo(o.bound);
-            }
-
-            @Override
-            public String toString() {
-                return "Bound{" +
-                        "value=" + this.bound +
-                        "}";
-            }
-        }
     }
-
 }

@@ -47,6 +47,17 @@ public class ShardLineageTest {
     }
 
     @Test
+    public void shouldGetInheritedEpoch_MultiShard_SplitOneShard_UpperEqualsLowerBound() {
+        Long parentEpoch = 3L;
+        Long parentEpoch2 = 1L;
+        ShardEpochMap shardEpochMap = new ShardEpochMap(Map.of("-80", parentEpoch, "80-", parentEpoch2));
+        // The lower bound (80) is equal to a previous shard's upper bound (-80)
+        Long epoch2 = ShardLineage.getInheritedEpoch("80-c0", shardEpochMap);
+        // This is not a descendant so assert the epoch is from the actual parent (which is less than the other parent)
+        assertThat(epoch2).isEqualTo(parentEpoch2 + 1);
+    }
+
+    @Test
     public void shouldGetInheritedEpoch_TwoToFourShards() {
         Long parentEpoch = 1L;
         Long parentEpoch2 = 3L;

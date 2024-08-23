@@ -41,10 +41,10 @@ public class ShardLineage {
 
     private static class Shard {
 
-        // A string lexicographically less than all other strings
-        public static final String NEGATIVE_INFINITY = "";
-        // A string lexicographically greater than all other strings
-        public static final String POSITIVE_INFINITY = "\uFFFF";
+        // A string of a single char that is lexicographically less than all other chars
+        public static final String NEGATIVE_INFINITY = String.valueOf(Character.MIN_VALUE);
+        // A string of a single char that is lexicographically greater than all other chars
+        public static final String POSITIVE_INFINITY = String.valueOf(Character.MAX_VALUE);
 
         private final String lowerBound;
         private final String upperBound;

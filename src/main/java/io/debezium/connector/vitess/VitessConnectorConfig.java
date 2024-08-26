@@ -302,7 +302,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDescription("Control StopOnReshard VStream flag."
                     + " If set true, the old VStream will be stopped after a reshard operation.");
 
-    public static final Field INHERIT_EPOCH = Field.create(VITESS_CONFIG_GROUP_PREFIX + "inherit_epoch")
+    public static final Field INHERIT_EPOCH = Field.create(VITESS_CONFIG_GROUP_PREFIX + "inherit.epoch")
             .withDisplayName("Inherit epoch")
             .withType(Type.BOOLEAN)
             .withDefault(false)

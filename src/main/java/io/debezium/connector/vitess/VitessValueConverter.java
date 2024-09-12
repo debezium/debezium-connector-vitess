@@ -38,6 +38,7 @@ import io.vitess.proto.Query;
 public class VitessValueConverter extends JdbcValueConverters {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessValueConverter.class);
+    private static final Logger INVALID_VALUE_LOGGER = LoggerFactory.getLogger(VitessValueConverter.class.getName() + ".invalid_value");
     private static final BigDecimal BIGINT_MAX_VALUE = new BigDecimal("18446744073709551615");
     private static final BigDecimal BIGINT_CORRECTION = BIGINT_MAX_VALUE.add(BigDecimal.ONE);
 
@@ -361,7 +362,7 @@ public class VitessValueConverter extends JdbcValueConverters {
         final int day = Integer.parseInt(matcher.group(3));
 
         if (year == 0 || month == 0 || day == 0) {
-            LOGGER.warn("Invalid value '{}' stored in column converted to empty value", dateString);
+            INVALID_VALUE_LOGGER.warn("Invalid value '{}' stored in column converted to empty value", dateString);
             return null;
         }
         return LocalDate.of(year, month, day);

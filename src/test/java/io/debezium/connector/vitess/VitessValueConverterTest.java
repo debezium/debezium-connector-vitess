@@ -23,6 +23,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
+import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.Column;
 import io.debezium.relational.Table;
 import io.debezium.relational.ValueConverter;
@@ -255,5 +256,12 @@ public class VitessValueConverterTest {
                 Timestamp.valueOf(LocalDate.of(2000, 1, 1).atStartOfDay().withNano(12345 * 1000 * 10)));
         assertThat(VitessValueConverter.stringToTimestamp("2000-01-01 00:00:00.123456")).isEqualTo(
                 Timestamp.valueOf(LocalDate.of(2000, 1, 1).atStartOfDay().withNano(123456 * 1000)));
+    }
+
+    @Test
+    public void shouldConvertInvalidValueToLocalData() {
+        final LogInterceptor logInterceptor = new LogInterceptor(VitessValueConverter.class.getName() + ".invalid_value");
+        assertThat(VitessValueConverter.stringToLocalDate("0000-00-00")).isNull();
+        assertThat(logInterceptor.containsMessage("Invalid value")).isTrue();
     }
 }

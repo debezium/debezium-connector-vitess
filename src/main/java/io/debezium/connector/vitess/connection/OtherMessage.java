@@ -42,6 +42,11 @@ public class OtherMessage implements ReplicationMessage {
     }
 
     @Override
+    public String getStatement() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public String getShard() {
         throw new UnsupportedOperationException();
     }

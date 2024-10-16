@@ -80,6 +80,8 @@ public interface ReplicationMessage {
 
     List<Column> getNewTupleList();
 
+    String getStatement();
+
     default boolean isTransactionalMessage() {
         return getOperation() == Operation.BEGIN || getOperation() == Operation.COMMIT;
     }

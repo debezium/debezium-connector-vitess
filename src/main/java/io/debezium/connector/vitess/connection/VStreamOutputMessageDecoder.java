@@ -100,7 +100,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             this.transactionId = newVgtid.toString();
         }
         processor.process(
-                new DdlMessage(transactionId, eventTimestamp), newVgtid, false);
+                new DdlMessage(transactionId, eventTimestamp, vEvent.getStatement(), vEvent.getShard()), newVgtid, false);
     }
 
     private void handleOther(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)

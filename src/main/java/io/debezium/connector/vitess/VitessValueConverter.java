@@ -48,6 +48,16 @@ public class VitessValueConverter extends JdbcValueConverters {
     private static final Pattern DATE_FIELD_PATTERN = Pattern.compile("([0-9]*)-([0-9]*)-([0-9]*)");
     private static final Pattern TIME_FIELD_PATTERN = Pattern.compile("(\\-?[0-9]*):([0-9]*)(:([0-9]*))?(\\.([0-9]*))?");
 
+    public static VitessValueConverter getInstance(VitessConnectorConfig config) {
+        return new VitessValueConverter(
+                config.getDecimalMode(),
+                config.getTemporalPrecisionMode(),
+                ZoneOffset.UTC,
+                config.binaryHandlingMode(),
+                config.includeUnknownDatatypes(),
+                config.getBigIntUnsgnedHandlingMode());
+    }
+
     public VitessValueConverter(
                                 DecimalMode decimalMode,
                                 TemporalPrecisionMode temporalPrecisionMode,

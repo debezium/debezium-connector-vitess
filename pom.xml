@@ -217,6 +217,19 @@
             <artifactId>debezium-revapi</artifactId>
             <scope>provided</scope>
         </dependency>
+
+        <dependency>
+            <groupId>io.debezium</groupId>
+            <artifactId>debezium-connector-mysql</artifactId>
+            <version>${version.debezium}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.debezium</groupId>
+            <artifactId>debezium-connector-binlog</artifactId>
+            <version>${version.debezium}</version>
+        </dependency>
+
+
         <!-- Testing -->
         <dependency>
             <groupId>ch.qos.logback</groupId>

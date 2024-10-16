@@ -21,6 +21,7 @@ import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VgtidTest;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
+import io.debezium.connector.vitess.VitessTestCleanup;
 import io.debezium.doc.FixFor;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
@@ -31,11 +32,10 @@ import io.vitess.proto.Query;
 
 import binlogdata.Binlogdata;
 
-public class VStreamOutputMessageDecoderTest {
+public class VStreamOutputMessageDecoderTest extends VitessTestCleanup {
     private static final Logger LOGGER = LoggerFactory.getLogger(VStreamOutputMessageDecoderTest.class);
 
     private VitessConnectorConfig connectorConfig;
-    private VitessDatabaseSchema schema;
     private VStreamOutputMessageDecoder decoder;
 
     @Before

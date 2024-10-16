@@ -20,6 +20,16 @@ CREATE TABLE numeric_table
     PRIMARY KEY (id)
 );
 
+DROP TABLE IF EXISTS ddl_table;
+CREATE TABLE ddl_table
+(
+    id                              BIGINT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+    PARTITION p0 VALUES LESS THAN (1000)
+);
+
 DROP TABLE IF EXISTS string_table;
 CREATE TABLE string_table
 (

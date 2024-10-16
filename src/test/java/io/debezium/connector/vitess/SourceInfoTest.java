@@ -128,8 +128,8 @@ public class SourceInfoTest {
                 .field("ts_us", Schema.OPTIONAL_INT64_SCHEMA)
                 .field("ts_ns", Schema.OPTIONAL_INT64_SCHEMA)
                 .field("keyspace", Schema.STRING_SCHEMA)
-                .field("table", Schema.STRING_SCHEMA)
-                .field("shard", Schema.STRING_SCHEMA)
+                .field("table", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("shard", Schema.OPTIONAL_STRING_SCHEMA)
                 .field("vgtid", Schema.STRING_SCHEMA)
                 .build();
 

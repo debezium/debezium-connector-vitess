@@ -30,6 +30,7 @@ import io.debezium.config.EnumeratedValue;
 import io.debezium.config.Field;
 import io.debezium.config.Field.ValidationOutput;
 import io.debezium.connector.SourceInfoStructMaker;
+import io.debezium.connector.mysql.charset.MySqlCharsetRegistryServiceProvider;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionMetadataFactory;
@@ -39,15 +40,20 @@ import io.debezium.heartbeat.HeartbeatErrorHandler;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.relational.ColumnFilterMode;
+import io.debezium.relational.HistorizedRelationalDatabaseConnectorConfig;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.relational.TableId;
+import io.debezium.relational.Tables;
+import io.debezium.relational.history.HistoryRecordComparator;
 import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
+import io.debezium.util.Collect;
 
 /**
  * Vitess connector configuration, including its specific configurations and the common
  * configurations from Debezium.
  */
-public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
+public class VitessConnectorConfig extends HistorizedRelationalDatabaseConnectorConfig {
 
     public static final String CSV_DELIMITER = ",";
 
@@ -55,6 +61,30 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     private static final String VITESS_CONFIG_GROUP_PREFIX = "vitess.";
     private static final int DEFAULT_VTGATE_PORT = 15_991;
+    private static final int DEFAULT_VTGATE_JDBC_PORT = 15_306;
+
+    /**
+     * Set of all built-in database names that will generally be ignored by the connector.
+     */
+    protected static final Set<String> BUILT_IN_DB_NAMES = Collect.unmodifiableSet(
+            "mysql", "performance_schema", "sys", "information_schema");
+
+    @Override
+    public JdbcConfiguration getJdbcConfig() {
+        JdbcConfiguration jdbcConfiguration = super.getJdbcConfig();
+        JdbcConfiguration updatedConfig = JdbcConfiguration.adapt(jdbcConfiguration.edit()
+                .with(JdbcConfiguration.DATABASE, getKeyspace())
+                .with(JdbcConfiguration.PORT, getVtgateJdbcPort())
+                .build());
+        return updatedConfig;
+    }
+
+    @Override
+    protected HistoryRecordComparator getHistoryRecordComparator() {
+        return new HistoryRecordComparator() {
+
+        };
+    }
 
     /**
      * The set of predefined SnapshotMode options or aliases.
@@ -65,6 +95,8 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
          * Perform an initial snapshot when starting, if it does not detect a value in its offsets topic.
          */
         INITIAL("initial"),
+
+        NO_DATA("no_data"),
 
         /**
          * Never perform an initial snapshot and only receive new data changes.
@@ -202,6 +234,15 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withImportance(ConfigDef.Importance.HIGH)
             .withValidation(Field::isInteger)
             .withDescription("Port of the Vitess VTGate gRPC server.");
+
+    public static final Field VTGATE_JDBC_PORT = Field.create(DATABASE_CONFIG_PREFIX + "jdbc." + JdbcConfiguration.PORT)
+            .withDisplayName("Vitess JDBC database port")
+            .withType(Type.INT)
+            .withWidth(Width.SHORT)
+            .withDefault(DEFAULT_VTGATE_JDBC_PORT)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withValidation(Field::isInteger)
+            .withDescription("Port of the Vitess VTGate JDBC server.");
 
     public static final Field VTGATE_USER = Field.create(DATABASE_CONFIG_PREFIX + JdbcConfiguration.USER)
             .withDisplayName("User")
@@ -470,6 +511,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     GTID,
                     VTGATE_HOST,
                     VTGATE_PORT,
+                    VTGATE_JDBC_PORT,
                     VTGATE_USER,
                     VTGATE_PASSWORD,
                     TABLET_TYPE,
@@ -536,11 +578,16 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public VitessConnectorConfig(Configuration config) {
         super(
+                VitessConnector.class,
                 config,
-                null, x -> x.schema() + "." + x.table(),
+                Tables.TableFilter.fromPredicate(VitessConnectorConfig::isNotBuiltInTable),
+                x -> x.schema() + "." + x.table(),
+                true,
                 -1,
                 ColumnFilterMode.SCHEMA,
-                true);
+                false);
+
+        getServiceRegistry().registerServiceProvider(new MySqlCharsetRegistryServiceProvider());
     }
 
     @Override
@@ -649,6 +696,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return getConfig().getInteger(VTGATE_PORT);
     }
 
+    public int getVtgateJdbcPort() {
+        return getConfig().getInteger(VTGATE_JDBC_PORT);
+    }
+
     public String getVtgateUsername() {
         return getConfig().getString(VTGATE_USER);
     }
@@ -752,6 +803,29 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             return Heartbeat.DEFAULT_NOOP_HEARTBEAT;
         }
         return new VitessHeartbeatImpl(getHeartbeatInterval(), topicNamingStrategy.heartbeatTopic(), getLogicalName(), schemaNameAdjuster);
+    }
+
+    /**
+     * Checks whether the {@link TableId} refers to a built-in table.
+     *
+     * @param tableId the relational table identifier, should not be null
+     * @return true if the reference refers to a built-in table
+     */
+    public static boolean isNotBuiltInTable(TableId tableId) {
+        return !isBuiltInDatabase(tableId.catalog());
+    }
+
+    /**
+     * Check whether the specified database name is a built-in database.
+     *
+     * @param databaseName the database name to check
+     * @return true if the database is a built-in database; false otherwise
+     */
+    public static boolean isBuiltInDatabase(String databaseName) {
+        if (databaseName == null) {
+            return false;
+        }
+        return BUILT_IN_DB_NAMES.contains(databaseName.toLowerCase());
     }
 
     public BigIntUnsignedHandlingMode getBigIntUnsgnedHandlingMode() {

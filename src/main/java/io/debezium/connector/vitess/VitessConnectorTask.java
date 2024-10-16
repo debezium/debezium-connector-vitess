@@ -23,7 +23,11 @@ import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.connector.common.BaseSourceTask;
 import io.debezium.connector.vitess.connection.ReplicationConnection;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
+import io.debezium.connector.vitess.jdbc.VitessConnection;
 import io.debezium.connector.vitess.metrics.VitessChangeEventSourceMetricsFactory;
+import io.debezium.jdbc.DefaultMainConnectionProvidingConnectionFactory;
+import io.debezium.jdbc.JdbcConfiguration;
+import io.debezium.jdbc.MainConnectionProvidingConnectionFactory;
 import io.debezium.pipeline.ChangeEventSourceCoordinator;
 import io.debezium.pipeline.DataChangeEvent;
 import io.debezium.pipeline.ErrorHandler;
@@ -37,6 +41,7 @@ import io.debezium.schema.SchemaFactory;
 import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.service.spi.ServiceRegistry;
 import io.debezium.snapshot.SnapshotterService;
+import io.debezium.snapshot.SnapshotterServiceProvider;
 import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.util.Clock;
 import io.debezium.util.LoggingContext;
@@ -121,13 +126,18 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
             NotificationService<VitessPartition, VitessOffsetContext> notificationService = new NotificationService<>(getNotificationChannels(),
                     connectorConfig, SchemaFactory.get(), dispatcher::enqueueNotification);
 
+            JdbcConfiguration jdbcConfig = connectorConfig.getJdbcConfig();
+
+            MainConnectionProvidingConnectionFactory<VitessConnection> connectionFactory = new DefaultMainConnectionProvidingConnectionFactory<>(
+                    () -> new VitessConnection(jdbcConfig));
+
             ChangeEventSourceCoordinator<VitessPartition, VitessOffsetContext> coordinator = new ChangeEventSourceCoordinator<>(
                     previousOffsets,
                     errorHandler,
                     VitessConnector.class,
                     connectorConfig,
                     new VitessChangeEventSourceFactory(
-                            connectorConfig, errorHandler, dispatcher, clock, schema, replicationConnection, snapshotterService),
+                            connectorConfig, connectionFactory, errorHandler, dispatcher, clock, schema, replicationConnection, snapshotterService),
                     connectorConfig.offsetStoragePerTask() ? new VitessChangeEventSourceMetricsFactory() : new DefaultChangeEventSourceMetricsFactory<>(),
                     dispatcher,
                     schema,
@@ -225,6 +235,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
     @Override
     protected void registerServiceProviders(ServiceRegistry serviceRegistry) {
 
+        serviceRegistry.registerServiceProvider(new SnapshotterServiceProvider());
         serviceRegistry.registerServiceProvider(new PostProcessorRegistryServiceProvider());
     }
 }

@@ -32,7 +32,7 @@ import io.debezium.pipeline.ChangeEventSourceCoordinator;
 import io.debezium.util.Collect;
 import io.debezium.util.Testing;
 
-public class VitessConnectorTaskTest {
+public class VitessConnectorTaskTest extends VitessTestCleanup {
 
     private static final LogInterceptor logInterceptor = new LogInterceptor(BaseSourceTask.class);
     private static final LogInterceptor vitessLogInterceptor = new LogInterceptor(VitessConnectorTask.class);
@@ -45,7 +45,7 @@ public class VitessConnectorTaskTest {
                 .with(VitessConnectorConfig.VITESS_TOTAL_TASKS_CONFIG, 1)
                 .with(VitessConnectorConfig.VITESS_TASK_SHARDS_CONFIG, "0")
                 .build();
-        VitessConnectorTask task = new VitessConnectorTask();
+        task = new VitessConnectorTask();
         ContextHelper helper = new ContextHelper();
         task.initialize(helper.getSourceTaskContext());
         ChangeEventSourceCoordinator coordinator = task.start(config);
@@ -58,7 +58,7 @@ public class VitessConnectorTaskTest {
                 .with(VitessConnectorConfig.VITESS_TOTAL_TASKS_CONFIG, 1)
                 .with(VitessConnectorConfig.VITESS_TASK_SHARDS_CONFIG, "0")
                 .build();
-        VitessConnectorTask task = new VitessConnectorTask();
+        task = new VitessConnectorTask();
         ContextHelper helper = new ContextHelper();
         task.initialize(helper.getSourceTaskContext());
         ChangeEventSourceCoordinator coordinator = task.start(config);
@@ -71,7 +71,7 @@ public class VitessConnectorTaskTest {
                 .with(VitessConnectorConfig.VITESS_TOTAL_TASKS_CONFIG, 1)
                 .with(VitessConnectorConfig.VITESS_TASK_SHARDS_CONFIG, "0")
                 .build();
-        VitessConnectorTask task = new VitessConnectorTask();
+        task = new VitessConnectorTask();
         ContextHelper helper = new ContextHelper();
         helper.storeOffsets(VGTID_JSON, null);
         task.initialize(helper.getSourceTaskContext());
@@ -98,7 +98,7 @@ public class VitessConnectorTaskTest {
                 .with(VitessConnectorConfig.VITESS_TOTAL_TASKS_CONFIG, 1)
                 .with(VitessConnectorConfig.VITESS_TASK_SHARDS_CONFIG, "-80,80-")
                 .build();
-        VitessConnectorTask task = new VitessConnectorTask();
+        task = new VitessConnectorTask();
         ContextHelper helper = new ContextHelper();
         helper.storeOffsets(null, Map.of(taskKey, VGTID_JSON));
         task.initialize(helper.getSourceTaskContext());
@@ -128,7 +128,7 @@ public class VitessConnectorTaskTest {
                 .with(VitessConnectorConfig.VITESS_TASK_SHARDS_CONFIG, shards)
                 .with(VitessConnectorConfig.VITESS_TOTAL_TASKS_CONFIG, 2)
                 .build();
-        VitessConnectorTask task = new VitessConnectorTask();
+        task = new VitessConnectorTask();
         task.initialize(helper.getSourceTaskContext());
         task.start(config);
         String expectedMessage = "Using offsets from previous gen";
@@ -155,7 +155,7 @@ public class VitessConnectorTaskTest {
                 .with(VitessConnectorConfig.VITESS_TOTAL_TASKS_CONFIG, 1)
                 .with(VitessConnectorConfig.VGTID, VGTID_JSON)
                 .build();
-        VitessConnectorTask task = new VitessConnectorTask();
+        task = new VitessConnectorTask();
         ContextHelper helper = new ContextHelper();
         task.initialize(helper.getSourceTaskContext());
         task.start(config);

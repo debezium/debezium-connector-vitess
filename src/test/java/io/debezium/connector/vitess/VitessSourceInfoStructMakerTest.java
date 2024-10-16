@@ -41,9 +41,9 @@ public class VitessSourceInfoStructMakerTest {
         assertThat(structMaker.schema().field(SourceInfo.KEYSPACE_NAME_KEY).schema())
                 .isEqualTo(Schema.STRING_SCHEMA);
         assertThat(structMaker.schema().field(SourceInfo.SHARD_KEY).schema())
-                .isEqualTo(Schema.STRING_SCHEMA);
+                .isEqualTo(Schema.OPTIONAL_STRING_SCHEMA);
         assertThat(structMaker.schema().field(SourceInfo.TABLE_NAME_KEY).schema())
-                .isEqualTo(Schema.STRING_SCHEMA);
+                .isEqualTo(Schema.OPTIONAL_STRING_SCHEMA);
         assertThat(structMaker.schema().field(SourceInfo.VGTID_KEY).schema())
                 .isEqualTo(Schema.STRING_SCHEMA);
         assertThat(structMaker.schema()).isNotNull();

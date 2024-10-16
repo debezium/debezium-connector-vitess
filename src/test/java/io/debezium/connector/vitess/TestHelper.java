@@ -31,8 +31,10 @@ import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageColumn;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
+import io.debezium.embedded.EmbeddedEngineConfig;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
+import io.debezium.relational.history.MemorySchemaHistory;
 import io.vitess.proto.Query;
 import io.vitess.proto.Query.Field;
 
@@ -85,6 +87,17 @@ public class TestHelper {
 
     public static Configuration.Builder defaultConfig() {
         return defaultConfig(false, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER, TEST_SHARD, null, null);
+    }
+
+    public static String getKeyspaceTopicPrefix(boolean hasMultipleShards) {
+        String keyspace;
+        if (hasMultipleShards) {
+            keyspace = TEST_SHARDED_KEYSPACE;
+        }
+        else {
+            keyspace = TEST_UNSHARDED_KEYSPACE;
+        }
+        return String.join(".", TEST_SERVER, keyspace);
     }
 
     /**
@@ -148,7 +161,9 @@ public class TestHelper {
                 .with(VitessConnectorConfig.VTGATE_HOST, VTGATE_HOST)
                 .with(VitessConnectorConfig.VTGATE_PORT, VTGATE_PORT)
                 .with(VitessConnectorConfig.VTGATE_USER, USERNAME)
+                .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class)
                 .with(VitessConnectorConfig.VTGATE_PASSWORD, PASSWORD)
+                .with(EmbeddedEngineConfig.WAIT_FOR_COMPLETION_BEFORE_INTERRUPT_MS, 5000)
                 .with(VitessConnectorConfig.POLL_INTERVAL_MS, 100);
         if (!Strings.isNullOrEmpty(tableInclude)) {
             builder.with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude);

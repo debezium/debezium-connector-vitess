@@ -65,6 +65,11 @@ public class VStreamOutputReplicationMessage implements ReplicationMessage {
     }
 
     @Override
+    public String getStatement() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public List<Column> getOldTupleList() {
         return oldColumns;
     }

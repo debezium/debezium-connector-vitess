@@ -36,9 +36,8 @@ import io.vitess.proto.Query;
 
 import binlogdata.Binlogdata;
 
-public class VitessValueConverterTest {
+public class VitessValueConverterTest extends VitessTestCleanup {
 
-    private VitessDatabaseSchema schema;
     private VitessConnectorConfig config;
     private VitessValueConverter converter;
     private VStreamOutputMessageDecoder decoder;

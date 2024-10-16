@@ -16,6 +16,7 @@ import static io.debezium.connector.vitess.TestHelper.TEST_SHARDED_KEYSPACE;
 import static io.debezium.connector.vitess.TestHelper.TEST_SHARD_TO_EPOCH;
 import static io.debezium.connector.vitess.TestHelper.TEST_UNSHARDED_KEYSPACE;
 import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_TEMPLATE;
+import static io.debezium.connector.vitess.TestHelper.getKeyspaceTopicPrefix;
 import static junit.framework.TestCase.assertEquals;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertFalse;
@@ -73,6 +74,7 @@ import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
+import io.debezium.relational.history.MemorySchemaHistory;
 import io.debezium.util.Collect;
 import io.debezium.util.Testing;
 
@@ -178,6 +180,113 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         AbstractConnectorTest.SourceRecords records = consumeRecordsByTopic(expectedHeartbeatRecords, 1);
         assertThat(records.recordsForTopic(topic).size()).isEqualTo(expectedHeartbeatRecords);
+    }
+
+    @Test
+    @FixFor("DBZ-8325")
+    public void shouldSnapshotSchemaAndReceiveSchemaEventsSharded() throws Exception {
+        String keyspace = TEST_SHARDED_KEYSPACE;
+        String table = keyspace + ".ddl_table";
+        TestHelper.executeDDL("vitess_create_tables.ddl", keyspace);
+        startConnector(config -> config
+                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES.name(), true)
+                .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NO_DATA)
+                .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class),
+                true);
+        assertConnectorIsRunning();
+
+        String schemaChangeTopic = TestHelper.defaultConfig().build().getString(CommonConnectorConfig.TOPIC_PREFIX);
+
+        TestHelper.execute("ALTER TABLE ddl_table ADD COLUMN new_column_name INT;", TEST_SHARDED_KEYSPACE);
+        TestHelper.execute("ALTER TABLE ddl_table ADD PARTITION (PARTITION p2 VALUES LESS THAN (2000));", TEST_SHARDED_KEYSPACE);
+        TestHelper.execute("TRUNCATE TABLE ddl_table;", TEST_SHARDED_KEYSPACE);
+        TestHelper.execute("DROP TABLE ddl_table;", TEST_SHARDED_KEYSPACE);
+        TestHelper.execute("CREATE TABLE ddl_table (id BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id));", TEST_SHARDED_KEYSPACE);
+
+        // 1 for the snapshot (create table ddls)
+        // 5 for the changes above
+        // 2 shards, so (5 + 1) * 2 = 12
+        int expectedSchemaChangeRecords = 12;
+        consumer = testConsumer(expectedSchemaChangeRecords);
+        consumer.expects(expectedSchemaChangeRecords);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 0; i < expectedSchemaChangeRecords; i++) {
+            SourceRecord record = consumer.remove();
+            assertThat(record.topic()).isEqualTo(schemaChangeTopic);
+        }
+        assertThat(consumer.isEmpty());
+    }
+
+    @Test
+    @FixFor("DBZ-8325")
+    public void shouldReceiveSnapshotAndSchemaChangeEvents() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(config -> config
+                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES.name(), true)
+                .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, "test_unsharded_keyspace.ddl_table")
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NO_DATA)
+                .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class),
+                false);
+        assertConnectorIsRunning();
+
+        String schemaChangeTopic = TestHelper.defaultConfig().build().getString(CommonConnectorConfig.TOPIC_PREFIX);
+
+        TestHelper.execute("ALTER TABLE ddl_table ADD COLUMN new_column_name INT;");
+        TestHelper.execute("ALTER TABLE ddl_table ADD PARTITION (PARTITION p2 VALUES LESS THAN (2000));");
+        TestHelper.execute("TRUNCATE TABLE ddl_table;");
+        TestHelper.execute("DROP TABLE ddl_table;");
+        TestHelper.execute("CREATE TABLE ddl_table (id BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id));");
+
+        // 1 is the snapshot
+        // 5 are the changes above
+        int expectedSchemaChangeRecords = 6;
+        consumer = testConsumer(expectedSchemaChangeRecords);
+        consumer.expects(expectedSchemaChangeRecords);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 0; i < expectedSchemaChangeRecords; i++) {
+            SourceRecord record = consumer.remove();
+            assertThat(record.topic()).isEqualTo(schemaChangeTopic);
+        }
+        assertThat(consumer.isEmpty());
+    }
+
+    @Test
+    @FixFor("DBZ-8325")
+    public void shouldReceiveSchemaChangeEventAfterDataChangeEvent() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        // startConnector();
+        startConnector(config -> config
+                .with(RelationalDatabaseConnectorConfig.INCLUDE_SCHEMA_CHANGES.name(), true)
+                .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class),
+                false);
+        assertConnectorIsRunning();
+
+        String schemaChangeTopic = TestHelper.defaultConfig().build().getString(CommonConnectorConfig.TOPIC_PREFIX);
+        String dataChangeTopic = String.join(".",
+                TestHelper.defaultConfig().build().getString(CommonConnectorConfig.TOPIC_PREFIX),
+                TEST_UNSHARDED_KEYSPACE,
+                "ddl_table");
+
+        TestHelper.execute("INSERT INTO ddl_table (id) VALUES (1);");
+        TestHelper.execute("ALTER TABLE ddl_table ADD COLUMN new_column_name INT;");
+
+        int expectedDataChangeRecords = 1;
+        int expectedSchemaChangeRecords = 1;
+        int expectedTotalRecords = expectedDataChangeRecords + expectedSchemaChangeRecords;
+        consumer = testConsumer(expectedTotalRecords);
+        consumer.expects(expectedTotalRecords);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 0; i < expectedTotalRecords; i++) {
+            SourceRecord record = consumer.remove();
+            if (i == 1) {
+                assertThat(record.topic()).isEqualTo(schemaChangeTopic);
+            }
+            else {
+                assertThat(record.topic()).isEqualTo(dataChangeTopic);
+            }
+        }
+        assertThat(consumer.isEmpty());
     }
 
     @Test
@@ -402,7 +511,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         // insert 1 row to get the initial vgtid
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount);
+        consumer = testConsumer(expectedRecordsCount, getKeyspaceTopicPrefix(false));
         SourceRecord sourceRecord = assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
 
         // apply DDL
@@ -430,7 +539,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         startConnector();
         assertConnectorIsRunning();
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount);
+        consumer = testConsumer(expectedRecordsCount, getKeyspaceTopicPrefix(false));
         assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
         // Add a column using online ddl and wait until it is finished
         String ddlId = TestHelper.applyOnlineDdl("ALTER TABLE numeric_table ADD COLUMN foo INT", TEST_UNSHARDED_KEYSPACE);
@@ -686,7 +795,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         Vgtid baseVgtid = TestHelper.getCurrentVgtid();
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount + 2);
+        consumer = testConsumer(expectedRecordsCount + 2, getKeyspaceTopicPrefix(true), TEST_SERVER + ".transaction");
 
         String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
         String insertQuery = "INSERT INTO numeric_table ("
@@ -1223,7 +1332,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertConnectorIsRunning();
 
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount);
+        consumer = testConsumer(expectedRecordsCount, getKeyspaceTopicPrefix(hasMultipleShards));
         assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TEST_SHARDED_KEYSPACE, TestHelper.PK_FIELD, hasMultipleShards);
     }
 
@@ -1616,7 +1725,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         // We should receive a record written before starting the connector.
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount);
+        consumer = testConsumer(expectedRecordsCount, TestHelper.getKeyspaceTopicPrefix(false));
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
         SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
         assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, "numeric_table");
@@ -1646,7 +1755,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         }
 
         // We should receive a record written before starting the connector.
-        consumer = testConsumer(totalRecordsCount);
+        consumer = testConsumer(totalRecordsCount, getKeyspaceTopicPrefix(false));
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
         for (int i = 1; i <= totalRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_ENUM_TYPE_STMT), TestHelper.PK_FIELD);
@@ -1691,7 +1800,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         }
 
         // We should receive a record written before starting the connector.
-        consumer = testConsumer(totalRecordsCount);
+        consumer = testConsumer(totalRecordsCount, getKeyspaceTopicPrefix(false));
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
         for (int i = 1; i <= totalRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_ENUM_AMBIGUOUS_TYPE_STMT), TestHelper.PK_FIELD);
@@ -1730,7 +1839,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 -1, -1, tableInclude, VitessConnectorConfig.SnapshotMode.INITIAL, TestHelper.TEST_SHARD);
 
         // We should receive a record written before starting the connector.
-        consumer = testConsumer(expectedSnapshotRecordsCount);
+        consumer = testConsumer(expectedSnapshotRecordsCount, getKeyspaceTopicPrefix(false));
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
         for (int i = 1; i <= expectedSnapshotRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
@@ -1790,17 +1899,18 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         startConnector(Function.identity(), false, false, 1,
                 -1, -1, tableInclude, VitessConnectorConfig.SnapshotMode.INITIAL, TestHelper.TEST_SHARD);
 
-        consumer = testConsumer(1, tableInclude);
+        String tableTopicPrefix = TEST_SERVER + "." + tableInclude;
+        consumer = testConsumer(1, tableTopicPrefix);
         consumer.await(TestHelper.waitTimeForRecords(), 0, TimeUnit.SECONDS);
         stopConnector();
         // Upper bound is the total size of the table so set that to prevent early termination
-        consumer = testConsumer(expectedSnapshotRecordsCount, tableInclude);
+        consumer = testConsumer(expectedSnapshotRecordsCount, tableTopicPrefix);
         int recordCount = consumer.countRecords(5, TimeUnit.SECONDS);
         // Assert snapshot is partially complete
         assertThat(recordCount).isPositive();
         assertThat(recordCount < expectedSnapshotRecordsCount).isTrue();
         // Assert the total snapshot records are sent after starting
-        consumer = testConsumer(expectedSnapshotRecordsCount, tableInclude);
+        consumer = testConsumer(expectedSnapshotRecordsCount, tableTopicPrefix);
         startConnector();
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
 
@@ -1855,7 +1965,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         startConnector(Function.identity(), false, false, 1, -1, -1, tableInclude, null, null);
 
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount);
+        consumer = testConsumer(expectedRecordsCount, getKeyspaceTopicPrefix(false));
 
         // We should receive record from numeric_table
         assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
@@ -1873,7 +1983,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         // We should receive a record written before starting the connector.
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount);
+        consumer = testConsumer(expectedRecordsCount, getKeyspaceTopicPrefix(hasMultipleShards));
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
         SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT, TEST_SHARDED_KEYSPACE), TestHelper.PK_FIELD);
         assertSourceInfo(record, TEST_SERVER, TEST_SHARDED_KEYSPACE, "numeric_table");
@@ -1896,7 +2006,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         // We should receive a record written before starting the connector.
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount);
+        consumer = testConsumer(expectedRecordsCount, getKeyspaceTopicPrefix(false));
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
         SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
         assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, "numeric_table");
@@ -1920,7 +2030,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         // We should receive a record written before starting the connector.
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount);
+        consumer = testConsumer(expectedRecordsCount, getKeyspaceTopicPrefix(false));
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
         SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
         assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, "numeric_table");
@@ -2149,6 +2259,16 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertFalse("records not generated", consumer.isEmpty());
         SourceRecord insertedRecord = consumer.remove();
         return assertRecordInserted(insertedRecord, expectedTopicName, pkField, pkValue);
+    }
+
+    private SourceRecord assertRecordDDL() {
+        assertFalse("records not generated", consumer.isEmpty());
+        SourceRecord ddlRecord = consumer.remove();
+        return assertRecordDDL(ddlRecord);
+    }
+
+    private SourceRecord assertRecordDDL(SourceRecord ddlRecord) {
+        return null;
     }
 
     private SourceRecord assertRecordUpdated() {

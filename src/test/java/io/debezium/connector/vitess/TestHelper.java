@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.Types;
@@ -35,6 +36,7 @@ import io.debezium.embedded.EmbeddedEngineConfig;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
 import io.debezium.relational.history.MemorySchemaHistory;
+import io.debezium.util.Testing;
 import io.vitess.proto.Query;
 import io.vitess.proto.Query.Field;
 
@@ -52,6 +54,8 @@ public class TestHelper {
     public static final Long TEST_SHARD1_EPOCH = 2L;
     public static final Long TEST_SHARD2_EPOCH = 3L;
     public static final ShardEpochMap TEST_SHARD_TO_EPOCH = new ShardEpochMap(Map.of(TEST_SHARD1, TEST_SHARD1_EPOCH, TEST_SHARD2, TEST_SHARD2_EPOCH));
+
+    public static final Path SCHEMA_HISTORY_PATH = Testing.Files.createTestingPath("file-schema-history-connect.txt").toAbsolutePath();
 
     public static final String TEST_GTID = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-1513";
     public static final String TEST_TABLE = "test_table";

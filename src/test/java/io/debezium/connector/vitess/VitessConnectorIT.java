@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.vitess;
 
+import static io.debezium.connector.vitess.TestHelper.SCHEMA_HISTORY_PATH;
 import static io.debezium.connector.vitess.TestHelper.TEST_EMPTY_SHARD_KEYSPACE;
 import static io.debezium.connector.vitess.TestHelper.TEST_NON_EMPTY_SHARD;
 import static io.debezium.connector.vitess.TestHelper.TEST_SERVER;
@@ -75,6 +76,7 @@ import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
 import io.debezium.relational.history.MemorySchemaHistory;
+import io.debezium.storage.file.history.FileSchemaHistory;
 import io.debezium.util.Collect;
 import io.debezium.util.Testing;
 
@@ -88,12 +90,18 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @Before
     public void before() {
         Testing.Print.enable();
+        Files.delete(SCHEMA_HISTORY_PATH);
     }
 
     @After
     public void after() {
-        stopConnector();
-        assertConnectorNotRunning();
+        try {
+            stopConnector();
+            assertConnectorNotRunning();
+        }
+        finally {
+            Files.delete(SCHEMA_HISTORY_PATH);
+        }
     }
 
     @Test
@@ -184,12 +192,64 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
     @Test
     @FixFor("DBZ-8325")
+    public void shouldOnlySnapshotSchemaOnce() throws Exception {
+        String keyspace = TEST_SHARDED_KEYSPACE;
+        String table = keyspace + ".ddl_table";
+        TestHelper.executeDDL("vitess_create_tables.ddl", keyspace);
+        TestHelper.applyVSchema("vitess_vschema.json");
+
+        startConnector(config -> config
+                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
+                .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NO_DATA)
+                .with(FileSchemaHistory.FILE_PATH, SCHEMA_HISTORY_PATH)
+                .with(VitessConnectorConfig.SCHEMA_HISTORY, FileSchemaHistory.class), true);
+        assertConnectorIsRunning();
+
+        String schemaChangeTopic = TestHelper.defaultConfig().build().getString(CommonConnectorConfig.TOPIC_PREFIX);
+
+        int expectedSchemaChangeRecords = 2;
+        consumer = testConsumer(expectedSchemaChangeRecords);
+        consumer.expects(expectedSchemaChangeRecords);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 0; i < expectedSchemaChangeRecords; i++) {
+            SourceRecord record = consumer.remove();
+            assertThat(record.topic()).isEqualTo(schemaChangeTopic);
+        }
+        assertThat(consumer.isEmpty());
+
+        stopConnector();
+
+        startConnector(config -> config
+                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
+                .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NEVER)
+                .with(FileSchemaHistory.FILE_PATH, SCHEMA_HISTORY_PATH)
+                .with(VitessConnectorConfig.SCHEMA_HISTORY, FileSchemaHistory.class), true);
+
+        // After startup, we need to make sure we recover the schema history (ie with snapshot disabled)
+        // so that we can properly parse & emit a schema change event for this alter table statement.
+        TestHelper.execute("ALTER TABLE ddl_table ADD COLUMN new_column_name INT;", TEST_SHARDED_KEYSPACE);
+        int expectedTotalRecords = 2;
+        consumer = testConsumer(expectedTotalRecords);
+        consumer.expects(expectedTotalRecords);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 0; i < expectedTotalRecords; i++) {
+            SourceRecord record = consumer.remove();
+            assertThat(record.topic()).isEqualTo(schemaChangeTopic);
+        }
+        assertThat(consumer.isEmpty());
+    }
+
+    @Test
+    @FixFor("DBZ-8325")
     public void shouldSnapshotSchemaAndReceiveSchemaEventsSharded() throws Exception {
         String keyspace = TEST_SHARDED_KEYSPACE;
         String table = keyspace + ".ddl_table";
         TestHelper.executeDDL("vitess_create_tables.ddl", keyspace);
+        TestHelper.applyVSchema("vitess_vschema.json");
         startConnector(config -> config
-                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES.name(), true)
+                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
                 .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
                 .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NO_DATA)
                 .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class),
@@ -200,14 +260,15 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         TestHelper.execute("ALTER TABLE ddl_table ADD COLUMN new_column_name INT;", TEST_SHARDED_KEYSPACE);
         TestHelper.execute("ALTER TABLE ddl_table ADD PARTITION (PARTITION p2 VALUES LESS THAN (2000));", TEST_SHARDED_KEYSPACE);
+        TestHelper.execute("ALTER TABLE ddl_table DROP PARTITION p0;", TEST_SHARDED_KEYSPACE);
         TestHelper.execute("TRUNCATE TABLE ddl_table;", TEST_SHARDED_KEYSPACE);
         TestHelper.execute("DROP TABLE ddl_table;", TEST_SHARDED_KEYSPACE);
         TestHelper.execute("CREATE TABLE ddl_table (id BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id));", TEST_SHARDED_KEYSPACE);
 
         // 1 for the snapshot (create table ddls)
-        // 5 for the changes above
-        // 2 shards, so (5 + 1) * 2 = 12
-        int expectedSchemaChangeRecords = 12;
+        // 6 for the changes above
+        // 2 shards, so (6 + 1) * 2 = 14
+        int expectedSchemaChangeRecords = 14;
         consumer = testConsumer(expectedSchemaChangeRecords);
         consumer.expects(expectedSchemaChangeRecords);
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
@@ -223,7 +284,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     public void shouldReceiveSnapshotAndSchemaChangeEvents() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         startConnector(config -> config
-                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES.name(), true)
+                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
                 .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, "test_unsharded_keyspace.ddl_table")
                 .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NO_DATA)
                 .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class),
@@ -257,7 +318,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         // startConnector();
         startConnector(config -> config
-                .with(RelationalDatabaseConnectorConfig.INCLUDE_SCHEMA_CHANGES.name(), true)
+                .with(RelationalDatabaseConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
                 .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class),
                 false);
         assertConnectorIsRunning();

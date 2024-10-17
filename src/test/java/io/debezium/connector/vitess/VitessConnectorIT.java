@@ -795,7 +795,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         Vgtid baseVgtid = TestHelper.getCurrentVgtid();
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount + 2, getKeyspaceTopicPrefix(true), TEST_SERVER + ".transaction");
+        consumer = testConsumer(expectedRecordsCount + 2);
 
         String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
         String insertQuery = "INSERT INTO numeric_table ("
@@ -1328,11 +1328,11 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
         TestHelper.applyVSchema("vitess_vschema.json");
-        startConnector(Function.identity(), hasMultipleShards, true, 2, 0, 1, null, null, null);
+        startConnector(Function.identity(), hasMultipleShards, true, 2, 0, 1, null, VitessConnectorConfig.SnapshotMode.NEVER, null);
         assertConnectorIsRunning();
 
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount, getKeyspaceTopicPrefix(hasMultipleShards));
+        consumer = testConsumer(expectedRecordsCount);
         assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TEST_SHARDED_KEYSPACE, TestHelper.PK_FIELD, hasMultipleShards);
     }
 
@@ -2259,16 +2259,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertFalse("records not generated", consumer.isEmpty());
         SourceRecord insertedRecord = consumer.remove();
         return assertRecordInserted(insertedRecord, expectedTopicName, pkField, pkValue);
-    }
-
-    private SourceRecord assertRecordDDL() {
-        assertFalse("records not generated", consumer.isEmpty());
-        SourceRecord ddlRecord = consumer.remove();
-        return assertRecordDDL(ddlRecord);
-    }
-
-    private SourceRecord assertRecordDDL(SourceRecord ddlRecord) {
-        return null;
     }
 
     private SourceRecord assertRecordUpdated() {

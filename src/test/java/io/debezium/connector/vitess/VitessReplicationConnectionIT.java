@@ -42,7 +42,7 @@ import io.debezium.spi.topic.TopicNamingStrategy;
 import binlogdata.Binlogdata;
 import ch.qos.logback.classic.Level;
 
-public class VitessReplicationConnectionIT {
+public class VitessReplicationConnectionIT extends VitessTestCleanup {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessReplicationConnectionIT.class);
 
     protected long pollTimeoutInMs = SECONDS.toMillis(5);
@@ -62,11 +62,11 @@ public class VitessReplicationConnectionIT {
                 TestHelper.defaultConfig(false, false, 1, -1, -1,
                         null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,
                         "1", "skip").build());
-        final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
+        schema = new VitessDatabaseSchema(
                 conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
 
         AtomicReference<Throwable> error = new AtomicReference<>();
-        VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema);
+        VitessReplicationConnection connection = new VitessReplicationConnection(conf, schema);
         Vgtid startingVgtid = Vgtid.of(
                 Binlogdata.VGtid.newBuilder()
                         .addShardGtids(
@@ -106,11 +106,11 @@ public class VitessReplicationConnectionIT {
                 TestHelper.defaultConfig(false, false, 1, -1, -1,
                         null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,
                         "1", "warn").build());
-        final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
+        schema = new VitessDatabaseSchema(
                 conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
 
         AtomicReference<Throwable> error = new AtomicReference<>();
-        VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema);
+        VitessReplicationConnection connection = new VitessReplicationConnection(conf, schema);
         Vgtid startingVgtid = Vgtid.of(
                 Binlogdata.VGtid.newBuilder()
                         .addShardGtids(
@@ -149,11 +149,11 @@ public class VitessReplicationConnectionIT {
                 TestHelper.defaultConfig(false, false, 1, -1, -1,
                         null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,
                         "1", "fail").build());
-        final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
+        schema = new VitessDatabaseSchema(
                 conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
 
         AtomicReference<Throwable> error = new AtomicReference<>();
-        VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema);
+        VitessReplicationConnection connection = new VitessReplicationConnection(conf, schema);
         Vgtid startingVgtid = Vgtid.of(
                 Binlogdata.VGtid.newBuilder()
                         .addShardGtids(
@@ -193,11 +193,11 @@ public class VitessReplicationConnectionIT {
                         null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,
                         "1", null).build());
         conf.getEventProcessingFailureHandlingMode();
-        final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
+        schema = new VitessDatabaseSchema(
                 conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
 
         AtomicReference<Throwable> error = new AtomicReference<>();
-        VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema);
+        VitessReplicationConnection connection = new VitessReplicationConnection(conf, schema);
         Vgtid startingVgtid = Vgtid.of(
                 Binlogdata.VGtid.newBuilder()
                         .addShardGtids(
@@ -233,11 +233,11 @@ public class VitessReplicationConnectionIT {
     public void shouldHaveVgtidInResponse() throws Exception {
         // setup fixture
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());
-        final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
+        schema = new VitessDatabaseSchema(
                 conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
 
         AtomicReference<Throwable> error = new AtomicReference<>();
-        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
+        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, schema)) {
             Vgtid startingVgtid = Vgtid.of(
                     Binlogdata.VGtid.newBuilder()
                             .addShardGtids(
@@ -300,11 +300,11 @@ public class VitessReplicationConnectionIT {
         // setup fixture
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().with(
                 Heartbeat.HEARTBEAT_INTERVAL, 1000).build());
-        final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
+        schema = new VitessDatabaseSchema(
                 conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
 
         AtomicReference<Throwable> error = new AtomicReference<>();
-        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
+        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, schema)) {
             Vgtid startingVgtid = Vgtid.of(
                     Binlogdata.VGtid.newBuilder()
                             .addShardGtids(
@@ -362,11 +362,11 @@ public class VitessReplicationConnectionIT {
     public void shouldSendCommitTimestamp() throws Exception {
         // setup fixture
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());
-        final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
+        schema = new VitessDatabaseSchema(
                 conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
 
         AtomicReference<Throwable> error = new AtomicReference<>();
-        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
+        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, schema)) {
             Vgtid startingVgtid = Vgtid.of(
                     Binlogdata.VGtid.newBuilder()
                             .addShardGtids(
@@ -472,11 +472,11 @@ public class VitessReplicationConnectionIT {
 
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig()
                 .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude).build());
-        final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
+        schema = new VitessDatabaseSchema(
                 conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
 
         AtomicReference<Throwable> error = new AtomicReference<>();
-        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
+        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, schema)) {
             Vgtid startingVgtid = Vgtid.of(
                     Binlogdata.VGtid.newBuilder()
                             .addShardGtids(
@@ -548,10 +548,10 @@ public class VitessReplicationConnectionIT {
     @FixFor("DBZ-4353")
     public void shouldReturnUpdatedSchemaWithOnlineDdl() throws Exception {
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());
-        final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
+        schema = new VitessDatabaseSchema(
                 conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
         AtomicReference<Throwable> error = new AtomicReference<>();
-        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
+        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, schema)) {
             Vgtid startingVgtid = Vgtid.of(
                     Binlogdata.VGtid.newBuilder()
                             .addShardGtids(
@@ -631,11 +631,11 @@ public class VitessReplicationConnectionIT {
 
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig()
                 .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude).build());
-        final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
+        schema = new VitessDatabaseSchema(
                 conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf));
 
         AtomicReference<Throwable> error = new AtomicReference<>();
-        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
+        try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, schema)) {
             Vgtid startingVgtid = Vgtid.of(
                     Binlogdata.VGtid.newBuilder()
                             .addShardGtids(

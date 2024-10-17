@@ -193,7 +193,7 @@ public class VitessMetadata {
     }
 
     @VisibleForTesting
-    public static List<String> flattenAndConcat(List<List<String>> nestedList) {
+    protected static List<String> flattenAndConcat(List<List<String>> nestedList) {
         return nestedList.stream()
                 .map(innerList -> String.join("", innerList))
                 .collect(Collectors.toList());

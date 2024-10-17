@@ -6,6 +6,7 @@
 package io.debezium.connector.vitess;
 
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +15,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.connector.vitess.connection.DdlMessage;
 import io.debezium.connector.vitess.jdbc.VitessConnection;
 import io.debezium.jdbc.MainConnectionProvidingConnectionFactory;
 import io.debezium.pipeline.EventDispatcher;
@@ -103,8 +105,10 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
                 if (rs.next()) {
                     String ddlStatement = rs.getString(2);
                     for (String shard : shards) {
+                        snapshotContext.offset.setShard(shard);
+                        DdlMessage ddlMessage = new DdlMessage("", Instant.now(), ddlStatement, shard);
                         List<SchemaChangeEvent> schemaChangeEvents = schema.parseDdl(
-                                snapshotContext.partition, snapshotContext.offset, ddlStatement, connectorConfig.getKeyspace(), shard);
+                                snapshotContext.partition, snapshotContext.offset, ddlMessage, connectorConfig.getKeyspace());
                         for (SchemaChangeEvent schemaChangeEvent : schemaChangeEvents) {
                             LOGGER.info("Adding schema change event {}", schemaChangeEvent);
                             Table table = schema.tableFor(tableId);
@@ -137,7 +141,6 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
 
     @Override
     protected void releaseSchemaSnapshotLocks(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext) {
-        LOGGER.info("release schema locks");
     }
 
     @Override
@@ -152,19 +155,16 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
 
     @Override
     protected Optional<String> getSnapshotSelect(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext, TableId tableId, List<String> columns) {
-        LOGGER.info("get snapshot select");
         return Optional.empty();
     }
 
     @Override
     protected SnapshotContext<VitessPartition, VitessOffsetContext> prepare(VitessPartition partition, boolean onDemand) {
-        LOGGER.info("snapshot context");
         return new RelationalSnapshotContext<>(partition, connectorConfig.getKeyspace(), onDemand);
     }
 
     @Override
     protected VitessOffsetContext copyOffset(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext) {
-        LOGGER.info("copy offset");
         return null;
     }
 

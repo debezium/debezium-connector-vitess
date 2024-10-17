@@ -77,21 +77,6 @@ public class VitessReplicationConnection implements ReplicationConnection {
         return newBlockingStub(channel).execute(request);
     }
 
-    public Vtgate.ExecuteResponse executeInKeyspace(String sqlStatement) {
-        LOGGER.info("Executing sqlStament {}", sqlStatement);
-        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize());
-        managedChannel.compareAndSet(null, channel);
-
-        String target = String.format("%s", config.getKeyspace());
-        Vtgate.Session session = Vtgate.Session.newBuilder().setTargetString(target).setAutocommit(true).build();
-        LOGGER.debug("Autocommit {}", session.getAutocommit());
-        Vtgate.ExecuteRequest request = Vtgate.ExecuteRequest.newBuilder()
-                .setQuery(Proto.bindQuery(sqlStatement, Collections.emptyMap()))
-                .setSession(session)
-                .build();
-        return newBlockingStub(channel).execute(request);
-    }
-
     public Vtgate.ExecuteResponse execute(String sqlStatement, String shard) {
         LOGGER.info("Executing sqlStament {}", sqlStatement);
         ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize());

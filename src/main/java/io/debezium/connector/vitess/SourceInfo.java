@@ -114,8 +114,4 @@ public class SourceInfo extends BaseSourceInfo {
                 + restartVgtid
                 + '}';
     }
-
-    public String table() {
-        return tableId == null ? null : tableId.table();
-    }
 }

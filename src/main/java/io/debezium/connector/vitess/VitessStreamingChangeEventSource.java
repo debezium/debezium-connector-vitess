@@ -121,8 +121,8 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
 
                 DdlMessage ddlMessage = (DdlMessage) message;
                 List<SchemaChangeEvent> schemaChangeEvents = schema.parseDdl(
-                        partition, offsetContext, ddlMessage.getStatement(),
-                        connectorConfig.getKeyspace(), ddlMessage.getShard());
+                        partition, offsetContext, ddlMessage,
+                        connectorConfig.getKeyspace());
                 for (SchemaChangeEvent schemaChangeEvent : schemaChangeEvents) {
                     final TableId tableId = schemaChangeEvent.getTables().isEmpty() ? null : schemaChangeEvent.getTables().iterator().next().id();
                     dispatcher.dispatchSchemaChangeEvent(partition, offsetContext, tableId, (receiver) -> {

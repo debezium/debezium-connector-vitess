@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.vitess;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import io.debezium.connector.binlog.charset.BinlogCharsetRegistry;
 import io.debezium.connector.mysql.antlr.MySqlAntlrDdlParser;
+import io.debezium.connector.vitess.connection.DdlMessage;
 import io.debezium.connector.vitess.jdbc.VitessBinlogValueConverter;
 import io.debezium.connector.vitess.jdbc.VitessDefaultValueConverter;
 import io.debezium.relational.HistorizedRelationalDatabaseSchema;
@@ -118,9 +120,11 @@ public class VitessDatabaseSchema extends HistorizedRelationalDatabaseSchema {
         return String.format("%s.%s", shard, database);
     }
 
-    public List<SchemaChangeEvent> parseDdl(VitessPartition partition, VitessOffsetContext offset, String ddlStatement,
-                                            String databaseName, String shard) {
+    public List<SchemaChangeEvent> parseDdl(VitessPartition partition, VitessOffsetContext offset, DdlMessage ddlMessage, String databaseName) {
         final List<SchemaChangeEvent> schemaChangeEvents = new ArrayList<>(1);
+        String ddlStatement = ddlMessage.getStatement();
+        String shard = ddlMessage.getShard();
+        Instant timestsamp = ddlMessage.getCommitTime();
         DdlChanges ddlChanges = ddlParser.getDdlChanges();
         ddlChanges.reset();
         ddlParser.setCurrentDatabase(getDatabaseWithShard(shard, databaseName));
@@ -129,6 +133,7 @@ public class VitessDatabaseSchema extends HistorizedRelationalDatabaseSchema {
             ddlChanges.getEventsByDatabase((String dbName, List<DdlParserListener.Event> events) -> {
                 events.forEach(event -> {
                     final TableId tableId = getTableId(event);
+                    offset.event(tableId, timestsamp);
                     SchemaChangeEvent.SchemaChangeEventType type = switch (event.type()) {
                         case CREATE_TABLE -> SchemaChangeEvent.SchemaChangeEventType.CREATE;
                         case DROP_TABLE -> SchemaChangeEvent.SchemaChangeEventType.DROP;

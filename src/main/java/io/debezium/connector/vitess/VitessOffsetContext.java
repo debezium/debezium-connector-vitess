@@ -114,7 +114,7 @@ public class VitessOffsetContext extends CommonOffsetContext<SourceInfo> {
     }
 
     @Override
-    public void preSnapshotStart() {
+    public void preSnapshotStart(boolean onDemand) {
     }
 
     @Override

@@ -76,6 +76,30 @@ public class VitessConnectorConfigTest {
     }
 
     @Test
+    public void shouldImproperOverrideSchemaTopicPrefixFailValidation() {
+        Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC, "hello@world").build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC), printConsumer);
+        assertThat(inputs.size()).isEqualTo(1);
+    }
+
+    @Test
+    public void shouldBlankOverrideSchemaTopicPrefixFailValidation() {
+        Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC, "").build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC), printConsumer);
+        assertThat(inputs.size()).isEqualTo(1);
+    }
+
+    @Test
     public void shouldExcludeEmptyShards() {
         Configuration configuration = TestHelper.defaultConfig().with(
                 VitessConnectorConfig.EXCLUDE_EMPTY_SHARDS, true).build();

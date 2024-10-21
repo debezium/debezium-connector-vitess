@@ -22,11 +22,13 @@ import io.debezium.util.Strings;
 public class TableTopicNamingStrategy extends AbstractTopicNamingStrategy<TableId> {
 
     private final String overrideDataChangeTopicPrefix;
+    private final String overrideSchemaChangeTopicName;
 
     public TableTopicNamingStrategy(Properties props) {
         super(props);
         Configuration config = Configuration.from(props);
         this.overrideDataChangeTopicPrefix = config.getString(VitessConnectorConfig.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX);
+        this.overrideSchemaChangeTopicName = config.getString(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC);
     }
 
     public static TableTopicNamingStrategy create(CommonConnectorConfig config) {
@@ -43,5 +45,16 @@ public class TableTopicNamingStrategy extends AbstractTopicNamingStrategy<TableI
             topicName = mkString(Collect.arrayListOf(prefix, id.table()), delimiter);
         }
         return topicNames.computeIfAbsent(id, t -> sanitizedTopicName(topicName));
+    }
+
+    @Override
+    public String schemaChangeTopic() {
+        String topicName;
+        if (!Strings.isNullOrBlank(overrideSchemaChangeTopicName)) {
+            return overrideSchemaChangeTopicName;
+        }
+        else {
+            return prefix;
+        }
     }
 }

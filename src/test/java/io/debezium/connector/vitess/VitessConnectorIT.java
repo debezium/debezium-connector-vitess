@@ -281,6 +281,41 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
     @Test
     @FixFor("DBZ-8325")
+    public void shouldSnapshotSchemaAndIgnoreOtherTables() throws Exception {
+        String keyspace = TEST_SHARDED_KEYSPACE;
+        String table = keyspace + ".ddl_table";
+        TestHelper.executeDDL("vitess_create_tables.ddl", keyspace);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(config -> config
+                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
+                .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
+                .with(VitessConnectorConfig.STORE_ONLY_CAPTURED_TABLES_DDL, true)
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NO_DATA)
+                .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class),
+                true);
+        assertConnectorIsRunning();
+
+        String schemaChangeTopic = TestHelper.defaultConfig().build().getString(CommonConnectorConfig.TOPIC_PREFIX);
+
+        TestHelper.execute("ALTER TABLE ddl_table ADD COLUMN new_column_name INT;", TEST_SHARDED_KEYSPACE);
+        TestHelper.execute("ALTER TABLE numeric_table ADD COLUMN new_column_name INT;", TEST_SHARDED_KEYSPACE);
+
+        // 1 for the snapshot (create table ddls)
+        // 1 for the change above (should ignore ddl of other table)
+        // 2 shards, so (1 + 1) * 2 = 4
+        int expectedSchemaChangeRecords = 4;
+        consumer = testConsumer(expectedSchemaChangeRecords);
+        consumer.expects(expectedSchemaChangeRecords);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 0; i < expectedSchemaChangeRecords; i++) {
+            SourceRecord record = consumer.remove();
+            assertThat(record.topic()).isEqualTo(schemaChangeTopic);
+        }
+        assertThat(consumer.isEmpty());
+    }
+
+    @Test
+    @FixFor("DBZ-8325")
     public void shouldReceiveSnapshotAndSchemaChangeEvents() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         startConnector(config -> config

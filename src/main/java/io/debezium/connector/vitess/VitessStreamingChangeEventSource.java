@@ -125,7 +125,8 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
                         connectorConfig.getKeyspace());
                 for (SchemaChangeEvent schemaChangeEvent : schemaChangeEvents) {
                     final TableId tableId = schemaChangeEvent.getTables().isEmpty() ? null : schemaChangeEvent.getTables().iterator().next().id();
-                    dispatcher.dispatchSchemaChangeEvent(partition, offsetContext, tableId, (receiver) -> {
+                    TableId tableIdWithShard = VitessDatabaseSchema.buildTableId(ddlMessage.getShard(), connectorConfig.getKeyspace(), tableId.table());
+                    dispatcher.dispatchSchemaChangeEvent(partition, offsetContext, tableIdWithShard, (receiver) -> {
                         try {
                             receiver.schemaChangeEvent(schemaChangeEvent);
                         }

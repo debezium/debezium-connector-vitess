@@ -37,6 +37,7 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     private final VitessConnectorConfig connectorConfig;
     private final VitessDatabaseSchema schema;
     private final VitessConnection connection;
+    private List<String> shards;
 
     public VitessSnapshotChangeEventSource(
                                            VitessConnectorConfig connectorConfig,
@@ -58,11 +59,11 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
         this.connectorConfig = connectorConfig;
         this.connection = connectionFactory.mainConnection();
         this.schema = schema;
+        this.shards = new VitessMetadata(connectorConfig).getShards();
     }
 
     @Override
     protected Set<TableId> getAllTableIds(RelationalSnapshotContext<VitessPartition, VitessOffsetContext> snapshotContext) {
-        List<String> shards = new VitessMetadata(connectorConfig).getShards();
         Set<TableId> tableIds = new HashSet<>();
         try {
             connection.query("SHOW TABLES", rs -> {
@@ -97,7 +98,6 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
                                       VitessOffsetContext offsetContext, SnapshottingTask snapshottingTask)
             throws Exception {
         Set<TableId> capturedSchemaTables = snapshotContext.capturedSchemaTables;
-        List<String> shards = new VitessMetadata(connectorConfig).getShards();
 
         for (TableId tableId : capturedSchemaTables) {
             String sql = "SHOW CREATE TABLE " + quote(tableId);

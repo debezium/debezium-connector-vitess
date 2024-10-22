@@ -88,6 +88,19 @@ public class VitessConnectorConfigTest {
     }
 
     @Test
+    public void shouldUseSchemaTopicPrefix() {
+        Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC,
+                "__debezium-ddl.dev.msgdata.precomputed_channel_summary_partitioned").build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC), printConsumer);
+        assertThat(inputs.size()).isEqualTo(0);
+    }
+
+    @Test
     public void shouldBlankOverrideSchemaTopicPrefixFailValidation() {
         Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC, "").build();
         VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);

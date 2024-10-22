@@ -127,6 +127,7 @@ public class VitessDatabaseSchema extends HistorizedRelationalDatabaseSchema {
         Instant timestsamp = ddlMessage.getCommitTime();
         DdlChanges ddlChanges = ddlParser.getDdlChanges();
         ddlChanges.reset();
+        // Include the shard in the database to ensure it is parsed separately for each shard
         ddlParser.setCurrentDatabase(getDatabaseWithShard(shard, databaseName));
         ddlParser.parse(ddlStatement, tables());
         if (!ddlChanges.isEmpty()) {

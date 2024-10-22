@@ -50,9 +50,8 @@ public class TableTopicNamingStrategy extends AbstractTopicNamingStrategy<TableI
     /**
      * Return the schema change topic. There are two cases:
      * 1. If override schema change topic is specified - use this as the topic name
-     * 2. If override schema change topic is not specified - return the `topic.prefix` specified by the
-     * {@link CommonConnectorConfig.TOPIC_PREFIX} config (unique to
-     * each connector, so it doesn't risk name conflicts)
+     * 2. If override schema change topic is not specified - call the super method to get the typical
+     * schema change topic name.
      *
      * @return String representing the schema change topic name.
      */
@@ -62,7 +61,7 @@ public class TableTopicNamingStrategy extends AbstractTopicNamingStrategy<TableI
             return overrideSchemaChangeTopic;
         }
         else {
-            return prefix;
+            return super.schemaChangeTopic();
         }
     }
 }

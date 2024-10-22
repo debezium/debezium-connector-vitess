@@ -14,12 +14,15 @@ import io.debezium.config.CommonConnectorConfig;
 import io.debezium.connector.binlog.jdbc.BinlogValueConverters;
 import io.debezium.connector.mysql.antlr.MySqlAntlrDdlParser;
 import io.debezium.connector.vitess.VitessConnectorConfig;
+import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.debezium.jdbc.JdbcValueConverters;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.relational.Column;
 import io.debezium.service.spi.ServiceRegistry;
 
 /**
+ * Create a binlog value converter class to be passed into the
+ * {@link VitessDefaultValueConverter} in the {@link VitessDatabaseSchema}
  * @author Thomas Thornton
  */
 public class VitessBinlogValueConverter extends BinlogValueConverters {

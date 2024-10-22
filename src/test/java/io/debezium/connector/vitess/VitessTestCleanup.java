@@ -9,6 +9,9 @@ package io.debezium.connector.vitess;
 import org.junit.After;
 
 /**
+ * Used to tear down the {@link VitessDatabaseSchema} and {@link VitessConnectorTask} after each
+ * test to avoid resource conflicts.
+ *
  * @author Thomas Thornton
  */
 public class VitessTestCleanup {

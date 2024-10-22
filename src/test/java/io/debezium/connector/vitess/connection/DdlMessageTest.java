@@ -13,6 +13,8 @@ import java.time.Instant;
 import org.junit.Test;
 
 /**
+ * Verify the behavior of {@link DdlMessage}
+ *
  * @author Thomas Thornton
  */
 public class DdlMessageTest {

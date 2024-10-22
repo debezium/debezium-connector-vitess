@@ -10,7 +10,9 @@ import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.jdbc.JdbcConnection;
 
 /**
- * Needed to maintain compatibility with RelationalSnapshotChangeEventSource
+ * A connection with Vitess that is JDBC compatible.
+ *
+ * Needed to maintain compatibility with {@link io.debezium.relational.RelationalSnapshotChangeEventSource}
  *
  * TODO: Move all query-based interactions with Vitess onto this class.
  * Currently we do these with VitessReplicationConnection instead

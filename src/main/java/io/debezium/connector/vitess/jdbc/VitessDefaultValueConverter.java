@@ -10,6 +10,8 @@ import io.debezium.connector.binlog.jdbc.BinlogDefaultValueConverter;
 import io.debezium.connector.binlog.jdbc.BinlogValueConverters;
 
 /**
+ * Create a binlog default value converter to be passed into the {@link io.debezium.relational.TableSchemaBuilder}
+ * in {@link io.debezium.connector.vitess.VitessDatabaseSchema}
  * @author Thomas Thornton
  */
 public class VitessDefaultValueConverter extends BinlogDefaultValueConverter {

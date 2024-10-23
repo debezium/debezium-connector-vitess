@@ -98,6 +98,8 @@ public class VitessConnectorConfig extends HistorizedRelationalDatabaseConnector
 
         NO_DATA("no_data"),
 
+        CONFIGURATION_BASED("configuration_based"),
+
         /**
          * Never perform an initial snapshot and only receive new data changes.
          */

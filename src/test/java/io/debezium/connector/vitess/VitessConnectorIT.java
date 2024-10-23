@@ -243,6 +243,126 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
     @Test
     @FixFor("DBZ-8325")
+    public void shouldMigrateToEnabledSchemaChanges() throws Exception {
+        String keyspace = TEST_SHARDED_KEYSPACE;
+        String table = keyspace + ".ddl_table";
+        TestHelper.executeDDL("vitess_create_tables.ddl", keyspace);
+        TestHelper.applyVSchema("vitess_vschema.json");
+
+        startConnector(config -> config
+                .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NEVER)
+                .with(FileSchemaHistory.FILE_PATH, SCHEMA_HISTORY_PATH)
+                .with(VitessConnectorConfig.SCHEMA_HISTORY, FileSchemaHistory.class), true);
+        assertConnectorIsRunning();
+
+        TestHelper.execute("INSERT INTO ddl_table (id) VALUES (1);", TEST_SHARDED_KEYSPACE);
+        String dataChangeTopic = String.join(".",
+                TestHelper.defaultConfig().build().getString(CommonConnectorConfig.TOPIC_PREFIX),
+                keyspace,
+                "ddl_table");
+
+        int expectedDataChangeRecords = 1;
+        consumer = testConsumer(expectedDataChangeRecords);
+        consumer.expects(expectedDataChangeRecords);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 0; i < expectedDataChangeRecords; i++) {
+            SourceRecord record = consumer.remove();
+            assertThat(record.topic()).isEqualTo(dataChangeTopic);
+        }
+        assertThat(consumer.isEmpty());
+
+        stopConnector();
+
+        startConnector(config -> config
+                .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
+                // Enable schema change
+                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.CONFIGURATION_BASED)
+                .with(VitessConnectorConfig.SNAPSHOT_MODE_CONFIGURATION_BASED_SNAPSHOT_ON_SCHEMA_ERROR, true)
+                .with(VitessConnectorConfig.SNAPSHOT_MODE_CONFIGURATION_BASED_SNAPSHOT_SCHEMA, true)
+                .with(VitessConnectorConfig.SNAPSHOT_MODE_CONFIGURATION_BASED_START_STREAM, true)
+                // Other configs from before
+                .with(FileSchemaHistory.FILE_PATH, SCHEMA_HISTORY_PATH)
+                .with(VitessConnectorConfig.SCHEMA_HISTORY, FileSchemaHistory.class), true);
+
+        // After startup, we need to make sure we recover the schema history (ie with snapshot disabled)
+        // so that we can properly parse & emit a schema change event for this alter table statement.
+        TestHelper.execute("ALTER TABLE ddl_table ADD COLUMN new_column_name INT;", TEST_SHARDED_KEYSPACE);
+
+        String schemaChangeTopic = TestHelper.defaultConfig().build().getString(CommonConnectorConfig.TOPIC_PREFIX);
+
+        int expectedTotalRecords = 4;
+        consumer = testConsumer(expectedTotalRecords);
+        consumer.expects(expectedTotalRecords);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 0; i < expectedTotalRecords; i++) {
+            SourceRecord record = consumer.remove();
+            assertThat(record.topic()).isEqualTo(schemaChangeTopic);
+        }
+        assertThat(consumer.isEmpty());
+    }
+
+    @Test
+    @FixFor("DBZ-8325")
+    public void canDisableSchemaHistory() throws Exception {
+        String keyspace = TEST_SHARDED_KEYSPACE;
+        String table = keyspace + ".ddl_table";
+        TestHelper.executeDDL("vitess_create_tables.ddl", keyspace);
+        TestHelper.applyVSchema("vitess_vschema.json");
+
+        startConnector(config -> config
+                .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
+                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, "false")
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NEVER),
+                true);
+        assertConnectorIsRunning();
+
+        TestHelper.execute("INSERT INTO ddl_table (id) VALUES (1);", TEST_SHARDED_KEYSPACE);
+        String dataChangeTopic = String.join(".",
+                TestHelper.defaultConfig().build().getString(CommonConnectorConfig.TOPIC_PREFIX),
+                keyspace,
+                "ddl_table");
+
+        int expectedDataChangeRecords = 1;
+        consumer = testConsumer(expectedDataChangeRecords);
+        consumer.expects(expectedDataChangeRecords);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 0; i < expectedDataChangeRecords; i++) {
+            SourceRecord record = consumer.remove();
+            assertThat(record.topic()).isEqualTo(dataChangeTopic);
+        }
+        assertThat(consumer.isEmpty());
+
+        stopConnector();
+
+        startConnector(config -> config
+                .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
+                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, "false")
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NEVER),
+                true);
+
+        // After startup, we need to make sure we recover the schema history (ie with snapshot disabled)
+        // so that we can properly parse & emit a schema change event for this alter table statement.
+        TestHelper.execute("INSERT INTO ddl_table (id) VALUES (2);", TEST_SHARDED_KEYSPACE);
+        TestHelper.execute("ALTER TABLE ddl_table ADD COLUMN new_column_name INT;", TEST_SHARDED_KEYSPACE);
+
+        // We should not receive any DDLs
+        String schemaChangeTopic = TestHelper.defaultConfig().build().getString(CommonConnectorConfig.TOPIC_PREFIX);
+
+        int expectedTotalRecords = 1;
+        consumer = testConsumer(expectedTotalRecords);
+        consumer.expects(expectedTotalRecords);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 0; i < expectedTotalRecords; i++) {
+            SourceRecord record = consumer.remove();
+            assertThat(record.topic()).isEqualTo(dataChangeTopic);
+        }
+        assertThat(consumer.isEmpty());
+    }
+
+    @Test
+    @FixFor("DBZ-8325")
     public void shouldSnapshotSchemaAndReceiveSchemaEventsSharded() throws Exception {
         String keyspace = TEST_SHARDED_KEYSPACE;
         String table = keyspace + ".ddl_table";

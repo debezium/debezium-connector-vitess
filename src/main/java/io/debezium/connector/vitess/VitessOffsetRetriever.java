@@ -23,7 +23,7 @@ import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransaction
  */
 public class VitessOffsetRetriever {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(VitessConnector.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(VitessOffsetRetriever.class);
 
     private final int numTasks;
     private final int gen;

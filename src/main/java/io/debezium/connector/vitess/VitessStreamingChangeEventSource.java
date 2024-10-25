@@ -5,12 +5,15 @@
  */
 package io.debezium.connector.vitess;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.DebeziumException;
+import io.debezium.connector.vitess.connection.DdlMessage;
 import io.debezium.connector.vitess.connection.ReplicationConnection;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageProcessor;
@@ -19,6 +22,7 @@ import io.debezium.pipeline.ErrorHandler;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
 import io.debezium.relational.TableId;
+import io.debezium.schema.SchemaChangeEvent;
 import io.debezium.util.Clock;
 import io.debezium.util.DelayStrategy;
 
@@ -108,9 +112,29 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
                 }
                 return;
             }
-            else if (message.getOperation() == ReplicationMessage.Operation.DDL || message.getOperation() == ReplicationMessage.Operation.OTHER) {
-                // DDL event or OTHER event
+            else if (message.getOperation() == ReplicationMessage.Operation.OTHER) {
                 offsetContext.rotateVgtid(newVgtid, message.getCommitTime());
+            }
+            else if (message.getOperation() == ReplicationMessage.Operation.DDL) {
+                offsetContext.rotateVgtid(newVgtid, message.getCommitTime());
+                offsetContext.setShard(message.getShard());
+
+                DdlMessage ddlMessage = (DdlMessage) message;
+                List<SchemaChangeEvent> schemaChangeEvents = schema.parseDdl(
+                        partition, offsetContext, ddlMessage,
+                        connectorConfig.getKeyspace());
+                for (SchemaChangeEvent schemaChangeEvent : schemaChangeEvents) {
+                    final TableId tableId = schemaChangeEvent.getTables().isEmpty() ? null : schemaChangeEvent.getTables().iterator().next().id();
+                    TableId tableIdWithShard = VitessDatabaseSchema.buildTableId(ddlMessage.getShard(), connectorConfig.getKeyspace(), tableId.table());
+                    dispatcher.dispatchSchemaChangeEvent(partition, offsetContext, tableIdWithShard, (receiver) -> {
+                        try {
+                            receiver.schemaChangeEvent(schemaChangeEvent);
+                        }
+                        catch (Exception e) {
+                            throw new DebeziumException(e);
+                        }
+                    });
+                }
             }
             else if (message.getOperation().equals(ReplicationMessage.Operation.HEARTBEAT)) {
                 dispatcher.dispatchHeartbeatEvent(partition, offsetContext);

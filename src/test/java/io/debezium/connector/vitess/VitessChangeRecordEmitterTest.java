@@ -7,7 +7,7 @@ package io.debezium.connector.vitess;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,15 +22,14 @@ import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.util.Clock;
 
-public class VitessChangeRecordEmitterTest {
+public class VitessChangeRecordEmitterTest extends VitessTestCleanup {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessChangeRecordEmitterTest.class);
 
-    private static VitessConnectorConfig connectorConfig;
-    private static VitessDatabaseSchema schema;
-    private static VStreamOutputMessageDecoder decoder;
+    private VitessConnectorConfig connectorConfig;
+    private VStreamOutputMessageDecoder decoder;
 
-    @BeforeClass
-    public static void beforeClass() throws Exception {
+    @Before
+    public void before() throws Exception {
         connectorConfig = new VitessConnectorConfig(TestHelper.defaultConfig().build());
         schema = new VitessDatabaseSchema(
                 connectorConfig,

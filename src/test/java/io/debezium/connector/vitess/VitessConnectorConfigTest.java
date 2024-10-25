@@ -19,6 +19,7 @@ import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionMetadataFactory;
 import io.debezium.heartbeat.Heartbeat;
+import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.schema.DefaultTopicNamingStrategy;
 import io.debezium.schema.SchemaNameAdjuster;
 
@@ -72,6 +73,43 @@ public class VitessConnectorConfigTest {
             inputs.add(input);
         };
         connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX), printConsumer);
+        assertThat(inputs.size()).isEqualTo(1);
+    }
+
+    @Test
+    public void shouldImproperOverrideSchemaTopicPrefixFailValidation() {
+        Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC, "hello@world").build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC), printConsumer);
+        assertThat(inputs.size()).isEqualTo(1);
+    }
+
+    @Test
+    public void shouldUseSchemaTopicPrefix() {
+        Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC,
+                "__debezium-ddl.dev.msgdata.precomputed_channel_summary_partitioned").build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC), printConsumer);
+        assertThat(inputs.size()).isEqualTo(0);
+    }
+
+    @Test
+    public void shouldBlankOverrideSchemaTopicPrefixFailValidation() {
+        Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC, "").build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC), printConsumer);
         assertThat(inputs.size()).isEqualTo(1);
     }
 
@@ -150,6 +188,50 @@ public class VitessConnectorConfigTest {
         };
         connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.INHERIT_EPOCH), printConsumer);
         assertThat(inputs.size()).isEqualTo(0);
+    }
+
+    @Test
+    public void shouldGetJdbcConfigNoPort() {
+        Integer grpcPort = 124;
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.VTGATE_PORT, grpcPort)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        JdbcConfiguration jdbcConfiguration = connectorConfig.getJdbcConfig();
+        assertThat(jdbcConfiguration.getPort()).isEqualTo(VitessConnectorConfig.DEFAULT_VTGATE_JDBC_PORT);
+    }
+
+    @Test
+    public void shouldGetJdbcConfig() {
+        String expectedUser = "jdbc_user";
+        String expectedPassword = "jdbc_password";
+        Integer expectedPort = 123;
+        Integer grpcPort = 124;
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.VTGATE_JDBC_USER, expectedUser)
+                .with(VitessConnectorConfig.VTGATE_JDBC_PASSWORD, expectedPassword)
+                .with(VitessConnectorConfig.VTGATE_JDBC_PORT, expectedPort)
+                .with(VitessConnectorConfig.VTGATE_PORT, grpcPort)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        JdbcConfiguration jdbcConfiguration = connectorConfig.getJdbcConfig();
+        assertThat(jdbcConfiguration.getUser()).isEqualTo(expectedUser);
+        assertThat(jdbcConfiguration.getPassword()).isEqualTo(expectedPassword);
+        assertThat(jdbcConfiguration.getPort()).isEqualTo(expectedPort);
+    }
+
+    @Test
+    public void shouldGetJdbcWithFallbacks() {
+        String expectedUser = "other_user";
+        String expectedPassword = "other_password";
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.VTGATE_USER, expectedUser)
+                .with(VitessConnectorConfig.VTGATE_PASSWORD, expectedPassword)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        JdbcConfiguration jdbcConfiguration = connectorConfig.getJdbcConfig();
+        assertThat(jdbcConfiguration.getUser()).isEqualTo(expectedUser);
+        assertThat(jdbcConfiguration.getPassword()).isEqualTo(expectedPassword);
     }
 
 }

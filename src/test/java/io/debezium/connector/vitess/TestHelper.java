@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.Types;
@@ -31,8 +32,11 @@ import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageColumn;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
+import io.debezium.embedded.EmbeddedEngineConfig;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
+import io.debezium.relational.history.MemorySchemaHistory;
+import io.debezium.util.Testing;
 import io.vitess.proto.Query;
 import io.vitess.proto.Query.Field;
 
@@ -51,6 +55,8 @@ public class TestHelper {
     public static final Long TEST_SHARD2_EPOCH = 3L;
     public static final ShardEpochMap TEST_SHARD_TO_EPOCH = new ShardEpochMap(Map.of(TEST_SHARD1, TEST_SHARD1_EPOCH, TEST_SHARD2, TEST_SHARD2_EPOCH));
 
+    public static final Path SCHEMA_HISTORY_PATH = Testing.Files.createTestingPath("file-schema-history-connect.txt").toAbsolutePath();
+
     public static final String TEST_GTID = "MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-1513";
     public static final String TEST_TABLE = "test_table";
     private static final String TEST_VITESS_FULL_TABLE = TEST_UNSHARDED_KEYSPACE + "." + TEST_TABLE;
@@ -61,8 +67,8 @@ public class TestHelper {
     private static final String VTGATE_HOST = "localhost";
     private static final int VTGATE_PORT = 15991;
     // Use the same username and password for vtgate and vtctld
-    private static final String USERNAME = "vitess";
-    private static final String PASSWORD = "vitess_password";
+    public static final String USERNAME = "vitess";
+    public static final String PASSWORD = "vitess_password";
 
     protected static final String VGTID_JSON_NO_PKS_TEMPLATE = "[" +
             "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}," +
@@ -85,6 +91,17 @@ public class TestHelper {
 
     public static Configuration.Builder defaultConfig() {
         return defaultConfig(false, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER, TEST_SHARD, null, null);
+    }
+
+    public static String getKeyspaceTopicPrefix(boolean hasMultipleShards) {
+        String keyspace;
+        if (hasMultipleShards) {
+            keyspace = TEST_SHARDED_KEYSPACE;
+        }
+        else {
+            keyspace = TEST_UNSHARDED_KEYSPACE;
+        }
+        return String.join(".", TEST_SERVER, keyspace);
     }
 
     /**
@@ -149,6 +166,8 @@ public class TestHelper {
                 .with(VitessConnectorConfig.VTGATE_PORT, VTGATE_PORT)
                 .with(VitessConnectorConfig.VTGATE_USER, USERNAME)
                 .with(VitessConnectorConfig.VTGATE_PASSWORD, PASSWORD)
+                .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class)
+                .with(EmbeddedEngineConfig.WAIT_FOR_COMPLETION_BEFORE_INTERRUPT_MS, 5000)
                 .with(VitessConnectorConfig.POLL_INTERVAL_MS, 100);
         if (!Strings.isNullOrEmpty(tableInclude)) {
             builder.with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude);

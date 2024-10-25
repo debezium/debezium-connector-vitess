@@ -18,6 +18,18 @@
         "sequence": "my_seq"
       }
     },
+    "ddl_table": {
+      "columnVindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ],
+      "autoIncrement": {
+        "column": "id",
+        "sequence": "my_seq"
+      }
+    },
     "string_table": {
       "columnVindexes": [
         {

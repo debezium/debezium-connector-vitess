@@ -31,7 +31,7 @@ import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.util.Clock;
 import io.vitess.proto.Query;
 
-public class VitessBigIntUnsignedTest {
+public class VitessBigIntUnsignedTest extends VitessTestCleanup {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessChangeRecordEmitterTest.class);
 
     protected static Object getJavaValue(VitessConnectorConfig.BigIntUnsignedHandlingMode mode) {
@@ -74,7 +74,6 @@ public class VitessBigIntUnsignedTest {
 
     protected void handleInsert(VitessConnectorConfig.BigIntUnsignedHandlingMode mode) throws Exception {
         VitessConnectorConfig connectorConfig;
-        VitessDatabaseSchema schema;
         VStreamOutputMessageDecoder decoder;
 
         Configuration.Builder builder = TestHelper.defaultConfig();

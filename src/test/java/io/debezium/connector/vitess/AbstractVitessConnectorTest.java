@@ -500,9 +500,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest 
         protected TestConsumer(int expectedRecordsCount, String... topicPrefixes) {
             this.expectedRecordsCount = expectedRecordsCount;
             this.records = new ConcurrentLinkedQueue<>();
-            this.topicPrefixes = Arrays.stream(topicPrefixes)
-                    .map(p -> TestHelper.TEST_SERVER + "." + p)
-                    .collect(Collectors.toList());
+            this.topicPrefixes = Arrays.stream(topicPrefixes).toList();
         }
 
         public void setIgnoreExtraRecords(boolean ignoreExtraRecords) {

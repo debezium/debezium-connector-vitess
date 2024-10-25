@@ -23,6 +23,7 @@ import org.apache.kafka.common.config.ConfigDef.Width;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.annotation.VisibleForTesting;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.ConfigDefinition;
 import io.debezium.config.Configuration;
@@ -30,6 +31,7 @@ import io.debezium.config.EnumeratedValue;
 import io.debezium.config.Field;
 import io.debezium.config.Field.ValidationOutput;
 import io.debezium.connector.SourceInfoStructMaker;
+import io.debezium.connector.mysql.charset.MySqlCharsetRegistryServiceProvider;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionMetadataFactory;
@@ -39,22 +41,56 @@ import io.debezium.heartbeat.HeartbeatErrorHandler;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.relational.ColumnFilterMode;
+import io.debezium.relational.HistorizedRelationalDatabaseConnectorConfig;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.relational.TableId;
+import io.debezium.relational.Tables;
+import io.debezium.relational.history.HistoryRecordComparator;
 import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
+import io.debezium.util.Collect;
 
 /**
  * Vitess connector configuration, including its specific configurations and the common
  * configurations from Debezium.
  */
-public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
+public class VitessConnectorConfig extends HistorizedRelationalDatabaseConnectorConfig {
 
     public static final String CSV_DELIMITER = ",";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessConnectorConfig.class);
 
     private static final String VITESS_CONFIG_GROUP_PREFIX = "vitess.";
+    private static final String JDBC_CONFIG_PREFIX = "jdbc.";
     private static final int DEFAULT_VTGATE_PORT = 15_991;
+
+    @VisibleForTesting
+    protected static final int DEFAULT_VTGATE_JDBC_PORT = 15_306;
+
+    /**
+     * Set of all built-in database names that will generally be ignored by the connector.
+     */
+    protected static final Set<String> BUILT_IN_DB_NAMES = Collect.unmodifiableSet(
+            "mysql", "performance_schema", "sys", "information_schema");
+
+    @Override
+    public JdbcConfiguration getJdbcConfig() {
+        JdbcConfiguration jdbcConfiguration = super.getJdbcConfig();
+        JdbcConfiguration updatedConfig = JdbcConfiguration.adapt(jdbcConfiguration.edit()
+                .with(JdbcConfiguration.USER, getVtgateJdbcUsername())
+                .with(JdbcConfiguration.PASSWORD, getVtgateJdbcPassword())
+                .with(JdbcConfiguration.DATABASE, getKeyspace())
+                .with(JdbcConfiguration.PORT, getVtgateJdbcPort())
+                .build());
+        return updatedConfig;
+    }
+
+    @Override
+    protected HistoryRecordComparator getHistoryRecordComparator() {
+        return new HistoryRecordComparator() {
+
+        };
+    }
 
     /**
      * The set of predefined SnapshotMode options or aliases.
@@ -65,6 +101,12 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
          * Perform an initial snapshot when starting, if it does not detect a value in its offsets topic.
          */
         INITIAL("initial"),
+
+        NO_DATA("no_data"),
+
+        CONFIGURATION_BASED("configuration_based"),
+
+        RECOVERY("recovery"),
 
         /**
          * Never perform an initial snapshot and only receive new data changes.
@@ -202,6 +244,29 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withImportance(ConfigDef.Importance.HIGH)
             .withValidation(Field::isInteger)
             .withDescription("Port of the Vitess VTGate gRPC server.");
+
+    public static final Field VTGATE_JDBC_PORT = Field.create(DATABASE_CONFIG_PREFIX + JDBC_CONFIG_PREFIX + JdbcConfiguration.PORT)
+            .withDisplayName("Vitess JDBC database port")
+            .withType(Type.INT)
+            .withWidth(Width.SHORT)
+            .withDefault(DEFAULT_VTGATE_JDBC_PORT)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withValidation(Field::isInteger)
+            .withDescription("Port of the Vitess VTGate JDBC server.");
+
+    public static final Field VTGATE_JDBC_USER = Field.create(DATABASE_CONFIG_PREFIX + JDBC_CONFIG_PREFIX + JdbcConfiguration.USER)
+            .withDisplayName("Vitess JDBC database user")
+            .withType(Type.INT)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription("Username of the Vitess VTGate JDBC server.");
+
+    public static final Field VTGATE_JDBC_PASSWORD = Field.create(DATABASE_CONFIG_PREFIX + JDBC_CONFIG_PREFIX + JdbcConfiguration.PASSWORD)
+            .withDisplayName("Vitess JDBC database password")
+            .withType(Type.INT)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription("Password of the Vitess VTGate JDBC server.");
 
     public static final Field VTGATE_USER = Field.create(DATABASE_CONFIG_PREFIX + JdbcConfiguration.USER)
             .withDisplayName("User")
@@ -368,6 +433,14 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withValidation(CommonConnectorConfig::validateTopicName)
             .withDescription("Overrides the topic.prefix used for the data change topic.");
 
+    public static final Field OVERRIDE_SCHEMA_CHANGE_TOPIC = Field.create("override.schema.change.topic")
+            .withDisplayName("Override schema change topic name")
+            .withType(Type.STRING)
+            .withWidth(Width.MEDIUM)
+            .withImportance(ConfigDef.Importance.LOW)
+            .withValidation(CommonConnectorConfig::validateTopicName)
+            .withDescription("Overrides the name of the schema change topic (if not set uses topic.prefx).");
+
     public static final Field OFFSET_STORAGE_TASK_KEY_GEN = Field.create(VITESS_CONFIG_GROUP_PREFIX + "offset.storage.task.key.gen")
             .withDisplayName("Offset storage task key generation number")
             .withType(Type.INT)
@@ -470,6 +543,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     GTID,
                     VTGATE_HOST,
                     VTGATE_PORT,
+                    VTGATE_JDBC_PORT,
                     VTGATE_USER,
                     VTGATE_PASSWORD,
                     TABLET_TYPE,
@@ -479,6 +553,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     GRPC_MAX_INBOUND_MESSAGE_SIZE,
                     BINARY_HANDLING_MODE,
                     OVERRIDE_DATA_CHANGE_TOPIC_PREFIX,
+                    OVERRIDE_SCHEMA_CHANGE_TOPIC,
                     SCHEMA_NAME_ADJUSTMENT_MODE,
                     OFFSET_STORAGE_PER_TASK,
                     OFFSET_STORAGE_TASK_KEY_GEN,
@@ -536,11 +611,16 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public VitessConnectorConfig(Configuration config) {
         super(
+                VitessConnector.class,
                 config,
-                null, x -> x.schema() + "." + x.table(),
+                Tables.TableFilter.fromPredicate(VitessConnectorConfig::isNotBuiltInTable),
+                x -> x.schema() + "." + x.table(),
+                true,
                 -1,
                 ColumnFilterMode.SCHEMA,
-                true);
+                false);
+
+        getServiceRegistry().registerServiceProvider(new MySqlCharsetRegistryServiceProvider());
     }
 
     @Override
@@ -649,12 +729,36 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return getConfig().getInteger(VTGATE_PORT);
     }
 
+    public int getVtgateJdbcPort() {
+        return getConfig().getInteger(VTGATE_JDBC_PORT);
+    }
+
     public String getVtgateUsername() {
         return getConfig().getString(VTGATE_USER);
     }
 
+    public String getVtgateJdbcUsername() {
+        String jdbcUsername = getConfig().getString(VTGATE_JDBC_USER);
+        if (jdbcUsername != null) {
+            return jdbcUsername;
+        }
+        else {
+            return getConfig().getString(VTGATE_USER);
+        }
+    }
+
     public String getVtgatePassword() {
         return getConfig().getString(VTGATE_PASSWORD);
+    }
+
+    public String getVtgateJdbcPassword() {
+        String jdbcPassword = getConfig().getString(VTGATE_JDBC_PASSWORD);
+        if (jdbcPassword != null) {
+            return jdbcPassword;
+        }
+        else {
+            return getConfig().getString(VTGATE_PASSWORD);
+        }
     }
 
     public String getTabletType() {
@@ -752,6 +856,29 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             return Heartbeat.DEFAULT_NOOP_HEARTBEAT;
         }
         return new VitessHeartbeatImpl(getHeartbeatInterval(), topicNamingStrategy.heartbeatTopic(), getLogicalName(), schemaNameAdjuster);
+    }
+
+    /**
+     * Checks whether the {@link TableId} refers to a built-in table.
+     *
+     * @param tableId the relational table identifier, should not be null
+     * @return true if the reference refers to a built-in table
+     */
+    public static boolean isNotBuiltInTable(TableId tableId) {
+        return !isBuiltInDatabase(tableId.catalog());
+    }
+
+    /**
+     * Check whether the specified database name is a built-in database.
+     *
+     * @param databaseName the database name to check
+     * @return true if the database is a built-in database; false otherwise
+     */
+    public static boolean isBuiltInDatabase(String databaseName) {
+        if (databaseName == null) {
+            return false;
+        }
+        return BUILT_IN_DB_NAMES.contains(databaseName.toLowerCase());
     }
 
     public BigIntUnsignedHandlingMode getBigIntUnsgnedHandlingMode() {

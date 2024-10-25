@@ -6,7 +6,8 @@
 package io.debezium.connector.vitess;
 
 import io.debezium.connector.vitess.connection.ReplicationConnection;
-import io.debezium.jdbc.DefaultMainConnectionProvidingConnectionFactory;
+import io.debezium.connector.vitess.jdbc.VitessConnection;
+import io.debezium.jdbc.MainConnectionProvidingConnectionFactory;
 import io.debezium.pipeline.ErrorHandler;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.notification.NotificationService;
@@ -31,15 +32,18 @@ public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<
     private final VitessDatabaseSchema schema;
     private final ReplicationConnection replicationConnection;
     private final SnapshotterService snapshotterService;
+    private final MainConnectionProvidingConnectionFactory<VitessConnection> connectionFactory;
 
     public VitessChangeEventSourceFactory(
                                           VitessConnectorConfig connectorConfig,
+                                          MainConnectionProvidingConnectionFactory<VitessConnection> connectionFactory,
                                           ErrorHandler errorHandler,
                                           EventDispatcher<VitessPartition, TableId> dispatcher,
                                           Clock clock,
                                           VitessDatabaseSchema schema,
                                           ReplicationConnection replicationConnection, SnapshotterService snapshotterService) {
         this.connectorConfig = connectorConfig;
+        this.connectionFactory = connectionFactory;
         this.errorHandler = errorHandler;
         this.dispatcher = dispatcher;
         this.clock = clock;
@@ -54,11 +58,11 @@ public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<
         // A dummy SnapshotChangeEventSource, snapshot is skipped.
         return new VitessSnapshotChangeEventSource(
                 connectorConfig,
-                new DefaultMainConnectionProvidingConnectionFactory<>(() -> null),
+                this.connectionFactory,
                 dispatcher,
                 schema,
                 clock,
-                null,
+                snapshotProgressListener,
                 notificationService,
                 snapshotterService);
     }

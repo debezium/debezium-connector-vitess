@@ -23,6 +23,7 @@ import org.apache.kafka.common.config.ConfigDef.Width;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.annotation.VisibleForTesting;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.ConfigDefinition;
 import io.debezium.config.Configuration;
@@ -60,8 +61,11 @@ public class VitessConnectorConfig extends HistorizedRelationalDatabaseConnector
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessConnectorConfig.class);
 
     private static final String VITESS_CONFIG_GROUP_PREFIX = "vitess.";
+    private static final String JDBC_CONFIG_PREFIX = "jdbc.";
     private static final int DEFAULT_VTGATE_PORT = 15_991;
-    private static final int DEFAULT_VTGATE_JDBC_PORT = 15_306;
+
+    @VisibleForTesting
+    protected static final int DEFAULT_VTGATE_JDBC_PORT = 15_306;
 
     /**
      * Set of all built-in database names that will generally be ignored by the connector.
@@ -73,6 +77,8 @@ public class VitessConnectorConfig extends HistorizedRelationalDatabaseConnector
     public JdbcConfiguration getJdbcConfig() {
         JdbcConfiguration jdbcConfiguration = super.getJdbcConfig();
         JdbcConfiguration updatedConfig = JdbcConfiguration.adapt(jdbcConfiguration.edit()
+                .with(JdbcConfiguration.USER, getVtgateJdbcUsername())
+                .with(JdbcConfiguration.PASSWORD, getVtgateJdbcPassword())
                 .with(JdbcConfiguration.DATABASE, getKeyspace())
                 .with(JdbcConfiguration.PORT, getVtgateJdbcPort())
                 .build());
@@ -99,6 +105,8 @@ public class VitessConnectorConfig extends HistorizedRelationalDatabaseConnector
         NO_DATA("no_data"),
 
         CONFIGURATION_BASED("configuration_based"),
+
+        RECOVERY("recovery"),
 
         /**
          * Never perform an initial snapshot and only receive new data changes.
@@ -237,14 +245,28 @@ public class VitessConnectorConfig extends HistorizedRelationalDatabaseConnector
             .withValidation(Field::isInteger)
             .withDescription("Port of the Vitess VTGate gRPC server.");
 
-    public static final Field VTGATE_JDBC_PORT = Field.create(DATABASE_CONFIG_PREFIX + "jdbc." + JdbcConfiguration.PORT)
+    public static final Field VTGATE_JDBC_PORT = Field.create(DATABASE_CONFIG_PREFIX + JDBC_CONFIG_PREFIX + JdbcConfiguration.PORT)
             .withDisplayName("Vitess JDBC database port")
             .withType(Type.INT)
             .withWidth(Width.SHORT)
             .withDefault(DEFAULT_VTGATE_JDBC_PORT)
-            .withImportance(ConfigDef.Importance.HIGH)
+            .withImportance(ConfigDef.Importance.MEDIUM)
             .withValidation(Field::isInteger)
             .withDescription("Port of the Vitess VTGate JDBC server.");
+
+    public static final Field VTGATE_JDBC_USER = Field.create(DATABASE_CONFIG_PREFIX + JDBC_CONFIG_PREFIX + JdbcConfiguration.USER)
+            .withDisplayName("Vitess JDBC database user")
+            .withType(Type.INT)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription("Username of the Vitess VTGate JDBC server.");
+
+    public static final Field VTGATE_JDBC_PASSWORD = Field.create(DATABASE_CONFIG_PREFIX + JDBC_CONFIG_PREFIX + JdbcConfiguration.PASSWORD)
+            .withDisplayName("Vitess JDBC database password")
+            .withType(Type.INT)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription("Password of the Vitess VTGate JDBC server.");
 
     public static final Field VTGATE_USER = Field.create(DATABASE_CONFIG_PREFIX + JdbcConfiguration.USER)
             .withDisplayName("User")
@@ -715,8 +737,28 @@ public class VitessConnectorConfig extends HistorizedRelationalDatabaseConnector
         return getConfig().getString(VTGATE_USER);
     }
 
+    public String getVtgateJdbcUsername() {
+        String jdbcUsername = getConfig().getString(VTGATE_JDBC_USER);
+        if (jdbcUsername != null) {
+            return jdbcUsername;
+        }
+        else {
+            return getConfig().getString(VTGATE_USER);
+        }
+    }
+
     public String getVtgatePassword() {
         return getConfig().getString(VTGATE_PASSWORD);
+    }
+
+    public String getVtgateJdbcPassword() {
+        String jdbcPassword = getConfig().getString(VTGATE_JDBC_PASSWORD);
+        if (jdbcPassword != null) {
+            return jdbcPassword;
+        }
+        else {
+            return getConfig().getString(VTGATE_PASSWORD);
+        }
     }
 
     public String getTabletType() {

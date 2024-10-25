@@ -67,8 +67,8 @@ public class TestHelper {
     private static final String VTGATE_HOST = "localhost";
     private static final int VTGATE_PORT = 15991;
     // Use the same username and password for vtgate and vtctld
-    private static final String USERNAME = "vitess";
-    private static final String PASSWORD = "vitess_password";
+    public static final String USERNAME = "vitess";
+    public static final String PASSWORD = "vitess_password";
 
     protected static final String VGTID_JSON_NO_PKS_TEMPLATE = "[" +
             "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\"}," +
@@ -165,8 +165,8 @@ public class TestHelper {
                 .with(VitessConnectorConfig.VTGATE_HOST, VTGATE_HOST)
                 .with(VitessConnectorConfig.VTGATE_PORT, VTGATE_PORT)
                 .with(VitessConnectorConfig.VTGATE_USER, USERNAME)
-                .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class)
                 .with(VitessConnectorConfig.VTGATE_PASSWORD, PASSWORD)
+                .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class)
                 .with(EmbeddedEngineConfig.WAIT_FOR_COMPLETION_BEFORE_INTERRUPT_MS, 5000)
                 .with(VitessConnectorConfig.POLL_INTERVAL_MS, 100);
         if (!Strings.isNullOrEmpty(tableInclude)) {

@@ -253,7 +253,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
                 .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NEVER)
                 .with(FileSchemaHistory.FILE_PATH, SCHEMA_HISTORY_PATH)
-                .with(VitessConnectorConfig.SCHEMA_HISTORY, FileSchemaHistory.class), true);
+                .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class), true);
         assertConnectorIsRunning();
 
         TestHelper.execute("INSERT INTO ddl_table (id) VALUES (1);", TEST_SHARDED_KEYSPACE);
@@ -278,10 +278,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
                 // Enable schema change
                 .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
-                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.CONFIGURATION_BASED)
-                .with(VitessConnectorConfig.SNAPSHOT_MODE_CONFIGURATION_BASED_SNAPSHOT_ON_SCHEMA_ERROR, true)
-                .with(VitessConnectorConfig.SNAPSHOT_MODE_CONFIGURATION_BASED_SNAPSHOT_SCHEMA, true)
-                .with(VitessConnectorConfig.SNAPSHOT_MODE_CONFIGURATION_BASED_START_STREAM, true)
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.RECOVERY)
                 // Other configs from before
                 .with(FileSchemaHistory.FILE_PATH, SCHEMA_HISTORY_PATH)
                 .with(VitessConnectorConfig.SCHEMA_HISTORY, FileSchemaHistory.class), true);
@@ -372,6 +369,10 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
                 .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
                 .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NO_DATA)
+                .with(VitessConnectorConfig.VTGATE_JDBC_PORT, VitessConnectorConfig.DEFAULT_VTGATE_JDBC_PORT)
+                // Although the creds are identical make sure it works with setting them explicitly
+                .with(VitessConnectorConfig.VTGATE_JDBC_USER, TestHelper.USERNAME)
+                .with(VitessConnectorConfig.VTGATE_JDBC_PASSWORD, TestHelper.PASSWORD)
                 .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class),
                 true);
         assertConnectorIsRunning();

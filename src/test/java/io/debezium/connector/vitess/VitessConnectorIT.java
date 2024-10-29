@@ -17,7 +17,6 @@ import static io.debezium.connector.vitess.TestHelper.TEST_SHARDED_KEYSPACE;
 import static io.debezium.connector.vitess.TestHelper.TEST_SHARD_TO_EPOCH;
 import static io.debezium.connector.vitess.TestHelper.TEST_UNSHARDED_KEYSPACE;
 import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_TEMPLATE;
-import static io.debezium.connector.vitess.TestHelper.getKeyspaceTopicPrefix;
 import static junit.framework.TestCase.assertEquals;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertFalse;
@@ -728,7 +727,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         // insert 1 row to get the initial vgtid
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount, getKeyspaceTopicPrefix(false));
+        consumer = testConsumer(expectedRecordsCount);
         SourceRecord sourceRecord = assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
 
         // apply DDL
@@ -756,7 +755,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         startConnector();
         assertConnectorIsRunning();
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount, getKeyspaceTopicPrefix(false));
+        consumer = testConsumer(expectedRecordsCount);
         assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
         // Add a column using online ddl and wait until it is finished
         String ddlId = TestHelper.applyOnlineDdl("ALTER TABLE numeric_table ADD COLUMN foo INT", TEST_UNSHARDED_KEYSPACE);
@@ -1942,7 +1941,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         // We should receive a record written before starting the connector.
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount, TestHelper.getKeyspaceTopicPrefix(false));
+        consumer = testConsumer(expectedRecordsCount);
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
         SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
         assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, "numeric_table");
@@ -1972,7 +1971,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         }
 
         // We should receive a record written before starting the connector.
-        consumer = testConsumer(totalRecordsCount, getKeyspaceTopicPrefix(false));
+        consumer = testConsumer(totalRecordsCount);
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
         for (int i = 1; i <= totalRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_ENUM_TYPE_STMT), TestHelper.PK_FIELD);
@@ -2017,7 +2016,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         }
 
         // We should receive a record written before starting the connector.
-        consumer = testConsumer(totalRecordsCount, getKeyspaceTopicPrefix(false));
+        consumer = testConsumer(totalRecordsCount);
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
         for (int i = 1; i <= totalRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_ENUM_AMBIGUOUS_TYPE_STMT), TestHelper.PK_FIELD);
@@ -2056,7 +2055,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 -1, -1, tableInclude, VitessConnectorConfig.SnapshotMode.INITIAL, TestHelper.TEST_SHARD);
 
         // We should receive a record written before starting the connector.
-        consumer = testConsumer(expectedSnapshotRecordsCount, getKeyspaceTopicPrefix(false));
+        consumer = testConsumer(expectedSnapshotRecordsCount);
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
         for (int i = 1; i <= expectedSnapshotRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
@@ -2182,7 +2181,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         startConnector(Function.identity(), false, false, 1, -1, -1, tableInclude, null, null);
 
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount, getKeyspaceTopicPrefix(false));
+        consumer = testConsumer(expectedRecordsCount);
 
         // We should receive record from numeric_table
         assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
@@ -2200,7 +2199,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         // We should receive a record written before starting the connector.
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount, getKeyspaceTopicPrefix(hasMultipleShards));
+        consumer = testConsumer(expectedRecordsCount);
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
         SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT, TEST_SHARDED_KEYSPACE), TestHelper.PK_FIELD);
         assertSourceInfo(record, TEST_SERVER, TEST_SHARDED_KEYSPACE, "numeric_table");
@@ -2223,7 +2222,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         // We should receive a record written before starting the connector.
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount, getKeyspaceTopicPrefix(false));
+        consumer = testConsumer(expectedRecordsCount);
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
         SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
         assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, "numeric_table");
@@ -2247,7 +2246,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         // We should receive a record written before starting the connector.
         int expectedRecordsCount = 1;
-        consumer = testConsumer(expectedRecordsCount, getKeyspaceTopicPrefix(false));
+        consumer = testConsumer(expectedRecordsCount);
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
         SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
         assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, "numeric_table");

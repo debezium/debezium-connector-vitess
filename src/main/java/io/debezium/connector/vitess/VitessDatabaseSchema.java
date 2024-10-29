@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory;
 import io.debezium.connector.binlog.charset.BinlogCharsetRegistry;
 import io.debezium.connector.mysql.antlr.MySqlAntlrDdlParser;
 import io.debezium.connector.vitess.connection.DdlMessage;
-import io.debezium.connector.vitess.jdbc.VitessBinlogValueConverter;
 import io.debezium.connector.vitess.jdbc.VitessDefaultValueConverter;
 import io.debezium.relational.HistorizedRelationalDatabaseSchema;
 import io.debezium.relational.Table;
@@ -50,7 +49,7 @@ public class VitessDatabaseSchema extends HistorizedRelationalDatabaseSchema {
                 config.getColumnFilter(),
                 new TableSchemaBuilder(
                         VitessValueConverter.getInstance(config),
-                        new VitessDefaultValueConverter(VitessBinlogValueConverter.getInstance(config)),
+                        new VitessDefaultValueConverter(VitessValueConverter.getInstance(config)),
                         schemaNameAdjuster,
                         config.customConverterRegistry(),
                         config.getSourceInfoStructMaker().schema(),

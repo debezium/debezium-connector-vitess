@@ -59,7 +59,12 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
         this.connectorConfig = connectorConfig;
         this.connection = connectionFactory.mainConnection();
         this.schema = schema;
-        this.shards = new VitessMetadata(connectorConfig).getShards();
+        if (connectorConfig.getVitessTaskKeyShards() == null) {
+            this.shards = new VitessMetadata(connectorConfig).getShards();
+        }
+        else {
+            this.shards = connectorConfig.getVitessTaskKeyShards();
+        }
     }
 
     @Override
@@ -101,6 +106,7 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
 
         for (TableId tableId : capturedSchemaTables) {
             String sql = "SHOW CREATE TABLE " + quote(tableId);
+            // TODO: We need retries for this
             connection.query(sql, rs -> {
                 if (rs.next()) {
                     String ddlStatement = rs.getString(2);

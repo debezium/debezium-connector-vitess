@@ -93,17 +93,6 @@ public class TestHelper {
         return defaultConfig(false, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER, TEST_SHARD, null, null);
     }
 
-    public static String getKeyspaceTopicPrefix(boolean hasMultipleShards) {
-        String keyspace;
-        if (hasMultipleShards) {
-            keyspace = TEST_SHARDED_KEYSPACE;
-        }
-        else {
-            keyspace = TEST_UNSHARDED_KEYSPACE;
-        }
-        return String.join(".", TEST_SERVER, keyspace);
-    }
-
     /**
      * Get the default configuration of the connector
      *
@@ -166,6 +155,7 @@ public class TestHelper {
                 .with(VitessConnectorConfig.VTGATE_PORT, VTGATE_PORT)
                 .with(VitessConnectorConfig.VTGATE_USER, USERNAME)
                 .with(VitessConnectorConfig.VTGATE_PASSWORD, PASSWORD)
+                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, false)
                 .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class)
                 .with(EmbeddedEngineConfig.WAIT_FOR_COMPLETION_BEFORE_INTERRUPT_MS, 5000)
                 .with(VitessConnectorConfig.POLL_INTERVAL_MS, 100);

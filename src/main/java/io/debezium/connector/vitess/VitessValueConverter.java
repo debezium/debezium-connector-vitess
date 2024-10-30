@@ -128,7 +128,7 @@ public class VitessValueConverter extends JdbcValueConverters {
     @Override
     public ValueConverter converter(Column column, Field fieldDefn) {
         String typeName = column.typeName().toUpperCase();
-        if (matches(typeName, "JSON")) {
+        if (matches(typeName, Query.Type.JSON.name())) {
             return (data) -> convertJson(column, fieldDefn, data);
         }
         if (matches(typeName, Query.Type.ENUM.name())) {

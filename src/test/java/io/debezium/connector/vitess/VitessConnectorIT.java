@@ -2136,7 +2136,8 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertThat(recordCount < expectedSnapshotRecordsCount).isTrue();
         // Assert the total snapshot records are sent after starting
         consumer = testConsumer(expectedSnapshotRecordsCount, tableTopicPrefix);
-        startConnector();
+        startConnector(Function.identity(), false, false, 1,
+                -1, -1, tableInclude, VitessConnectorConfig.SnapshotMode.INITIAL, TestHelper.TEST_SHARD);
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
 
         for (int i = 1; i <= expectedSnapshotRecordsCount; i++) {

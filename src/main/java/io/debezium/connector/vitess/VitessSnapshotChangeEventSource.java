@@ -60,10 +60,12 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
         this.connection = connectionFactory.mainConnection();
         this.schema = schema;
         if (connectorConfig.getVitessTaskKeyShards() == null) {
-            this.shards = new VitessMetadata(connectorConfig).getShards();
+            shards = new VitessMetadata(connectorConfig).getShards();
+            LOGGER.info("Single task mode, using all shards for snapshot {}", shards);
         }
         else {
-            this.shards = connectorConfig.getVitessTaskKeyShards();
+            shards = connectorConfig.getVitessTaskKeyShards();
+            LOGGER.info("Multi task mode, for task {} using shards {}", connectorConfig.getVitessTaskKey(), shards);
         }
     }
 
@@ -83,7 +85,7 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
         catch (SQLException e) {
             LOGGER.warn("\t skipping database '{}' due to error reading tables: {}", connectorConfig.getKeyspace(), e.getMessage());
         }
-        LOGGER.debug("All table IDs {}", tableIds);
+        LOGGER.info("All table IDs {}", tableIds);
         return tableIds;
     }
 
@@ -117,12 +119,13 @@ public class VitessSnapshotChangeEventSource extends RelationalSnapshotChangeEve
                                 snapshotContext.partition, snapshotContext.offset, ddlMessage, connectorConfig.getKeyspace());
                         for (SchemaChangeEvent schemaChangeEvent : schemaChangeEvents) {
                             LOGGER.info("Adding schema change event {}", schemaChangeEvent);
-                            Table table = schema.tableFor(tableId);
-                            if (table != null) {
-                                LOGGER.info("Adding schema for table {}", table.id());
-                                Table updatedTable = getTableWithShardAsCatalog(table, shard);
-                                snapshotContext.tables.overwriteTable(updatedTable);
+                            if (schemaChangeEvent.getTables().size() > 1) {
+                                LOGGER.warn("Snapshot schema change event has tables size > 1 {}", schemaChangeEvent);
                             }
+                            Table table = schemaChangeEvent.getTables().iterator().next();
+                            Table updatedTable = getTableWithShardAsCatalog(table, shard);
+                            LOGGER.info("Adding schema for table {}", updatedTable.id());
+                            snapshotContext.tables.overwriteTable(updatedTable);
                         }
                     }
                 }

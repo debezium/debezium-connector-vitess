@@ -25,6 +25,7 @@ CREATE TABLE ddl_table
 (
     id                              BIGINT NOT NULL AUTO_INCREMENT,
     int_unsigned_col                INT UNSIGNED DEFAULT 0,
+    json_col                        JSON,
     PRIMARY KEY (id)
 )
 PARTITION BY RANGE (id) (

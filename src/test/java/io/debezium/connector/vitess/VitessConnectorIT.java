@@ -199,6 +199,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         startConnector(config -> config
                 .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
+                .with(VitessConnectorConfig.STORE_ONLY_CAPTURED_TABLES_DDL, true)
                 .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
                 .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NO_DATA)
                 .with(FileSchemaHistory.FILE_PATH, SCHEMA_HISTORY_PATH)
@@ -221,6 +222,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         startConnector(config -> config
                 .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
+                .with(VitessConnectorConfig.STORE_ONLY_CAPTURED_TABLES_DDL, true)
                 .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
                 .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NEVER)
                 .with(FileSchemaHistory.FILE_PATH, SCHEMA_HISTORY_PATH)
@@ -277,6 +279,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
                 // Enable schema change
                 .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
+                .with(VitessConnectorConfig.STORE_ONLY_CAPTURED_TABLES_DDL, true)
                 .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.RECOVERY)
                 // Other configs from before
                 .with(FileSchemaHistory.FILE_PATH, SCHEMA_HISTORY_PATH)
@@ -310,6 +313,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         startConnector(config -> config
                 .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
                 .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, "false")
+                .with(VitessConnectorConfig.STORE_ONLY_CAPTURED_TABLES_DDL, true)
                 .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NEVER),
                 true);
         assertConnectorIsRunning();
@@ -335,6 +339,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         startConnector(config -> config
                 .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
                 .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, "false")
+                .with(VitessConnectorConfig.STORE_ONLY_CAPTURED_TABLES_DDL, true)
                 .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NEVER),
                 true);
 
@@ -366,6 +371,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.applyVSchema("vitess_vschema.json");
         startConnector(config -> config
                 .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
+                .with(VitessConnectorConfig.STORE_ONLY_CAPTURED_TABLES_DDL, true)
                 .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
                 .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NO_DATA)
                 .with(VitessConnectorConfig.VTGATE_JDBC_PORT, VitessConnectorConfig.DEFAULT_VTGATE_JDBC_PORT)
@@ -408,6 +414,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.applyVSchema("vitess_vschema.json");
         startConnector(config -> config
                 .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
+                .with(VitessConnectorConfig.STORE_ONLY_CAPTURED_TABLES_DDL, true)
                 .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, table)
                 .with(VitessConnectorConfig.STORE_ONLY_CAPTURED_TABLES_DDL, true)
                 .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NO_DATA)
@@ -440,6 +447,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         startConnector(config -> config
                 .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
+                .with(VitessConnectorConfig.STORE_ONLY_CAPTURED_TABLES_DDL, true)
                 .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, "test_unsharded_keyspace.ddl_table")
                 .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NO_DATA)
                 .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class),
@@ -474,6 +482,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // startConnector();
         startConnector(config -> config
                 .with(RelationalDatabaseConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
+                .with(VitessConnectorConfig.STORE_ONLY_CAPTURED_TABLES_DDL, true)
                 .with(VitessConnectorConfig.SCHEMA_HISTORY, MemorySchemaHistory.class),
                 false);
         assertConnectorIsRunning();
@@ -484,7 +493,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 TEST_UNSHARDED_KEYSPACE,
                 "ddl_table");
 
-        TestHelper.execute("INSERT INTO ddl_table (id) VALUES (1);");
+        TestHelper.execute("INSERT INTO ddl_table (id, int_unsigned_col, json_col) VALUES (1, 2, '{\"1\":2}');");
         TestHelper.execute("ALTER TABLE ddl_table ADD COLUMN new_column_name INT;");
 
         int expectedDataChangeRecords = 1;

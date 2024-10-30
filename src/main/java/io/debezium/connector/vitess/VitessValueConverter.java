@@ -5,12 +5,16 @@
  */
 package io.debezium.connector.vitess;
 
+import static io.debezium.config.CommonConnectorConfig.EventConvertingFailureHandlingMode.FAIL;
+
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -19,10 +23,14 @@ import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
+import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.shyiko.mysql.binlog.event.deserialization.json.JsonBinary;
+
 import io.debezium.DebeziumException;
+import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.CommonConnectorConfig.BinaryHandlingMode;
 import io.debezium.data.Json;
 import io.debezium.jdbc.JdbcValueConverters;
@@ -31,6 +39,7 @@ import io.debezium.relational.Column;
 import io.debezium.relational.RelationalChangeRecordEmitter;
 import io.debezium.relational.ValueConverter;
 import io.debezium.time.Year;
+import io.debezium.util.Loggings;
 import io.debezium.util.Strings;
 import io.vitess.proto.Query;
 
@@ -44,6 +53,7 @@ public class VitessValueConverter extends JdbcValueConverters {
 
     private final boolean includeUnknownDatatypes;
     private final VitessConnectorConfig.BigIntUnsignedHandlingMode bigIntUnsignedHandlingMode;
+    private final CommonConnectorConfig.EventConvertingFailureHandlingMode eventConvertingFailureHandlingMode;
 
     private static final Pattern DATE_FIELD_PATTERN = Pattern.compile("([0-9]*)-([0-9]*)-([0-9]*)");
     private static final Pattern TIME_FIELD_PATTERN = Pattern.compile("(\\-?[0-9]*):([0-9]*)(:([0-9]*))?(\\.([0-9]*))?");
@@ -55,6 +65,7 @@ public class VitessValueConverter extends JdbcValueConverters {
                 ZoneOffset.UTC,
                 config.binaryHandlingMode(),
                 config.includeUnknownDatatypes(),
+                config.getEventConvertingFailureHandlingMode(),
                 config.getBigIntUnsgnedHandlingMode());
     }
 
@@ -64,10 +75,12 @@ public class VitessValueConverter extends JdbcValueConverters {
                                 ZoneOffset defaultOffset,
                                 BinaryHandlingMode binaryMode,
                                 boolean includeUnknownDatatypes,
+                                CommonConnectorConfig.EventConvertingFailureHandlingMode eventConvertingFailureHandlingMode,
                                 VitessConnectorConfig.BigIntUnsignedHandlingMode bigIntUnsignedHandlingMode) {
         super(decimalMode, temporalPrecisionMode, defaultOffset, null, null, binaryMode);
         this.includeUnknownDatatypes = includeUnknownDatatypes;
         this.bigIntUnsignedHandlingMode = bigIntUnsignedHandlingMode;
+        this.eventConvertingFailureHandlingMode = eventConvertingFailureHandlingMode;
     }
 
     // Get Kafka connect schema from Debezium column.
@@ -115,6 +128,9 @@ public class VitessValueConverter extends JdbcValueConverters {
     @Override
     public ValueConverter converter(Column column, Field fieldDefn) {
         String typeName = column.typeName().toUpperCase();
+        if (matches(typeName, "JSON")) {
+            return (data) -> convertJson(column, fieldDefn, data);
+        }
         if (matches(typeName, Query.Type.ENUM.name())) {
             return (data) -> convertEnumToString(column.enumValues(), column, fieldDefn, data);
         }
@@ -175,6 +191,49 @@ public class VitessValueConverter extends JdbcValueConverters {
                 }
             }
             catch (IllegalArgumentException e) {
+            }
+        });
+    }
+
+    /**
+     * Ported from MySqlConnector.
+     * TODO: Migrate to Binlog converters so we can reuse this logic
+     *
+     * Convert the {@link String} {@code byte[]} value to a string value used in a {@link SourceRecord}.
+     *
+     * @param column the column in which the value appears
+     * @param fieldDefn the field definition for the {@link SourceRecord}'s {@link Schema}; never null
+     * @param data the data; may be null
+     * @return the converted value, or null if the conversion could not be made and the column allows nulls
+     * @throws IllegalArgumentException if the value could not be converted but the column does not allow nulls
+     */
+    protected Object convertJson(Column column, Field fieldDefn, Object data) {
+        return convertValue(column, fieldDefn, data, "{}", (r) -> {
+            if (data instanceof byte[]) {
+                // The BinlogReader sees these JSON values as binary encoded, so we use the binlog client library's utility
+                // to parse the database's internal binary representation into a JSON string, using the standard formatter.
+                if (((byte[]) data).length == 0) {
+                    r.deliver(column.isOptional() ? null : "{}");
+                }
+                else {
+                    try {
+                        r.deliver(JsonBinary.parseAsString((byte[]) data));
+                    }
+                    catch (IOException e) {
+                        if (eventConvertingFailureHandlingMode == FAIL) {
+                            Loggings.logErrorAndTraceRecord(logger, Arrays.toString((byte[]) data),
+                                    "Failed to parse and read a JSON value on '{}'", column, e);
+                            throw new DebeziumException("Failed to parse and read a JSON value on '" + column + "'", e);
+                        }
+                        Loggings.logWarningAndTraceRecord(logger, Arrays.toString((byte[]) data),
+                                "Failed to parse and read a JSON value on '{}'", column, e);
+                        r.deliver(column.isOptional() ? null : "{}");
+                    }
+                }
+            }
+            else if (data instanceof String) {
+                // The SnapshotReader sees JSON values as UTF-8 encoded strings.
+                r.deliver(data);
             }
         });
     }

@@ -25,7 +25,9 @@ import org.junit.Test;
 import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.Column;
+import io.debezium.relational.ColumnEditor;
 import io.debezium.relational.Table;
+import io.debezium.relational.TableEditor;
 import io.debezium.relational.ValueConverter;
 import io.debezium.schema.DefaultTopicNamingStrategy;
 import io.debezium.schema.SchemaNameAdjuster;
@@ -51,6 +53,7 @@ public class VitessValueConverterTest extends VitessTestCleanup {
                 ZoneOffset.UTC,
                 config.binaryHandlingMode(),
                 config.includeUnknownDatatypes(),
+                config.getEventConvertingFailureHandlingMode(),
                 config.getBigIntUnsgnedHandlingMode());
         schema = new VitessDatabaseSchema(
                 config,
@@ -146,6 +149,29 @@ public class VitessValueConverterTest extends VitessTestCleanup {
 
         Column column = table.columnWithName("enum_col");
         Field field = new Field("enum", 0, Schema.STRING_SCHEMA);
+        ValueConverter valueConverter = converter.converter(column, field);
+        String expectedValue = "a";
+        assertThat(valueConverter.convert(expectedValue)).isInstanceOf(String.class);
+        assertThat(valueConverter.convert(expectedValue)).isEqualTo(expectedValue);
+    }
+
+    @Test
+    public void shouldConverterWorkForJson() throws InterruptedException {
+        ColumnEditor editor = io.debezium.relational.Column.editor()
+                .name("json_col")
+                .type(Query.Type.JSON.toString())
+                .jdbcType(Types.OTHER)
+                .optional(true);
+        List<Column> cols = List.of(editor.create());
+        TableEditor tableEditor = Table
+                .editor()
+                .addColumns(cols)
+                .tableId(TestHelper.defaultTableId());
+        schema.applySchemaChangesForTable(tableEditor.create());
+        Table table = schema.tableFor(TestHelper.defaultTableId());
+
+        Column column = table.columnWithName("json_col");
+        Field field = new Field("json", 0, Schema.STRING_SCHEMA);
         ValueConverter valueConverter = converter.converter(column, field);
         String expectedValue = "a";
         assertThat(valueConverter.convert(expectedValue)).isInstanceOf(String.class);

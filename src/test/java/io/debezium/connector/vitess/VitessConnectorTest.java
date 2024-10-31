@@ -1646,8 +1646,26 @@ public class VitessConnectorTest {
         String keyspace = "ks";
         List<String> allTables = Arrays.asList("t1", "t22", "t3");
         String tableIncludeList = new String("ks.t1,ks.t2.*");
-        List<String> includedTables = VitessConnector.getIncludedTables(keyspace, tableIncludeList, allTables);
+        Configuration config = Configuration.from(Map.of(
+                VitessConnectorConfig.TABLE_INCLUDE_LIST.name(), tableIncludeList,
+                VitessConnectorConfig.KEYSPACE.name(), keyspace));
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
+        List<String> includedTables = VitessConnector.getIncludedTables(connectorConfig, allTables);
         List<String> expectedTables = Arrays.asList("t1", "t22");
+        assertEquals(expectedTables, includedTables);
+    }
+
+    @Test
+    public void testTableIncludeListShouldExcludeTablesWithSuffix() {
+        String keyspace = "ks";
+        List<String> allTables = Arrays.asList("t1", "t2", "t22", "t13");
+        String tableIncludeList = new String("ks.t1,ks.t2");
+        Configuration config = Configuration.from(Map.of(
+                VitessConnectorConfig.TABLE_INCLUDE_LIST.name(), tableIncludeList,
+                VitessConnectorConfig.KEYSPACE.name(), keyspace));
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
+        List<String> includedTables = VitessConnector.getIncludedTables(connectorConfig, allTables);
+        List<String> expectedTables = Arrays.asList("t1", "t2");
         assertEquals(expectedTables, includedTables);
     }
 

@@ -14,7 +14,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.config.ConfigDef;
@@ -28,7 +27,7 @@ import io.debezium.connector.common.RelationalBaseSourceConnector;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
-import io.debezium.util.Strings;
+import io.debezium.relational.Tables;
 import io.grpc.StatusRuntimeException;
 
 /** Vitess Connector entry point */
@@ -273,17 +272,15 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         }
     }
 
-    public static List<String> getIncludedTables(String keyspace, String tableIncludeList, List<String> allTables) {
+    public static List<String> getIncludedTables(VitessConnectorConfig connectorConfig, List<String> allTables) {
         // table.include.list are list of patterns, filter all the tables in the keyspace through those patterns
         // to get the list of table names.
-        final List<Pattern> patterns = Strings.listOfRegex(tableIncludeList, Pattern.CASE_INSENSITIVE);
         List<String> includedTables = new ArrayList<>();
-        for (String ksTable : allTables) {
-            for (Pattern pattern : patterns) {
-                if (pattern.asPredicate().test(String.format("%s.%s", keyspace, ksTable))) {
-                    includedTables.add(ksTable);
-                    break;
-                }
+        String keyspace = connectorConfig.getKeyspace();
+        Tables.TableFilter filter = new Filters(connectorConfig).tableFilter();
+        for (String table : allTables) {
+            if (filter.isIncluded(new TableId("", keyspace, table))) {
+                includedTables.add(table);
             }
         }
         return includedTables;
@@ -330,8 +327,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         VitessConnectorConfig vitessConnectorConfig = new VitessConnectorConfig(configuration);
         String keyspace = vitessConnectorConfig.getKeyspace();
         List<String> allTables = vitessMetadata.getTables();
-        List<String> includedTables = getIncludedTables(keyspace,
-                vitessConnectorConfig.tableIncludeList(), allTables);
+        List<String> includedTables = getIncludedTables(vitessConnectorConfig, allTables);
         return includedTables.stream()
                 .map(table -> new TableId(keyspace, null, table))
                 .collect(Collectors.toList());

@@ -105,7 +105,7 @@ public class VitessOffsetContext extends CommonOffsetContext<SourceInfo> {
     }
 
     @Override
-    public boolean isSnapshotRunning() {
+    public boolean isInitialSnapshotRunning() {
         return false;
     }
 

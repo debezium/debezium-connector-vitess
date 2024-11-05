@@ -62,7 +62,7 @@ import com.google.common.io.BaseEncoding;
 import io.debezium.data.Json;
 import io.debezium.data.SchemaUtil;
 import io.debezium.data.VerifyRecord;
-import io.debezium.embedded.AbstractConnectorTest;
+import io.debezium.embedded.async.AbstractAsyncEngineConnectorTest;
 import io.debezium.relational.TableId;
 import io.debezium.time.MicroTime;
 import io.debezium.time.MicroTimestamp;
@@ -74,7 +74,7 @@ import io.debezium.util.Collect;
 import io.debezium.util.ElapsedTimeStrategy;
 import io.debezium.util.Testing;
 
-public abstract class AbstractVitessConnectorTest extends AbstractConnectorTest {
+public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineConnectorTest {
 
     protected static final Pattern INSERT_TABLE_MATCHING_PATTERN = Pattern.compile("insert into (.*)\\(.*\\) VALUES .*", Pattern.CASE_INSENSITIVE);
 

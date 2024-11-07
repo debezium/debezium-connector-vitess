@@ -8,6 +8,7 @@ package io.debezium.connector.vitess;
 import static io.debezium.connector.vitess.TestHelper.TEST_EMPTY_SHARD_KEYSPACE;
 import static io.debezium.connector.vitess.TestHelper.TEST_NON_EMPTY_SHARD;
 import static io.debezium.connector.vitess.TestHelper.TEST_SERVER;
+import static io.debezium.connector.vitess.TestHelper.TEST_SHARD;
 import static io.debezium.connector.vitess.TestHelper.TEST_SHARD1;
 import static io.debezium.connector.vitess.TestHelper.TEST_SHARD1_EPOCH;
 import static io.debezium.connector.vitess.TestHelper.TEST_SHARD2;
@@ -206,6 +207,112 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         Vgtid vgtid = Vgtid.of(value.getString("vgtid"));
         assertThat(vgtid.getShardGtids().size()).isEqualTo(1);
         assertThat(vgtid.getShardGtids().get(0).getShard()).isEqualTo(expectedShard);
+    }
+
+    @Test
+    @FixFor("DBZ-8325")
+    public void shouldReceiveSchemaChangeEventAfterDataChangeEvent() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        // startConnector();
+        startConnector(config -> config
+                .with(CommonConnectorConfig.INCLUDE_SCHEMA_CHANGES, true),
+                false);
+        assertConnectorIsRunning();
+
+        String schemaChangeTopic = TestHelper.defaultConfig().build().getString(CommonConnectorConfig.TOPIC_PREFIX);
+        String dataChangeTopic = String.join(".",
+                TestHelper.defaultConfig().build().getString(CommonConnectorConfig.TOPIC_PREFIX),
+                TEST_UNSHARDED_KEYSPACE,
+                "ddl_table");
+
+        String ddl = "ALTER TABLE ddl_table ADD COLUMN new_column_name INT";
+        TestHelper.execute("INSERT INTO ddl_table (id, int_unsigned_col, json_col) VALUES (1, 2, '{\"1\":2}');");
+        TestHelper.execute(ddl);
+
+        int expectedDataChangeRecords = 1;
+        int expectedSchemaChangeRecords = 1;
+        int expectedTotalRecords = expectedDataChangeRecords + expectedSchemaChangeRecords;
+        consumer = testConsumer(expectedTotalRecords);
+        consumer.expects(expectedTotalRecords);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 0; i < expectedTotalRecords; i++) {
+            SourceRecord record = consumer.remove();
+            Struct value = (Struct) record.value();
+            Struct source = (Struct) value.get("source");
+            assertThat(source.getString("table")).isEqualTo("ddl_table");
+            assertThat(source.getString("shard")).isEqualTo(TEST_SHARD);
+            if (i == 1) {
+                assertThat(record.topic()).isEqualTo(schemaChangeTopic);
+                assertThat(value.getString("ddl")).isEqualToIgnoringCase(ddl);
+            }
+            else {
+                assertThat(record.topic()).isEqualTo(dataChangeTopic);
+            }
+        }
+        assertThat(consumer.isEmpty());
+    }
+
+    @Test
+    @FixFor("DBZ-8325")
+    public void shouldReceiveSchemaEventsShardedBeforeAnyDataEvents() throws Exception {
+        String keyspace = TEST_SHARDED_KEYSPACE;
+        String table = keyspace + ".ddl_table";
+        TestHelper.executeDDL("vitess_create_tables.ddl", keyspace);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(config -> config
+                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true),
+                true);
+        assertConnectorIsRunning();
+
+        String schemaChangeTopic = TestHelper.defaultConfig().build().getString(CommonConnectorConfig.TOPIC_PREFIX);
+
+        String addCol = "ALTER TABLE ddl_table ADD COLUMN new_column_name INT";
+        String addPartition = "ALTER TABLE ddl_table ADD PARTITION (PARTITION p2 VALUES LESS THAN (2000))";
+        String dropPartition = "ALTER TABLE ddl_table DROP PARTITION p0";
+        String truncateTable = "TRUNCATE TABLE ddl_table";
+        // Put in the fully qualified table name (with keyspace) to ensure we can parse the table name fine
+        String dropTable = "DROP TABLE test_sharded_keyspace.ddl_table";
+        String createTable = "CREATE TABLE test_sharded_keyspace.ddl_table (id BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id))";
+        TestHelper.execute(addCol, TEST_SHARDED_KEYSPACE);
+        TestHelper.execute(addPartition, TEST_SHARDED_KEYSPACE);
+        TestHelper.execute(dropPartition, TEST_SHARDED_KEYSPACE);
+        TestHelper.execute(truncateTable, TEST_SHARDED_KEYSPACE);
+        TestHelper.execute(dropTable, TEST_SHARDED_KEYSPACE);
+        TestHelper.execute(createTable, TEST_SHARDED_KEYSPACE);
+
+        // 6 for the changes above
+        // 2 shards, so 6 * 2 = 12
+        int expectedSchemaChangeRecords = 12;
+        consumer = testConsumer(expectedSchemaChangeRecords);
+        consumer.expects(expectedSchemaChangeRecords);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 0; i < expectedSchemaChangeRecords; i++) {
+            SourceRecord record = consumer.remove();
+            assertThat(record.topic()).isEqualTo(schemaChangeTopic);
+            Struct value = (Struct) record.value();
+            Struct source = (Struct) value.get("source");
+            assertThat(source.getString("table")).isEqualTo("ddl_table");
+            assertThat(source.getString("shard")).isIn(List.of(TEST_SHARD1, TEST_SHARD2));
+            if (i < 2) {
+                assertThat(value.getString("ddl")).isEqualToIgnoringCase(addCol);
+            }
+            else if (i < 4) {
+                assertThat(value.getString("ddl")).isEqualToIgnoringCase(addPartition);
+            }
+            else if (i < 6) {
+                assertThat(value.getString("ddl")).isEqualToIgnoringCase(dropPartition);
+            }
+            else if (i < 8) {
+                assertThat(value.getString("ddl")).isEqualToIgnoringCase(truncateTable);
+            }
+            else if (i < 10) {
+                assertThat(value.getString("ddl")).containsIgnoringCase("DROP TABLE");
+            }
+            else if (i < 12) {
+                assertThat(value.getString("ddl")).containsIgnoringCase("CREATE TABLE");
+            }
+        }
+        assertThat(consumer.isEmpty());
     }
 
     @Test
@@ -1801,7 +1908,8 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertThat(recordCount < expectedSnapshotRecordsCount).isTrue();
         // Assert the total snapshot records are sent after starting
         consumer = testConsumer(expectedSnapshotRecordsCount, tableInclude);
-        startConnector();
+        startConnector(Function.identity(), false, false, 1,
+                -1, -1, tableInclude, VitessConnectorConfig.SnapshotMode.INITIAL, TestHelper.TEST_SHARD);
         consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
 
         for (int i = 1; i <= expectedSnapshotRecordsCount; i++) {

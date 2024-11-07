@@ -37,7 +37,17 @@ public class OtherMessage implements ReplicationMessage {
     }
 
     @Override
+    public String getKeyspace() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public String getTable() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String getStatement() {
         throw new UnsupportedOperationException();
     }
 

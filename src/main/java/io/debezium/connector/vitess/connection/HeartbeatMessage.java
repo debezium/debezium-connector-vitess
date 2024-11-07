@@ -35,12 +35,22 @@ public class HeartbeatMessage implements ReplicationMessage {
     }
 
     @Override
+    public String getKeyspace() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public String getTable() {
         throw new UnsupportedOperationException();
     }
 
     @Override
     public String getShard() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String getStatement() {
         throw new UnsupportedOperationException();
     }
 

@@ -100,7 +100,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             this.transactionId = newVgtid.toString();
         }
         processor.process(
-                new DdlMessage(transactionId, eventTimestamp), newVgtid, false);
+                new DdlMessage(transactionId, eventTimestamp, vEvent.getStatement(), vEvent.getKeyspace(), vEvent.getShard()), newVgtid, false);
     }
 
     private void handleOther(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)
@@ -133,7 +133,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         }
         LOGGER.trace("Timestamp of begin transaction: {}", eventTimestamp);
         processor.process(
-                new TransactionalMessage(Operation.BEGIN, transactionId, eventTimestamp, vEvent.getShard()), newVgtid, false);
+                new TransactionalMessage(Operation.BEGIN, transactionId, eventTimestamp, vEvent.getKeyspace(), vEvent.getShard()), newVgtid, false);
     }
 
     private void handleCommitMessage(
@@ -147,7 +147,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         }
         LOGGER.trace("Timestamp of commit transaction: {}", commitTimestamp);
         processor.process(
-                new TransactionalMessage(Operation.COMMIT, transactionId, eventTimestamp, vEvent.getShard()), newVgtid, false);
+                new TransactionalMessage(Operation.COMMIT, transactionId, eventTimestamp, vEvent.getKeyspace(), vEvent.getShard()), newVgtid, false);
     }
 
     private void decodeRows(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid, boolean isLastRowEventOfTransaction)
@@ -216,6 +216,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                         Operation.INSERT,
                         commitTimestamp,
                         transactionId,
+                        schemaName,
                         tableId.toDoubleQuotedString(),
                         shard,
                         null,
@@ -256,6 +257,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                         Operation.UPDATE,
                         commitTimestamp,
                         transactionId,
+                        schemaName,
                         tableId.toDoubleQuotedString(),
                         shard,
                         oldColumns,
@@ -294,6 +296,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                         Operation.DELETE,
                         commitTimestamp,
                         transactionId,
+                        schemaName,
                         tableId.toDoubleQuotedString(),
                         shard,
                         columns,

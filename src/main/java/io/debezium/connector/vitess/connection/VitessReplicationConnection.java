@@ -414,8 +414,8 @@ public class VitessReplicationConnection implements ReplicationConnection {
         if (config.offsetStoragePerTask()) {
             List<String> shards = config.getVitessTaskKeyShards();
             vgtid = config.getVitessTaskVgtid();
-            LOGGER.info("VGTID '{}' is set for the keyspace: {} shards: {}",
-                    vgtid, config.getKeyspace(), shards);
+            LOGGER.info("VGTID is set for the keyspace: {}, shards: {}, vgtid: {}",
+                    config.getKeyspace(), shards, vgtid);
         }
         else {
             // If offset storage per task is disabled, then find the vgtid elsewhere

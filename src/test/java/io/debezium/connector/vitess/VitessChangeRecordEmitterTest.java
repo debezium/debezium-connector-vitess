@@ -48,6 +48,7 @@ public class VitessChangeRecordEmitterTest {
                 ReplicationMessage.Operation.INSERT,
                 AnonymousValue.getInstant(),
                 AnonymousValue.getString(),
+                AnonymousValue.getString(),
                 TestHelper.defaultTableId().toDoubleQuotedString(),
                 AnonymousValue.getString(),
                 null,
@@ -74,6 +75,7 @@ public class VitessChangeRecordEmitterTest {
         ReplicationMessage message = new VStreamOutputReplicationMessage(
                 ReplicationMessage.Operation.DELETE,
                 AnonymousValue.getInstant(),
+                AnonymousValue.getString(),
                 AnonymousValue.getString(),
                 TestHelper.defaultTableId().toDoubleQuotedString(),
                 AnonymousValue.getString(),
@@ -102,6 +104,7 @@ public class VitessChangeRecordEmitterTest {
                 ReplicationMessage.Operation.UPDATE,
                 AnonymousValue.getInstant(),
                 AnonymousValue.getString(),
+                AnonymousValue.getString(),
                 TestHelper.defaultTableId().toDoubleQuotedString(),
                 AnonymousValue.getString(),
                 TestHelper.defaultRelationMessageColumns(),
@@ -126,7 +129,7 @@ public class VitessChangeRecordEmitterTest {
     public void shouldNotSupportBeginMessage() {
         // setup fixture
         ReplicationMessage message = new TransactionalMessage(ReplicationMessage.Operation.BEGIN, AnonymousValue.getString(), AnonymousValue.getInstant(),
-                AnonymousValue.getString());
+                AnonymousValue.getString(), AnonymousValue.getString());
 
         // exercise SUT
         new VitessChangeRecordEmitter(
@@ -142,7 +145,7 @@ public class VitessChangeRecordEmitterTest {
     public void shouldNotSupportCommitMessage() {
         // setup fixture
         ReplicationMessage message = new TransactionalMessage(ReplicationMessage.Operation.COMMIT, AnonymousValue.getString(), AnonymousValue.getInstant(),
-                AnonymousValue.getString());
+                AnonymousValue.getString(), AnonymousValue.getString());
 
         // exercise SUT
         new VitessChangeRecordEmitter(

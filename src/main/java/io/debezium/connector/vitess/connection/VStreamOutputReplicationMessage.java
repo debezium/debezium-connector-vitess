@@ -17,6 +17,7 @@ public class VStreamOutputReplicationMessage implements ReplicationMessage {
     private final Operation op;
     private final Instant commitTimestamp;
     private final String transactionId;
+    private final String keyspace;
     private final String table;
     private final String shard;
     private final List<Column> oldColumns;
@@ -26,6 +27,7 @@ public class VStreamOutputReplicationMessage implements ReplicationMessage {
                                            Operation op,
                                            Instant commitTimestamp,
                                            String transactionId,
+                                           String keyspace,
                                            String table,
                                            String shard,
                                            List<Column> oldColumns,
@@ -33,6 +35,7 @@ public class VStreamOutputReplicationMessage implements ReplicationMessage {
         this.op = op;
         this.commitTimestamp = commitTimestamp;
         this.transactionId = transactionId;
+        this.keyspace = keyspace;
         this.table = table;
         this.shard = shard;
         this.oldColumns = oldColumns;
@@ -55,6 +58,11 @@ public class VStreamOutputReplicationMessage implements ReplicationMessage {
     }
 
     @Override
+    public String getKeyspace() {
+        return keyspace;
+    }
+
+    @Override
     public String getTable() {
         return table;
     }
@@ -62,6 +70,11 @@ public class VStreamOutputReplicationMessage implements ReplicationMessage {
     @Override
     public String getShard() {
         return shard;
+    }
+
+    @Override
+    public String getStatement() {
+        throw new UnsupportedOperationException();
     }
 
     @Override

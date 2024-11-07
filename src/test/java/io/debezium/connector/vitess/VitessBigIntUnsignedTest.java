@@ -96,6 +96,7 @@ public class VitessBigIntUnsignedTest {
                 ReplicationMessage.Operation.INSERT,
                 AnonymousValue.getInstant(),
                 AnonymousValue.getString(),
+                AnonymousValue.getString(),
                 TestHelper.defaultTableId().toDoubleQuotedString(),
                 TestHelper.TEST_SHARD,
                 null,

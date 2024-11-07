@@ -14,11 +14,17 @@ public class DdlMessage implements ReplicationMessage {
     private final String transactionId;
     private final Instant commitTime;
     private final Operation operation;
+    private final String statement;
+    private final String shard;
+    private final String keyspace;
 
-    public DdlMessage(String transactionId, Instant commitTime) {
+    public DdlMessage(String transactionId, Instant commitTime, String statement, String keyspace, String shard) {
         this.transactionId = transactionId;
         this.commitTime = commitTime;
         this.operation = Operation.DDL;
+        this.statement = statement;
+        this.keyspace = keyspace;
+        this.shard = shard;
     }
 
     @Override
@@ -42,8 +48,18 @@ public class DdlMessage implements ReplicationMessage {
     }
 
     @Override
+    public String getStatement() {
+        return statement;
+    }
+
+    @Override
+    public String getKeyspace() {
+        return keyspace;
+    }
+
+    @Override
     public String getShard() {
-        throw new UnsupportedOperationException();
+        return shard;
     }
 
     @Override
@@ -67,8 +83,14 @@ public class DdlMessage implements ReplicationMessage {
                 + "transactionId='"
                 + transactionId
                 + '\''
+                + ", keyspace="
+                + keyspace
+                + ", shard="
+                + shard
                 + ", commitTime="
                 + commitTime
+                + ", statement="
+                + statement
                 + ", operation="
                 + operation
                 + '}';

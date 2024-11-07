@@ -11,6 +11,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.DebeziumException;
+import io.debezium.connector.vitess.connection.DdlMetadataExtractor;
 import io.debezium.connector.vitess.connection.ReplicationConnection;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageProcessor;
@@ -19,6 +21,7 @@ import io.debezium.pipeline.ErrorHandler;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
 import io.debezium.relational.TableId;
+import io.debezium.schema.SchemaChangeEvent;
 import io.debezium.util.Clock;
 import io.debezium.util.DelayStrategy;
 
@@ -108,9 +111,35 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
                 }
                 return;
             }
-            else if (message.getOperation() == ReplicationMessage.Operation.DDL || message.getOperation() == ReplicationMessage.Operation.OTHER) {
-                // DDL event or OTHER event
+            else if (message.getOperation() == ReplicationMessage.Operation.OTHER) {
                 offsetContext.rotateVgtid(newVgtid, message.getCommitTime());
+            }
+            else if (message.getOperation() == ReplicationMessage.Operation.DDL) {
+                offsetContext.rotateVgtid(newVgtid, message.getCommitTime());
+                offsetContext.setShard(message.getShard());
+
+                DdlMetadataExtractor metadataExtractor = new DdlMetadataExtractor(message);
+                TableId tableId = VitessDatabaseSchema.parse(metadataExtractor.getTable());
+                offsetContext.event(tableId, message.getCommitTime());
+                String ddlStatement = message.getStatement();
+                SchemaChangeEvent.SchemaChangeEventType eventType = metadataExtractor.getSchemaChangeEventType();
+                SchemaChangeEvent schemaChangeEvent = SchemaChangeEvent.of(
+                        eventType,
+                        partition,
+                        offsetContext,
+                        connectorConfig.getKeyspace(),
+                        null,
+                        ddlStatement,
+                        null,
+                        false);
+                dispatcher.dispatchSchemaChangeEvent(partition, offsetContext, null, (receiver) -> {
+                    try {
+                        receiver.schemaChangeEvent(schemaChangeEvent);
+                    }
+                    catch (Exception e) {
+                        throw new DebeziumException(e);
+                    }
+                });
             }
             else if (message.getOperation().equals(ReplicationMessage.Operation.HEARTBEAT)) {
                 dispatcher.dispatchHeartbeatEvent(partition, offsetContext);

@@ -72,6 +72,8 @@ public interface ReplicationMessage {
 
     String getTransactionId();
 
+    String getKeyspace();
+
     String getTable();
 
     String getShard();
@@ -79,6 +81,8 @@ public interface ReplicationMessage {
     List<Column> getOldTupleList();
 
     List<Column> getNewTupleList();
+
+    String getStatement();
 
     default boolean isTransactionalMessage() {
         return getOperation() == Operation.BEGIN || getOperation() == Operation.COMMIT;

@@ -31,6 +31,7 @@ import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.ReplicationMessageColumn;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
+import io.debezium.embedded.EmbeddedEngineConfig;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
 import io.vitess.proto.Query;
@@ -149,6 +150,8 @@ public class TestHelper {
                 .with(VitessConnectorConfig.VTGATE_PORT, VTGATE_PORT)
                 .with(VitessConnectorConfig.VTGATE_USER, USERNAME)
                 .with(VitessConnectorConfig.VTGATE_PASSWORD, PASSWORD)
+                // Only wait 5 seconds to stop, not default of 5 minutes
+                .with(EmbeddedEngineConfig.WAIT_FOR_COMPLETION_BEFORE_INTERRUPT_MS, 5000)
                 .with(VitessConnectorConfig.POLL_INTERVAL_MS, 100);
         if (!Strings.isNullOrEmpty(tableInclude)) {
             builder.with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude);

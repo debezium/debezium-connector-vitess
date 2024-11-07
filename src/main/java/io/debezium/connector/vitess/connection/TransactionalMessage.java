@@ -14,12 +14,14 @@ public class TransactionalMessage implements ReplicationMessage {
     private final String transactionId;
     private final Instant commitTime;
     private final Operation operation;
+    private final String keyspace;
     private final String shard;
 
-    public TransactionalMessage(Operation operation, String transactionId, Instant commitTime, String shard) {
+    public TransactionalMessage(Operation operation, String transactionId, Instant commitTime, String keyspace, String shard) {
         this.transactionId = transactionId;
         this.commitTime = commitTime;
         this.operation = operation;
+        this.keyspace = keyspace;
         this.shard = shard;
     }
 
@@ -39,6 +41,11 @@ public class TransactionalMessage implements ReplicationMessage {
     }
 
     @Override
+    public String getKeyspace() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public String getTable() {
         throw new UnsupportedOperationException();
     }
@@ -46,6 +53,11 @@ public class TransactionalMessage implements ReplicationMessage {
     @Override
     public String getShard() {
         return shard;
+    }
+
+    @Override
+    public String getStatement() {
+        throw new UnsupportedOperationException();
     }
 
     @Override

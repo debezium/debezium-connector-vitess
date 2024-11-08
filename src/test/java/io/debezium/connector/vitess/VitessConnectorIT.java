@@ -215,7 +215,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         // startConnector();
         startConnector(config -> config
-                .with(CommonConnectorConfig.INCLUDE_SCHEMA_CHANGES, true),
+                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true),
                 false);
         assertConnectorIsRunning();
 
@@ -243,6 +243,50 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
             assertThat(source.getString("shard")).isEqualTo(TEST_SHARD);
             if (i == 1) {
                 assertThat(record.topic()).isEqualTo(schemaChangeTopic);
+                assertThat(value.getString("ddl")).isEqualToIgnoringCase(ddl);
+            }
+            else {
+                assertThat(record.topic()).isEqualTo(dataChangeTopic);
+            }
+        }
+        assertThat(consumer.isEmpty());
+    }
+
+    @Test
+    @FixFor("DBZ-8325")
+    public void shouldSupportOverrideDataChangeAndSchemaChangeTopics() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        // startConnector();
+        String overrideDataChangeTopicPrefix = "data.alternate.prefix";
+        String overrideSchemaChangeTopic = "schema.alternate.topic";
+        startConnector(config -> config
+                .with(VitessConnectorConfig.TOPIC_NAMING_STRATEGY, TableTopicNamingStrategy.class)
+                .with(VitessConnectorConfig.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX, overrideDataChangeTopicPrefix)
+                .with(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC, overrideSchemaChangeTopic)
+                .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true),
+                false);
+        assertConnectorIsRunning();
+
+        String dataChangeTopic = String.join(".", overrideDataChangeTopicPrefix, "ddl_table");
+
+        String ddl = "ALTER TABLE ddl_table ADD COLUMN new_column_name INT";
+        TestHelper.execute("INSERT INTO ddl_table (id, int_unsigned_col, json_col) VALUES (1, 2, '{\"1\":2}');");
+        TestHelper.execute(ddl);
+
+        int expectedDataChangeRecords = 1;
+        int expectedSchemaChangeRecords = 1;
+        int expectedTotalRecords = expectedDataChangeRecords + expectedSchemaChangeRecords;
+        consumer = testConsumer(expectedTotalRecords);
+        consumer.expects(expectedTotalRecords);
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        for (int i = 0; i < expectedTotalRecords; i++) {
+            SourceRecord record = consumer.remove();
+            Struct value = (Struct) record.value();
+            Struct source = (Struct) value.get("source");
+            assertThat(source.getString("table")).isEqualTo("ddl_table");
+            assertThat(source.getString("shard")).isEqualTo(TEST_SHARD);
+            if (i == 1) {
+                assertThat(record.topic()).isEqualTo(overrideSchemaChangeTopic);
                 assertThat(value.getString("ddl")).isEqualToIgnoringCase(ddl);
             }
             else {

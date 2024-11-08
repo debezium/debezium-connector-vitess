@@ -348,6 +348,20 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                             + "'false' (the default) omits the fields; "
                             + "'true' converts the field into an implementation dependent binary representation.");
 
+    // Needed for backward compatibility, otherwise all upgraded connectors will start publishing schema change events
+    // by default.
+    public static final Field INCLUDE_SCHEMA_CHANGES = Field.create("include.schema.changes")
+            .withDisplayName("Include database schema changes")
+            .withType(Type.BOOLEAN)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR, 0))
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription("Whether the connector should publish changes in the database schema to a Kafka topic with "
+                    + "the same name as the database server ID. Each schema change will be recorded using a key that "
+                    + "contains the database name and whose value include logical description of the new schema and optionally the DDL statement(s). "
+                    + "The default is 'true'. This is independent of how the connector internally records database schema history.")
+            .withDefault(false);
+
     public static final Field OFFSET_STORAGE_PER_TASK = Field.create(VITESS_CONFIG_GROUP_PREFIX + "offset.storage.per.task")
             .withDisplayName("Store offsets per task")
             .withType(Type.BOOLEAN)
@@ -367,6 +381,14 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withImportance(ConfigDef.Importance.LOW)
             .withValidation(CommonConnectorConfig::validateTopicName)
             .withDescription("Overrides the topic.prefix used for the data change topic.");
+
+    public static final Field OVERRIDE_SCHEMA_CHANGE_TOPIC = Field.create("override.schema.change.topic")
+            .withDisplayName("Override schema change topic name")
+            .withType(Type.STRING)
+            .withWidth(Width.MEDIUM)
+            .withImportance(ConfigDef.Importance.LOW)
+            .withValidation(CommonConnectorConfig::validateTopicName)
+            .withDescription("Overrides the name of the schema change topic (if not set uses topic.prefx).");
 
     public static final Field OFFSET_STORAGE_TASK_KEY_GEN = Field.create(VITESS_CONFIG_GROUP_PREFIX + "offset.storage.task.key.gen")
             .withDisplayName("Offset storage task key generation number")
@@ -479,6 +501,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     GRPC_MAX_INBOUND_MESSAGE_SIZE,
                     BINARY_HANDLING_MODE,
                     OVERRIDE_DATA_CHANGE_TOPIC_PREFIX,
+                    OVERRIDE_SCHEMA_CHANGE_TOPIC,
                     SCHEMA_NAME_ADJUSTMENT_MODE,
                     OFFSET_STORAGE_PER_TASK,
                     OFFSET_STORAGE_TASK_KEY_GEN,
@@ -551,6 +574,11 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     @Override
     public String getConnectorName() {
         return Module.name();
+    }
+
+    @Override
+    public boolean isSchemaChangesHistoryEnabled() {
+        return getConfig().getBoolean(INCLUDE_SCHEMA_CHANGES);
     }
 
     @Override

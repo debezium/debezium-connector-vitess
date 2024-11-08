@@ -52,4 +52,26 @@ public class TableTopicNamingStrategyTest {
         assertThat(topicName).isEqualTo("prefix.table");
     }
 
+    @Test
+    public void shouldGetOverrideSchemaChangeTopic() {
+        TableId tableId = new TableId("shard", "keyspace", "table");
+        final Properties props = new Properties();
+        props.put("topic.prefix", "prefix");
+        props.put(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC.name(), "override-prefix");
+        TopicNamingStrategy strategy = new TableTopicNamingStrategy(props);
+        String topicName = strategy.schemaChangeTopic();
+        assertThat(topicName).isEqualTo("override-prefix");
+    }
+
+    @Test
+    public void shouldUseTopicPrefixIfOverrideSchemaIsBlank() {
+        TableId tableId = new TableId("shard", "keyspace", "table");
+        final Properties props = new Properties();
+        props.put("topic.prefix", "prefix");
+        props.put(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC.name(), "");
+        TopicNamingStrategy strategy = new TableTopicNamingStrategy(props);
+        String topicName = strategy.schemaChangeTopic();
+        assertThat(topicName).isEqualTo("prefix");
+    }
+
 }

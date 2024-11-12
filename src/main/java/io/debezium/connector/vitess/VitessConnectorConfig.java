@@ -374,22 +374,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                             + "'false' (the default) offsets are stored as a single unit under the database name. "
                             + "'true' stores the offsets per task id");
 
-    public static final Field OVERRIDE_DATA_CHANGE_TOPIC_PREFIX = Field.create("override.data.change.topic.prefix")
-            .withDisplayName("Override Data Topic prefix")
-            .withType(Type.STRING)
-            .withWidth(Width.MEDIUM)
-            .withImportance(ConfigDef.Importance.LOW)
-            .withValidation(CommonConnectorConfig::validateTopicName)
-            .withDescription("Overrides the topic.prefix used for the data change topic.");
-
-    public static final Field OVERRIDE_SCHEMA_CHANGE_TOPIC = Field.create("override.schema.change.topic")
-            .withDisplayName("Override schema change topic name")
-            .withType(Type.STRING)
-            .withWidth(Width.MEDIUM)
-            .withImportance(ConfigDef.Importance.LOW)
-            .withValidation(CommonConnectorConfig::validateTopicName)
-            .withDescription("Overrides the name of the schema change topic (if not set uses topic.prefx).");
-
     public static final Field OFFSET_STORAGE_TASK_KEY_GEN = Field.create(VITESS_CONFIG_GROUP_PREFIX + "offset.storage.task.key.gen")
             .withDisplayName("Offset storage task key generation number")
             .withType(Type.INT)
@@ -500,8 +484,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     GRPC_HEADERS,
                     GRPC_MAX_INBOUND_MESSAGE_SIZE,
                     BINARY_HANDLING_MODE,
-                    OVERRIDE_DATA_CHANGE_TOPIC_PREFIX,
-                    OVERRIDE_SCHEMA_CHANGE_TOPIC,
                     SCHEMA_NAME_ADJUSTMENT_MODE,
                     OFFSET_STORAGE_PER_TASK,
                     OFFSET_STORAGE_TASK_KEY_GEN,

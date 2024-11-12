@@ -7,9 +7,11 @@
 package io.debezium.connector.vitess;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Properties;
 
+import org.apache.kafka.connect.errors.ConnectException;
 import org.junit.Test;
 
 import io.debezium.relational.TableId;
@@ -34,19 +36,18 @@ public class TableTopicNamingStrategyTest {
         final Properties props = new Properties();
         props.put("topic.delimiter", ".");
         props.put("topic.prefix", "prefix");
-        props.put(VitessConnectorConfig.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX.name(), "override-prefix");
+        props.put(TableTopicNamingStrategy.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX.name(), "override-prefix");
         TopicNamingStrategy strategy = new TableTopicNamingStrategy(props);
         String topicName = strategy.dataChangeTopic(tableId);
         assertThat(topicName).isEqualTo("override-prefix.table");
     }
 
     @Test
-    public void shouldUseTopicPrefixIfOverrideIsBlank() {
+    public void shouldUseTopicPrefixIfOverrideIsNotSpecified() {
         TableId tableId = new TableId("shard", "keyspace", "table");
         final Properties props = new Properties();
         props.put("topic.delimiter", ".");
         props.put("topic.prefix", "prefix");
-        props.put(VitessConnectorConfig.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX.name(), "");
         TopicNamingStrategy strategy = new TableTopicNamingStrategy(props);
         String topicName = strategy.dataChangeTopic(tableId);
         assertThat(topicName).isEqualTo("prefix.table");
@@ -54,24 +55,70 @@ public class TableTopicNamingStrategyTest {
 
     @Test
     public void shouldGetOverrideSchemaChangeTopic() {
-        TableId tableId = new TableId("shard", "keyspace", "table");
         final Properties props = new Properties();
         props.put("topic.prefix", "prefix");
-        props.put(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC.name(), "override-prefix");
+        props.put(TableTopicNamingStrategy.OVERRIDE_SCHEMA_CHANGE_TOPIC.name(), "override-prefix");
         TopicNamingStrategy strategy = new TableTopicNamingStrategy(props);
         String topicName = strategy.schemaChangeTopic();
         assertThat(topicName).isEqualTo("override-prefix");
     }
 
     @Test
-    public void shouldUseTopicPrefixIfOverrideSchemaIsBlank() {
-        TableId tableId = new TableId("shard", "keyspace", "table");
+    public void shouldUseTopicPrefixIfOverrideSchemaIsNotSpecified() {
         final Properties props = new Properties();
         props.put("topic.prefix", "prefix");
-        props.put(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC.name(), "");
         TopicNamingStrategy strategy = new TableTopicNamingStrategy(props);
         String topicName = strategy.schemaChangeTopic();
         assertThat(topicName).isEqualTo("prefix");
+    }
+
+    @Test
+    public void shouldUseValidationsOfParentClass() {
+        final Properties props = new Properties();
+        props.put("topic.prefix", "invalid?.topic.name");
+        assertThatThrownBy(() -> {
+            new TableTopicNamingStrategy(props);
+        }).isInstanceOf(ConnectException.class);
+    }
+
+    @Test
+    public void shouldThrowExceptionForInvalidOverrideDataChangeTopic() {
+        final Properties props = new Properties();
+        props.put("topic.prefix", "dev.database");
+        props.put(TableTopicNamingStrategy.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX.name(), "invalid?.topic.name");
+        assertThatThrownBy(() -> {
+            new TableTopicNamingStrategy(props);
+        }).isInstanceOf(ConnectException.class);
+    }
+
+    @Test
+    public void shouldBlankOverrideTopicPrefixFailValidation() {
+        final Properties props = new Properties();
+        props.put("topic.prefix", "dev.database");
+        props.put(TableTopicNamingStrategy.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX.name(), "");
+        assertThatThrownBy(() -> {
+            new TableTopicNamingStrategy(props);
+        }).isInstanceOf(ConnectException.class);
+    }
+
+    @Test
+    public void shouldThrowExceptionForInvalidOverrideSchemaChangeTopic() {
+        final Properties props = new Properties();
+        props.put("topic.prefix", "dev.database");
+        props.put(TableTopicNamingStrategy.OVERRIDE_SCHEMA_CHANGE_TOPIC.name(), "invalid?.topic.name");
+        assertThatThrownBy(() -> {
+            new TableTopicNamingStrategy(props);
+        }).isInstanceOf(ConnectException.class);
+    }
+
+    @Test
+    public void shouldBlankOverrideSchemaTopicPrefixFailValidation() {
+        final Properties props = new Properties();
+        props.put("topic.prefix", "dev.database");
+        props.put(TableTopicNamingStrategy.OVERRIDE_SCHEMA_CHANGE_TOPIC.name(), "");
+        assertThatThrownBy(() -> {
+            new TableTopicNamingStrategy(props);
+        }).isInstanceOf(ConnectException.class);
     }
 
 }

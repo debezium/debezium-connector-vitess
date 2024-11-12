@@ -7,8 +7,14 @@ package io.debezium.connector.vitess;
 
 import java.util.Properties;
 
+import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.connect.errors.ConnectException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
+import io.debezium.config.Field;
 import io.debezium.relational.TableId;
 import io.debezium.schema.AbstractTopicNamingStrategy;
 import io.debezium.util.Collect;
@@ -38,14 +44,44 @@ import io.debezium.util.Strings;
  */
 public class TableTopicNamingStrategy extends AbstractTopicNamingStrategy<TableId> {
 
-    private final String overrideDataChangeTopicPrefix;
-    private final String overrideSchemaChangeTopic;
+    private static final Logger LOGGER = LoggerFactory.getLogger(TableTopicNamingStrategy.class);
+
+    public static final Field OVERRIDE_DATA_CHANGE_TOPIC_PREFIX = Field.create("override.data.change.topic.prefix")
+            .withDisplayName("Override Data Topic prefix")
+            .withType(ConfigDef.Type.STRING)
+            .withWidth(ConfigDef.Width.MEDIUM)
+            .withImportance(ConfigDef.Importance.LOW)
+            .withValidation(CommonConnectorConfig::validateTopicName)
+            .withDescription("Overrides the topic.prefix used for the data change topic.");
+
+    public static final Field OVERRIDE_SCHEMA_CHANGE_TOPIC = Field.create("override.schema.change.topic")
+            .withDisplayName("Override schema change topic name")
+            .withType(ConfigDef.Type.STRING)
+            .withWidth(ConfigDef.Width.MEDIUM)
+            .withImportance(ConfigDef.Importance.LOW)
+            .withValidation(CommonConnectorConfig::validateTopicName)
+            .withDescription("Overrides the name of the schema change topic (if not set uses topic.prefx).");
+
+    private String overrideDataChangeTopicPrefix;
+    private String overrideSchemaChangeTopic;
 
     public TableTopicNamingStrategy(Properties props) {
         super(props);
+    }
+
+    @Override
+    public void configure(Properties props) {
+        super.configure(props);
         Configuration config = Configuration.from(props);
-        this.overrideDataChangeTopicPrefix = config.getString(VitessConnectorConfig.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX);
-        this.overrideSchemaChangeTopic = config.getString(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC);
+        final Field.Set configFields = Field.setOf(
+                OVERRIDE_DATA_CHANGE_TOPIC_PREFIX,
+                OVERRIDE_SCHEMA_CHANGE_TOPIC);
+        if (!config.validateAndRecord(configFields, LOGGER::error)) {
+            throw new ConnectException("Unable to validate config.");
+        }
+
+        overrideDataChangeTopicPrefix = config.getString(OVERRIDE_DATA_CHANGE_TOPIC_PREFIX);
+        overrideSchemaChangeTopic = config.getString(OVERRIDE_SCHEMA_CHANGE_TOPIC);
     }
 
     public static TableTopicNamingStrategy create(CommonConnectorConfig config) {

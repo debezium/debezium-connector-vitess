@@ -261,8 +261,8 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         String overrideSchemaChangeTopic = "schema.alternate.topic";
         startConnector(config -> config
                 .with(VitessConnectorConfig.TOPIC_NAMING_STRATEGY, TableTopicNamingStrategy.class)
-                .with(VitessConnectorConfig.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX, overrideDataChangeTopicPrefix)
-                .with(VitessConnectorConfig.OVERRIDE_SCHEMA_CHANGE_TOPIC, overrideSchemaChangeTopic)
+                .with(TableTopicNamingStrategy.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX, overrideDataChangeTopicPrefix)
+                .with(TableTopicNamingStrategy.OVERRIDE_SCHEMA_CHANGE_TOPIC, overrideSchemaChangeTopic)
                 .with(VitessConnectorConfig.INCLUDE_SCHEMA_CHANGES, true),
                 false);
         assertConnectorIsRunning();

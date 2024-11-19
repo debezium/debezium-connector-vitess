@@ -2206,7 +2206,10 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         start(VitessConnector.class, config);
         assertConnectorIsRunning();
         String taskId = config.getBoolean(VitessConnectorConfig.OFFSET_STORAGE_PER_TASK)
-                ? VitessConnector.getTaskKeyName(0, 1, config.getInteger(VitessConnectorConfig.OFFSET_STORAGE_TASK_KEY_GEN))
+                ? VitessConnector.getTaskKeyName(
+                        0,
+                        config.getInteger(VitessConnectorConfig.TASKS_MAX_CONFIG),
+                        config.getInteger(VitessConnectorConfig.OFFSET_STORAGE_TASK_KEY_GEN))
                 : null;
         waitForStreamingRunning(taskId);
         waitForVStreamStarted(logInterceptor);

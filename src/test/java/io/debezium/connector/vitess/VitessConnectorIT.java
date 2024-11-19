@@ -53,6 +53,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.debezium.DebeziumException;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
@@ -1643,7 +1644,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         assertEquals(false, result.get("success"));
         assertThat(result.get("message").toString().contains("Connector configuration is not valid. Unable to connect: "));
-        assertEquals(null, result.get("error"));
+        assertThat(result.get("error")).isInstanceOf(DebeziumException.class);
     }
 
     @Test

@@ -9,7 +9,7 @@
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>debezium-connector-vitess</artifactId>
-    <version>3.0.3-SNAPSHOT</version>
+    <version>3.0.4.Final</version>
     <name>Debezium Connector for Vitess</name>
     <packaging>jar</packaging>
 

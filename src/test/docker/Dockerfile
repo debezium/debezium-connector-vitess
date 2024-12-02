@@ -5,7 +5,6 @@ FROM vitess/lite:v19.0.4
 
 USER root
 
-RUN apt-key adv --no-tty --recv-keys --keyserver keyserver.ubuntu.com B7B3B788A8D3785C
 RUN apt-get update
 RUN apt-get install -y sudo curl vim jq
 

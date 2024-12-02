@@ -118,28 +118,31 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
                 offsetContext.rotateVgtid(newVgtid, message.getCommitTime());
                 offsetContext.setShard(message.getShard());
 
-                DdlMetadataExtractor metadataExtractor = new DdlMetadataExtractor(message);
-                TableId tableId = VitessDatabaseSchema.parse(metadataExtractor.getTable());
-                offsetContext.event(tableId, message.getCommitTime());
-                String ddlStatement = message.getStatement();
-                SchemaChangeEvent.SchemaChangeEventType eventType = metadataExtractor.getSchemaChangeEventType();
-                SchemaChangeEvent schemaChangeEvent = SchemaChangeEvent.of(
-                        eventType,
-                        partition,
-                        offsetContext,
-                        connectorConfig.getKeyspace(),
-                        null,
-                        ddlStatement,
-                        null,
-                        false);
-                dispatcher.dispatchSchemaChangeEvent(partition, offsetContext, null, (receiver) -> {
-                    try {
-                        receiver.schemaChangeEvent(schemaChangeEvent);
-                    }
-                    catch (Exception e) {
-                        throw new DebeziumException(e);
-                    }
-                });
+                // DDLs events are only published if the schema change history is enabled, so we should skip parsing DDL events if it's disabled
+                if (connectorConfig.isSchemaChangesHistoryEnabled()) {
+                    DdlMetadataExtractor metadataExtractor = new DdlMetadataExtractor(message);
+                    TableId tableId = VitessDatabaseSchema.parse(metadataExtractor.getTable());
+                    offsetContext.event(tableId, message.getCommitTime());
+                    String ddlStatement = message.getStatement();
+                    SchemaChangeEvent.SchemaChangeEventType eventType = metadataExtractor.getSchemaChangeEventType();
+                    SchemaChangeEvent schemaChangeEvent = SchemaChangeEvent.of(
+                            eventType,
+                            partition,
+                            offsetContext,
+                            connectorConfig.getKeyspace(),
+                            null,
+                            ddlStatement,
+                            null,
+                            false);
+                    dispatcher.dispatchSchemaChangeEvent(partition, offsetContext, null, (receiver) -> {
+                        try {
+                            receiver.schemaChangeEvent(schemaChangeEvent);
+                        }
+                        catch (Exception e) {
+                            throw new DebeziumException(e);
+                        }
+                    });
+                }
             }
             else if (message.getOperation().equals(ReplicationMessage.Operation.HEARTBEAT)) {
                 dispatcher.dispatchHeartbeatEvent(partition, offsetContext);

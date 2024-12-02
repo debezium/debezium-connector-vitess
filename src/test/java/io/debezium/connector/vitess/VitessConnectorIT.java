@@ -47,7 +47,6 @@ import org.apache.kafka.connect.source.SourceRecord;
 import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1367,7 +1366,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
-    @Ignore // TODO: enable the test once DBZ-8432 is fixed
     public void shouldMultiShardMultiTaskConfigSubscriptionHaveMultiShardGtidsInVgtid() throws Exception {
         final boolean hasMultipleShards = true;
 
@@ -1378,7 +1376,8 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
-        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TEST_SHARDED_KEYSPACE, TestHelper.PK_FIELD, hasMultipleShards);
+        // Since there are two tasks and each gets one shard this is expected to only have one shard
+        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TEST_SHARDED_KEYSPACE, TestHelper.PK_FIELD, false);
     }
 
     @Test

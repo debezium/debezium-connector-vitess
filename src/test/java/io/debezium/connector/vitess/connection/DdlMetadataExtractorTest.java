@@ -11,6 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.Test;
 
 import io.debezium.connector.vitess.TestHelper;
+import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.schema.SchemaChangeEvent;
 
 /**
@@ -66,4 +67,26 @@ public class DdlMetadataExtractorTest {
         assertThat(extractor.getSchemaChangeEventType()).isEqualTo(SchemaChangeEvent.SchemaChangeEventType.ALTER);
     }
 
+    @Test
+    public void shouldParseStatementWithComments() {
+        DdlMessage ddlMessage = new DdlMessage(null, null, "rename /* gh-ost */ table `keyspace`.`table1` to " +
+                "`keyspace`.`_table1_del`, `keyspace`.`_table_gho` to `keyspace`.`table`",
+                TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_SHARD);
+        DdlMetadataExtractor extractor = new DdlMetadataExtractor(ddlMessage);
+        assertThat(extractor.getSchemaChangeEventType()).isEqualTo(SchemaChangeEvent.SchemaChangeEventType.ALTER);
+    }
+
+    @Test
+    public void shouldGracefullyHandleUnparseableStatement() {
+        DdlMessage ddlMessage = new DdlMessage(null, null, "UNPARSEABLE command to a table",
+                TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_SHARD);
+        DdlMetadataExtractor extractor = new DdlMetadataExtractor(ddlMessage);
+        final LogInterceptor logInterceptor = new LogInterceptor(DdlMetadataExtractor.class);
+        String unknownTable = "Unknown table";
+        String unknownType = "Unknown schema change event type";
+        assertThat(extractor.getTable()).isEqualTo("\"0\".\"test_unsharded_keyspace\".\"<UNKNOWN>\"");
+        assertThat(extractor.getSchemaChangeEventType()).isEqualTo(SchemaChangeEvent.SchemaChangeEventType.ALTER);
+        assertThat(logInterceptor.containsWarnMessage(unknownTable)).isTrue();
+        assertThat(logInterceptor.containsWarnMessage(unknownType)).isTrue();
+    }
 }

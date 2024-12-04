@@ -24,11 +24,14 @@ public class DdlMetadataExtractor {
 
     // VStream DDL statements do not contain any database/keyspace, only contains the table name
     private static final Pattern TABLE_NAME_PATTERN = Pattern.compile(
-            "(?i)(CREATE|ALTER|TRUNCATE|DROP|RENAME)\\s+TABLE\\s+['\\\"`]?([\\w]+)['\\\"`]?",
+            "(CREATE|ALTER|TRUNCATE|DROP|RENAME)\\s+TABLE\\s+([\\w`\\.]+)",
             Pattern.CASE_INSENSITIVE);
 
     // Regex to match in-line or multi-line comments (e.g., /* comment */)
     private static final Pattern COMMENT_PATTERN = Pattern.compile("/\\*.*?\\*/", Pattern.DOTALL);
+
+    // Regex to match single-line comments (e.g., -- comment and # comment)
+    private static final Pattern SINGLE_LINE_COMMENT_PATTERN = Pattern.compile("(--|#).*?(\r?\n|$)");
 
     private static final String UNKNOWN_TABLE_NAME = "<UNKNOWN>";
 
@@ -49,12 +52,20 @@ public class DdlMetadataExtractor {
             if (operation.equals("RENAME")) {
                 operation = "ALTER";
             }
-            table = matcher.group(2);
+            String tableName = matcher.group(2);
+            if (tableName.contains(".")) {
+                String[] parts = tableName.split("\\.");
+                tableName = parts[1];
+            }
+            table = tableName.replaceAll("`", "");
         }
     }
 
     private String removeComments(String statement) {
-        return COMMENT_PATTERN.matcher(statement).replaceAll("");
+        statement = COMMENT_PATTERN.matcher(statement).replaceAll("");
+        statement = SINGLE_LINE_COMMENT_PATTERN.matcher(statement).replaceAll("");
+        statement = statement.replaceAll("\\s+", " ").trim();
+        return statement;
     }
 
     public SchemaChangeEvent.SchemaChangeEventType getSchemaChangeEventType() {

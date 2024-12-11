@@ -128,7 +128,7 @@ public class VitessValueConverter extends JdbcValueConverters {
 
         switch (column.jdbcType()) {
             case Types.TIME:
-                if (adaptiveTimeMicrosecondsPrecisionMode) {
+                if (temporalPrecisionMode == TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS) {
                     return data -> convertDurationToMicroseconds(column, fieldDefn, data);
                 }
             case Types.TIMESTAMP:

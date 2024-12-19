@@ -28,6 +28,7 @@ import io.debezium.connector.vitess.TestHelper;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VgtidTest;
 import io.debezium.connector.vitess.VitessConnectorConfig;
+import io.debezium.junit.logging.LogInterceptor;
 
 public class VitessEpochProviderTest {
 
@@ -44,6 +45,7 @@ public class VitessEpochProviderTest {
     private String txIdVersion8 = "MySQL82/" + String.join(",", host1Tx2);
 
     private List<String> shards = List.of(VgtidTest.TEST_SHARD, VgtidTest.TEST_SHARD2);
+    private String errorOnCurrentOverrideValue = "Current GTID cannot be override value if previous is standard";
 
     String vgtidJsonCurrent = String.format(
             VGTID_JSON_TEMPLATE,
@@ -56,7 +58,7 @@ public class VitessEpochProviderTest {
 
     @Test
     public void testGetEpochSameHostSet() {
-        Long epoch = VitessEpochProvider.getEpochForGtid(0L, previousTxId, txId, false);
+        Long epoch = VitessEpochProvider.getEpochForGtid(0L, previousTxId, txId);
         assertThat(epoch).isEqualTo(0);
     }
 
@@ -136,7 +138,9 @@ public class VitessEpochProviderTest {
     public void currentVgtidIncrementsEpochForAllShards() {
         VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
         Long epochShard1 = provider.getEpoch(VgtidTest.TEST_SHARD, vgtidJsonCurrent, VGTID_JSON);
+        assertThat(provider.getShardEpochMap()).isEqualTo(new ShardEpochMap(Map.of(VgtidTest.TEST_SHARD, 1L, VgtidTest.TEST_SHARD2, 1L)));
         Long epochShard2 = provider.getEpoch(VgtidTest.TEST_SHARD2, VGTID_JSON, VGTID_JSON);
+        assertThat(provider.getShardEpochMap()).isEqualTo(new ShardEpochMap(Map.of(VgtidTest.TEST_SHARD, 1L, VgtidTest.TEST_SHARD2, 1L)));
         assertThat(epochShard1).isEqualTo(1L);
         assertThat(epochShard2).isEqualTo(1L);
     }
@@ -219,6 +223,57 @@ public class VitessEpochProviderTest {
     }
 
     @Test
+    public void testGtidPartialCurrent() {
+        VitessEpochProvider provider = new VitessEpochProvider();
+        VitessConnectorConfig config = new VitessConnectorConfig(Configuration.empty());
+        provider.load(Map.of(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, new ShardEpochMap(Map.of("f0-f8", 1L, "30-38", 1L, "b0-b8", 1L, "70-78", 1L)).toString()), config);
+        String shard = "f0-f8";
+        String vgtidAllCurrent = "[" +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"30-38\",\"gtid\":\"current\",\"table_p_ks\":[]}," +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"70-78\",\"gtid\":\"current\",\"table_p_ks\":[]}," +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"b0-b8\",\"gtid\":\"current\",\"table_p_ks\":[]}," +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"f0-f8\",\"gtid\":\"current\",\"table_p_ks\":[]}]";
+        String vgtidOneShardWithGtid = "[" +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"30-38\",\"gtid\":\"current\",\"table_p_ks\":[]}," +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"70-78\",\"gtid\":\"current\",\"table_p_ks\":[]}," +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"b0-b8\",\"gtid\":\"current\",\"table_p_ks\":[]}," +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"f0-f8\",\"gtid\":\"MySQL56/host3:1-144525090\",\"table_p_ks\":[]}]";
+        String vgtidOneShardCurrent = "[" +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"30-38\",\"gtid\":\"MySQL56/host1:1-450588997\",\"table_p_ks\":[]}," +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"70-78\",\"gtid\":\"MySQL56/host2:1-368122129\",\"table_p_ks\":[]}," +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"b0-b8\",\"gtid\":\"current\",\"table_p_ks\":[]}," +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"f0-f8\",\"gtid\":\"MySQL56/host3:1-144525093\",\"table_p_ks\":[]}]";
+        String vgtidOneShardCurrentNewGtid = "[" +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"30-38\",\"gtid\":\"MySQL56/host1:1-450588998\",\"table_p_ks\":[]}," +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"70-78\",\"gtid\":\"MySQL56/host2:1-368122129\",\"table_p_ks\":[]}," +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"b0-b8\",\"gtid\":\"current\",\"table_p_ks\":[]}," +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"f0-f8\",\"gtid\":\"MySQL56/host3:1-144525093\",\"table_p_ks\":[]}]";
+        String vgtidNoShardCurrent = "[" +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"30-38\",\"gtid\":\"MySQL56/host1:1-450588997\",\"table_p_ks\":[]}," +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"70-78\",\"gtid\":\"MySQL56/host2:1-368122129\",\"table_p_ks\":[]}," +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"b0-b8\",\"gtid\":\"host4:1-3\",\"table_p_ks\":[]}," +
+                "{\"keyspace\":\"keyspace1\",\"shard\":\"f0-f8\",\"gtid\":\"MySQL56/host3:1-144525093\",\"table_p_ks\":[]}]";
+        // The first transaction will have at least one shard with an actual GTID
+        provider.getEpoch(shard, vgtidAllCurrent, vgtidOneShardWithGtid);
+        // Eventually all but one shard will have a GTID
+        provider.getEpoch(shard, vgtidOneShardWithGtid, vgtidOneShardCurrent);
+        // We have received a legit GTID for all shards except one, that one can still be current
+        provider.getEpoch(shard, vgtidOneShardCurrent, vgtidOneShardCurrentNewGtid);
+        // We can continue to receive current for that GTID indefinitely
+        provider.getEpoch(shard, vgtidOneShardCurrentNewGtid, vgtidOneShardCurrentNewGtid);
+        // Eventually, we receive a GTID for that shard
+        provider.getEpoch("b0-b8", vgtidOneShardCurrentNewGtid, vgtidNoShardCurrent);
+        // After that if we received current again that would be an error
+        assertThatThrownBy(() -> {
+            provider.getEpoch("b0-b8", vgtidNoShardCurrent, vgtidOneShardCurrent);
+        }).isInstanceOf(DebeziumException.class).hasMessageContaining(errorOnCurrentOverrideValue);
+        // Assert that if we received current again even for a non-transaction shard, that would be an error
+        assertThatThrownBy(() -> {
+            provider.getEpoch(shard, vgtidNoShardCurrent, vgtidOneShardCurrent);
+        }).isInstanceOf(DebeziumException.class).hasMessageContaining(errorOnCurrentOverrideValue);
+    }
+
+    @Test
     public void matchingGtidReturnsInitialEpoch() {
         VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
         int expectedEpoch = 0;
@@ -242,7 +297,7 @@ public class VitessEpochProviderTest {
                 Vgtid.EMPTY_GTID);
         assertThatThrownBy(() -> {
             provider.getEpoch("-80", VGTID_JSON, vgtidJsonCurrent);
-        }).isInstanceOf(DebeziumException.class).hasMessageContaining("Invalid");
+        }).isInstanceOf(DebeziumException.class).hasMessageContaining(errorOnCurrentOverrideValue);
     }
 
     @Test
@@ -261,31 +316,31 @@ public class VitessEpochProviderTest {
                 Vgtid.EMPTY_GTID);
         assertThatThrownBy(() -> {
             provider.getEpoch("-80", VGTID_JSON, vgtidJsonEmpty);
-        }).isInstanceOf(DebeziumException.class).hasMessageContaining("Invalid");
+        }).isInstanceOf(DebeziumException.class).hasMessageContaining(errorOnCurrentOverrideValue);
     }
 
     @Test
     public void testGetEpochShrunkHostSet() {
-        Long epoch = VitessEpochProvider.getEpochForGtid(0L, previousTxId, txIdShrunk, false);
+        Long epoch = VitessEpochProvider.getEpochForGtid(0L, previousTxId, txIdShrunk);
         assertThat(epoch).isEqualTo(1);
     }
 
     @Test
     public void testGetEpochExpandHostSet() {
-        Long epoch = VitessEpochProvider.getEpochForGtid(0L, previousTxId, txId, false);
+        Long epoch = VitessEpochProvider.getEpochForGtid(0L, previousTxId, txId);
         assertThat(epoch).isEqualTo(0);
     }
 
     @Test
-    public void testGetEpochDisjointThrowsException() {
-        Assertions.assertThatThrownBy(() -> {
-            VitessEpochProvider.getEpochForGtid(0L, previousTxId, "foo:1-2,bar:2-4", false);
-        }).isInstanceOf(RuntimeException.class);
+    public void testGetEpochDisjointIncrementsEpoch() {
+        long previousEpoch = 0L;
+        long epoch = VitessEpochProvider.getEpochForGtid(0L, previousTxId, "foo:1-2,bar:2-4");
+        assertThat(epoch).isEqualTo(previousEpoch + 1);
     }
 
     @Test
     public void testVersionUpgradeDoesNotAffectEpoch() {
-        Long epoch = VitessEpochProvider.getEpochForGtid(0L, txIdVersion5, txIdVersion8, false);
+        Long epoch = VitessEpochProvider.getEpochForGtid(0L, txIdVersion5, txIdVersion8);
         assertThat(epoch).isEqualTo(0L);
     }
 }

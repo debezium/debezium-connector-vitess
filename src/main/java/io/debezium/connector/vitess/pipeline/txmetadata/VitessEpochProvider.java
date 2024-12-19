@@ -21,7 +21,6 @@ public class VitessEpochProvider {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessEpochProvider.class);
     private ShardEpochMap shardEpochMap;
-    private boolean isFirstTransaction = true;
     private boolean isInheritEpochEnabled = false;
 
     public VitessEpochProvider() {
@@ -33,34 +32,48 @@ public class VitessEpochProvider {
         this.isInheritEpochEnabled = isInheritEpochEnabled;
     }
 
-    private static boolean isInvalidGtid(String gtid) {
+    private static boolean isGtidOverridden(String gtid) {
         return gtid.equals(Vgtid.CURRENT_GTID) || gtid.equals(Vgtid.EMPTY_GTID);
     }
 
-    public static Long getEpochForGtid(Long previousEpoch, String previousGtidString, String gtidString, boolean isFirstTransaction) {
-        if (isFirstTransaction && isInvalidGtid(previousGtidString)) {
+    private static boolean isStandardGtid(String gtid) {
+        return !isGtidOverridden(gtid);
+    }
+
+    public static Long getEpochForGtid(Long previousEpoch, String previousGtidString, String gtidString) {
+        if (isGtidOverridden(previousGtidString) && isGtidOverridden(gtidString)) {
+            // GTID was overridden, and the current GTID is an overridden value, still waiting for first transaction
+            return previousEpoch;
+        } else if (isGtidOverridden(previousGtidString) && !isGtidOverridden(gtidString)) {
+            // GTID was overridden, received first transaction, increment epoch
+            LOGGER.info("Incrementing epoch: {}", getLogMessageForGtid(previousEpoch, previousGtidString, gtidString));
             return previousEpoch + 1;
+        } else if (isStandardGtid(previousGtidString) && isGtidOverridden(gtidString)) {
+            // previous GTID is standard, current GTID is overridden, should not be possible, raise exception
+            String message = String.format("Current GTID cannot be override value if previous is standard: %s",
+                    getLogMessageForGtid(previousEpoch, previousGtidString, gtidString));
+            LOGGER.error(message);
+            throw new DebeziumException(message);
+        } else {
+            // Both GTIDs are standard so parse them
+            return getEpochForStandardGtid(previousEpoch, previousGtidString, gtidString);
         }
-        else if (isInvalidGtid(previousGtidString)) {
-            throw new DebeziumException("Invalid GTID: The previous GTID cannot be one of current or empty after the first transaction " + gtidString);
-        }
-        if (isInvalidGtid(gtidString)) {
-            throw new DebeziumException("Invalid GTID: The current GTID cannot be one of current or empty " + gtidString);
-        }
+    }
+
+    private static Long getEpochForStandardGtid(Long previousEpoch, String previousGtidString, String gtidString) {
         Gtid previousGtid = new Gtid(previousGtidString);
         Gtid gtid = new Gtid(gtidString);
-        if (previousGtid.isHostSetEqual(gtid) || gtid.isHostSetSupersetOf(previousGtid)) {
+        if (gtid.isHostSetSupersetOf(previousGtid)) {
             return previousEpoch;
-        }
-        else if (gtid.isHostSetSubsetOf(previousGtid)) {
+        } else {
+            // Any other case (disjoint set, previous is a superset), VStream has interpreted the previous GTID correctly and sent some new GTID
+            // in a continuous stream, so simply increment the epoch
             return previousEpoch + 1;
         }
-        else {
-            LOGGER.error(
-                    "Error determining epoch, previous host set: {}, host set: {}",
-                    previousGtid, gtid);
-            throw new RuntimeException("Can't determine epoch");
-        }
+    }
+
+    private static String getLogMessageForGtid(Long previousEpoch, String previousGtidString, String gtidString) {
+        return String.format("GTID: %s, previous GTID: %s, previous Epoch: %s", gtidString, previousGtidString, previousEpoch);
     }
 
     public ShardEpochMap getShardEpochMap() {
@@ -105,16 +118,19 @@ public class VitessEpochProvider {
         if (previousVgtidString == null) {
             throw new DebeziumException(String.format("Previous vgtid string cannot be null shard %s current %s", shard, vgtidString));
         }
-        Vgtid vgtid = Vgtid.of(vgtidString);
-        Vgtid previousVgtid = Vgtid.of(previousVgtidString);
-        this.shardEpochMap = getNewShardEpochMap(previousVgtid, vgtid);
-        if (isFirstTransaction) {
-            isFirstTransaction = false;
+        try {
+            Vgtid vgtid = Vgtid.of(vgtidString);
+            Vgtid previousVgtid = Vgtid.of(previousVgtidString);
+            this.shardEpochMap = getNewShardEpochMap(previousVgtid, vgtid, shard);
+            return shardEpochMap.get(shard);
         }
-        return shardEpochMap.get(shard);
+        catch (Exception e) {
+            LOGGER.error("Error providing epoch with shard {}, previousVgtid {}, vgtid {}", shard, previousVgtidString, vgtidString, e);
+            throw e;
+        }
     }
 
-    private ShardEpochMap getNewShardEpochMap(Vgtid previousVgtid, Vgtid vgtid) {
+    private ShardEpochMap getNewShardEpochMap(Vgtid previousVgtid, Vgtid vgtid, String transactionShard) {
         ShardEpochMap newShardEpochMap = new ShardEpochMap();
         for (Vgtid.ShardGtid shardGtid : vgtid.getShardGtids()) {
             String shard = shardGtid.getShard();
@@ -129,7 +145,7 @@ public class VitessEpochProvider {
                             "Previous epoch cannot be null for shard %s when shard present in previous vgtid %s",
                             shard, previousVgtid));
                 }
-                Long epoch = getEpochForGtid(previousEpoch, previousGtid, gtid, isFirstTransaction);
+                Long epoch = getEpochForGtid(previousEpoch, previousGtid, gtid);
                 newShardEpochMap.put(shard, epoch);
             }
             else {

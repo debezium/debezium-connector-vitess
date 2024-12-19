@@ -6,6 +6,7 @@
 package io.debezium.connector.vitess.pipeline.txmetadata;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -77,15 +78,7 @@ class Gtid {
         }
     }
 
-    public boolean isHostSetEqual(Gtid hosts) {
-        return this.hosts.equals(hosts.hosts);
-    }
-
-    public boolean isHostSetSupersetOf(Gtid previousHosts) {
-        return this.hosts.containsAll(previousHosts.hosts);
-    }
-
-    public boolean isHostSetSubsetOf(Gtid previousHosts) {
-        return previousHosts.hosts.containsAll(this.hosts);
+    public boolean isHostSetSupersetOf(Gtid otherHosts) {
+        return this.hosts.containsAll(otherHosts.hosts);
     }
 }

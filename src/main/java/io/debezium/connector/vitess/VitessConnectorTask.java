@@ -90,7 +90,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
                 LOGGER.info("No previous offset found");
             }
             else {
-                LOGGER.info("Found previous offset {}", previousOffset);
+                LOGGER.info("Found task {} previous offset {}", config.getString(VitessConnectorConfig.TASK_ID), previousOffset);
             }
 
             replicationConnection = new VitessReplicationConnection(connectorConfig, schema);

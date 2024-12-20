@@ -18,7 +18,6 @@ import static org.assertj.core.api.Java6Assertions.assertThatThrownBy;
 import java.util.List;
 import java.util.Map;
 
-import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
 import io.debezium.DebeziumException;
@@ -28,7 +27,6 @@ import io.debezium.connector.vitess.TestHelper;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VgtidTest;
 import io.debezium.connector.vitess.VitessConnectorConfig;
-import io.debezium.junit.logging.LogInterceptor;
 
 public class VitessEpochProviderTest {
 
@@ -226,7 +224,8 @@ public class VitessEpochProviderTest {
     public void testGtidPartialCurrent() {
         VitessEpochProvider provider = new VitessEpochProvider();
         VitessConnectorConfig config = new VitessConnectorConfig(Configuration.empty());
-        provider.load(Map.of(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, new ShardEpochMap(Map.of("f0-f8", 1L, "30-38", 1L, "b0-b8", 1L, "70-78", 1L)).toString()), config);
+        provider.load(Map.of(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH,
+                new ShardEpochMap(Map.of("f0-f8", 1L, "30-38", 1L, "b0-b8", 1L, "70-78", 1L)).toString()), config);
         String shard = "f0-f8";
         String vgtidAllCurrent = "[" +
                 "{\"keyspace\":\"keyspace1\",\"shard\":\"30-38\",\"gtid\":\"current\",\"table_p_ks\":[]}," +

@@ -44,17 +44,20 @@ public class VitessEpochProvider {
         if (isGtidOverridden(previousGtidString) && isGtidOverridden(gtidString)) {
             // GTID was overridden, and the current GTID is an overridden value, still waiting for first transaction
             return previousEpoch;
-        } else if (isGtidOverridden(previousGtidString) && !isGtidOverridden(gtidString)) {
+        }
+        else if (isGtidOverridden(previousGtidString) && !isGtidOverridden(gtidString)) {
             // GTID was overridden, received first transaction, increment epoch
             LOGGER.info("Incrementing epoch: {}", getLogMessageForGtid(previousEpoch, previousGtidString, gtidString));
             return previousEpoch + 1;
-        } else if (isStandardGtid(previousGtidString) && isGtidOverridden(gtidString)) {
+        }
+        else if (isStandardGtid(previousGtidString) && isGtidOverridden(gtidString)) {
             // previous GTID is standard, current GTID is overridden, should not be possible, raise exception
             String message = String.format("Current GTID cannot be override value if previous is standard: %s",
                     getLogMessageForGtid(previousEpoch, previousGtidString, gtidString));
             LOGGER.error(message);
             throw new DebeziumException(message);
-        } else {
+        }
+        else {
             // Both GTIDs are standard so parse them
             return getEpochForStandardGtid(previousEpoch, previousGtidString, gtidString);
         }
@@ -65,7 +68,8 @@ public class VitessEpochProvider {
         Gtid gtid = new Gtid(gtidString);
         if (gtid.isHostSetSupersetOf(previousGtid)) {
             return previousEpoch;
-        } else {
+        }
+        else {
             // Any other case (disjoint set, previous is a superset), VStream has interpreted the previous GTID correctly and sent some new GTID
             // in a continuous stream, so simply increment the epoch
             return previousEpoch + 1;

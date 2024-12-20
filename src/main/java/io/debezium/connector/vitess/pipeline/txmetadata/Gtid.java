@@ -77,15 +77,7 @@ class Gtid {
         }
     }
 
-    public boolean isHostSetEqual(Gtid hosts) {
-        return this.hosts.equals(hosts.hosts);
-    }
-
-    public boolean isHostSetSupersetOf(Gtid previousHosts) {
-        return this.hosts.containsAll(previousHosts.hosts);
-    }
-
-    public boolean isHostSetSubsetOf(Gtid previousHosts) {
-        return previousHosts.hosts.containsAll(this.hosts);
+    public boolean isHostSetSupersetOf(Gtid otherHosts) {
+        return this.hosts.containsAll(otherHosts.hosts);
     }
 }

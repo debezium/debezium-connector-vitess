@@ -288,15 +288,20 @@ public class TestHelper {
     }
 
     public static Binlogdata.VEvent defaultFieldEvent(String shard, String keyspace) {
-        return newFieldEvent(defaultColumnValues(), shard, keyspace);
+        return newFieldEvent(defaultColumnValues(), shard, keyspace, false);
     }
 
     public static Binlogdata.VEvent newFieldEvent(List<ColumnValue> columnValues) {
-        return newFieldEvent(columnValues, TEST_SHARD, TEST_UNSHARDED_KEYSPACE);
+        return newFieldEvent(columnValues, TEST_SHARD, TEST_UNSHARDED_KEYSPACE, false);
     }
 
     public static Binlogdata.VEvent newFieldEvent(List<ColumnValue> columnValues, String shard, String keyspace) {
+        return newFieldEvent(columnValues, shard, keyspace, false);
+    }
+
+    public static Binlogdata.VEvent newFieldEvent(List<ColumnValue> columnValues, String shard, String keyspace, boolean enumSetStringsValues) {
         Binlogdata.FieldEvent.Builder fieldEventBuilder = Binlogdata.FieldEvent.newBuilder()
+                .setEnumSetStringValues(enumSetStringsValues)
                 .setTableName(getFullTableName(keyspace, TEST_TABLE));
         for (Field field : newFields(columnValues)) {
             fieldEventBuilder.addFields(field);

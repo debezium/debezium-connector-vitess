@@ -346,6 +346,10 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
 
     private void handleFieldMessage(Binlogdata.VEvent vEvent, boolean isInVStreamCopy) {
         Binlogdata.FieldEvent fieldEvent = vEvent.getFieldEvent();
+        boolean isEnumSetStringValue = false;
+        if (isInVStreamCopy || fieldEvent.getEnumSetStringValues()) {
+            isEnumSetStringValue = true;
+        }
         if (fieldEvent == null) {
             LOGGER.error("fieldEvent is expected from {}", vEvent);
         }
@@ -368,7 +372,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                 for (short i = 0; i < columnCount; ++i) {
                     Field field = fieldEvent.getFields(i);
                     String columnName = validateColumnName(field.getName(), schemaName, tableName);
-                    VitessType vitessType = VitessType.resolve(field, isInVStreamCopy);
+                    VitessType vitessType = VitessType.resolve(field, isEnumSetStringValue);
                     if (vitessType.getJdbcId() == Types.OTHER) {
                         LOGGER.error("Cannot resolve JDBC type from VStream field {}", field);
                     }

@@ -8,7 +8,9 @@ package io.debezium.connector.vitess.connection;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.sql.Types;
 import java.time.Instant;
+import java.util.List;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -255,6 +257,50 @@ public class VStreamOutputMessageDecoderTest {
         assertThat(table.columns().size()).isEqualTo(TestHelper.defaultNumOfColumns());
         for (Query.Field field : TestHelper.defaultFields()) {
             assertThat(table.columnWithName(field.getName())).isNotNull();
+        }
+    }
+
+    @Test
+    public void shouldProcessFieldEventWithEnumSetStringsFlagDisabledAndNoCopy() throws Exception {
+        // exercise SUT
+        List<TestHelper.ColumnValue> columnValues = List.of(new TestHelper.ColumnValue("enum", Query.Type.ENUM, Types.VARCHAR, "foo".getBytes(), "foo"));
+        Binlogdata.VEvent event = TestHelper.newFieldEvent(columnValues, TestHelper.TEST_SHARD, TestHelper.TEST_UNSHARDED_KEYSPACE, false);
+
+        decoder.processMessage(event, null, null, false, false);
+        Table table = schema.tableFor(TestHelper.defaultTableId());
+
+        // verify outcome
+        assertThat(table).isNotNull();
+        assertThat(table.id().schema()).isEqualTo(TestHelper.TEST_UNSHARDED_KEYSPACE);
+        assertThat(table.id().table()).isEqualTo(TestHelper.TEST_TABLE);
+        assertThat(table.columns().size()).isEqualTo(columnValues.size());
+        List<Integer> intTypes = List.of(Types.BIGINT, Types.INTEGER);
+        for (Query.Field field : event.getFieldEvent().getFieldsList()) {
+            assertThat(table.columnWithName(field.getName())).isNotNull();
+            String name = field.getName();
+            assertThat(intTypes.contains(table.columnWithName(field.getName()).jdbcType())).isTrue();
+        }
+    }
+
+    @Test
+    public void shouldProcessFieldEventWithEnumSetStringsFlagEnabledAndNoCopy() throws Exception {
+        // exercise SUT
+        List<TestHelper.ColumnValue> columnValues = List.of(
+                new TestHelper.ColumnValue("enum", Query.Type.ENUM, Types.VARCHAR, "foo".getBytes(), "foo", List.of("foo", "bar"), "enum"),
+                new TestHelper.ColumnValue("set", Query.Type.SET, Types.VARCHAR, "foo".getBytes(), "foo", List.of("foo", "bar"), "set"));
+        Binlogdata.VEvent event = TestHelper.newFieldEvent(columnValues, TestHelper.TEST_SHARD, TestHelper.TEST_UNSHARDED_KEYSPACE, true);
+
+        decoder.processMessage(event, null, null, false, false);
+        Table table = schema.tableFor(TestHelper.defaultTableId());
+
+        // verify outcome
+        assertThat(table).isNotNull();
+        assertThat(table.id().schema()).isEqualTo(TestHelper.TEST_UNSHARDED_KEYSPACE);
+        assertThat(table.id().table()).isEqualTo(TestHelper.TEST_TABLE);
+        assertThat(table.columns().size()).isEqualTo(columnValues.size());
+        for (Query.Field field : event.getFieldEvent().getFieldsList()) {
+            assertThat(table.columnWithName(field.getName())).isNotNull();
+            assertThat((table.columnWithName(field.getName()).jdbcType())).isEqualTo(Types.VARCHAR);
         }
     }
 

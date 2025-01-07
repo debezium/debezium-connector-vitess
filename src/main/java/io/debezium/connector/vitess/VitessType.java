@@ -91,7 +91,7 @@ public class VitessType {
     }
 
     // Resolve JDBC type from vstream FIELD event
-    public static VitessType resolve(Query.Field field, boolean isInVStreamCopy) {
+    public static VitessType resolve(Query.Field field, boolean isEnumSetStringValue) {
         String type = field.getType().name();
         switch (type) {
             case "INT8":
@@ -105,16 +105,14 @@ public class VitessType {
             case "YEAR":
                 return new VitessType(type, Types.INTEGER);
             case "ENUM":
-                // Use field.getEnumSetStrings once available in new Vitess versions
-                if (isInVStreamCopy) {
+                if (isEnumSetStringValue) {
                     return new VitessType(type, Types.VARCHAR, resolveEnumAndSetValues(field.getColumnType()));
                 }
                 else {
                     return new VitessType(type, Types.INTEGER, resolveEnumAndSetValues(field.getColumnType()));
                 }
             case "SET":
-                // Use field.getEnumSetStrings once available in new Vitess versions
-                if (isInVStreamCopy) {
+                if (isEnumSetStringValue) {
                     return new VitessType(type, Types.VARCHAR, resolveEnumAndSetValues(field.getColumnType()));
                 }
                 else {

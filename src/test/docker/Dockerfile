@@ -1,7 +1,7 @@
 # Use a temporary layer for the build stage.
-FROM quay.io/debezium/vitess-base:19.0.4 AS base
+FROM quay.io/debezium/vitess-base:v19.0.4 AS base
 
-FROM quay.io/debezium/vitess-lite:19.0.4
+FROM quay.io/debezium/vitess-lite:v20.0.4
 
 USER root
 

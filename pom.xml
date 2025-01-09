@@ -349,7 +349,7 @@
                             </build>
                         </image>
                         <image>
-                            <name>apicurio/apicurio-registry-mem:${version.apicurio}</name>
+                            <name>quay.io/apicurio/apicurio-registry-mem:${version.apicurio}</name>
                             <run>
                                 <namingStrategy>none</namingStrategy>
                                 <ports>
@@ -527,7 +527,7 @@
                 </plugins>
             </build>
             <properties>
-                <docker.filter>${docker.dbs},apicurio/apicurio-registry-mem:${version.apicurio}</docker.filter>
+                <docker.filter>${docker.dbs},quay.io/apicurio/apicurio-registry-mem:${version.apicurio}</docker.filter>
             </properties>
         </profile>
     </profiles>

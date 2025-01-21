@@ -94,16 +94,25 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
 
     private ReplicationMessageProcessor newReplicationMessageProcessor(VitessPartition partition,
                                                                        VitessOffsetContext offsetContext) {
-        return (message, newVgtid, isLastRowOfTransaction) -> {
+        return (message, newVgtid) -> {
             if (message.isTransactionalMessage()) {
-                // Tx BEGIN/END event
-                offsetContext.rotateVgtid(newVgtid, message.getCommitTime());
+                // Tx BEGIN/COMMIT event
                 if (message.getOperation() == ReplicationMessage.Operation.BEGIN) {
+                    // When BEGIN event is received, newVgtid will have been populated with the transaction's vgtid, rotate
+                    // to set currentVgtid to newVgtid and restartVgtid to the previous transaction VGTID
+                    offsetContext.rotateVgtid(newVgtid, message.getCommitTime());
                     // send to transaction topic
                     VitessTransactionInfo transactionInfo = new VitessTransactionInfo(message.getTransactionId(), message.getShard());
                     dispatcher.dispatchTransactionStartedEvent(partition, transactionInfo, offsetContext, message.getCommitTime());
                 }
                 else if (message.getOperation() == ReplicationMessage.Operation.COMMIT) {
+                    // When COMMIT event is received, all events have been processed except for this COMMIT event
+                    // We reset the VGTID such that current & restart VGTIDs are equal to this transaction's VGTID
+                    // We send one final event (transaction committed), the offset will only be committed if that event
+                    // is sent successfully.
+                    // If transaction metadata is disabled, then the offset will not be updated until a message of the next
+                    // transaction is sent (next transaction's restartVgtid = this transaction's currentVgtid)
+                    offsetContext.resetVgtid(newVgtid, message.getCommitTime());
                     // send to transaction topic
                     dispatcher.dispatchTransactionCommittedEvent(partition, offsetContext, message.getCommitTime());
                     // Send a heartbeat event if time has elapsed
@@ -154,10 +163,6 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
 
                 offsetContext.event(tableId, message.getCommitTime());
                 offsetContext.setShard(message.getShard());
-                if (isLastRowOfTransaction) {
-                    // Right before processing the last row, reset the previous offset to the new vgtid so the last row has the new vgtid as offset.
-                    offsetContext.resetVgtid(newVgtid, message.getCommitTime());
-                }
                 dispatcher.dispatchDataChangeEvent(
                         partition,
                         tableId,

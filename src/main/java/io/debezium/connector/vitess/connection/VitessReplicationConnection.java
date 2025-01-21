@@ -233,11 +233,10 @@ public class VitessReplicationConnection implements ReplicationConnection {
                         if (event.getType() == Binlogdata.VEventType.ROW) {
                             rowEventSeen++;
                         }
-                        boolean isLastRowEventOfTransaction = newVgtid != null && numOfRowEvents != 0 && rowEventSeen == numOfRowEvents;
                         if (isInVStreamCopy && event.getType() == Binlogdata.VEventType.COPY_COMPLETED) {
                             isInVStreamCopy = false;
                         }
-                        messageDecoder.processMessage(bufferedEvents.get(i), processor, newVgtid, isLastRowEventOfTransaction, isInVStreamCopy);
+                        messageDecoder.processMessage(bufferedEvents.get(i), processor, newVgtid, isInVStreamCopy);
                     }
                 }
                 catch (InterruptedException e) {

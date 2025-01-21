@@ -8,11 +8,12 @@ package io.debezium.connector.vitess.pipeline.txmetadata;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import io.debezium.DebeziumException;
 
-class Gtid {
+public class Gtid {
 
     public String getVersion() {
         return version;
@@ -53,7 +54,7 @@ class Gtid {
         }
     }
 
-    Gtid(String transactionId) {
+    public Gtid(String transactionId) {
         try {
             initializeVersion(transactionId);
             parseGtid(transactionId);
@@ -79,5 +80,36 @@ class Gtid {
 
     public boolean isHostSetSupersetOf(Gtid otherHosts) {
         return this.hosts.containsAll(otherHosts.hosts);
+    }
+
+    @Override
+    public String toString() {
+        return "Gtid{"
+                + "versions="
+                + version
+                + ", hosts="
+                + hosts
+                + ", sequenceValues="
+                + sequenceValues
+                + '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        Gtid gtid = (Gtid) o;
+        return Objects.equals(version, gtid.version) &&
+                Objects.equals(hosts, gtid.hosts) &&
+                Objects.equals(sequenceValues, gtid.sequenceValues);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(version, hosts, sequenceValues);
     }
 }

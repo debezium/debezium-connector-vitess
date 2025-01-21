@@ -14,7 +14,7 @@ import binlogdata.Binlogdata;
 /** Decode VStream gRPC VEvent and process it with the ReplicationMessageProcessor. */
 public interface MessageDecoder {
 
-    void processMessage(Binlogdata.VEvent event, ReplicationMessageProcessor processor, Vgtid newVgtid, boolean isLastRowEventOfTransaction,
+    void processMessage(Binlogdata.VEvent event, ReplicationMessageProcessor processor, Vgtid newVgtid,
                         boolean isInVStreamCopy)
             throws InterruptedException;
 

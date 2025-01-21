@@ -107,7 +107,7 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldGetInt64SchemaBuilderForTime() throws InterruptedException {
-        decoder.processMessage(temporalFieldEvent(), null, null, false, false);
+        decoder.processMessage(temporalFieldEvent(), null, null, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
         Column column = table.columnWithName("time_col");
@@ -118,7 +118,7 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldGetYearSchemaBuilderForYear() throws InterruptedException {
-        decoder.processMessage(temporalFieldEvent(), null, null, false, false);
+        decoder.processMessage(temporalFieldEvent(), null, null, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
         Column column = table.columnWithName("year_col");
@@ -129,7 +129,7 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldConverterWorkForTimeColumn() throws InterruptedException {
-        decoder.processMessage(temporalFieldEvent(), null, null, false, false);
+        decoder.processMessage(temporalFieldEvent(), null, null, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
         Column column = table.columnWithName("time_col");
@@ -142,7 +142,7 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldConverterWorkForEnumColumnString() throws InterruptedException {
-        decoder.processMessage(enumFieldEventString(), null, null, false, true);
+        decoder.processMessage(enumFieldEventString(), null, null, true);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
         Column column = table.columnWithName("enum_col");
@@ -155,7 +155,7 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldConverterReturnEmptyStringForInvalid() throws InterruptedException {
-        decoder.processMessage(enumFieldEventString(), null, null, false, true);
+        decoder.processMessage(enumFieldEventString(), null, null, true);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
         Column column = table.columnWithName("enum_col");
@@ -167,7 +167,7 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldConverterWorkForEnumColumnIntToString() throws InterruptedException {
-        decoder.processMessage(enumFieldEventInt(), null, null, false, false);
+        decoder.processMessage(enumFieldEventInt(), null, null, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
         Column column = table.columnWithName("enum_col");
@@ -181,7 +181,7 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldConverterWorkForSetColumnString() throws InterruptedException {
-        decoder.processMessage(enumFieldEventString(), null, null, false, true);
+        decoder.processMessage(enumFieldEventString(), null, null, true);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
         Column column = table.columnWithName("set_col");
@@ -194,7 +194,7 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldConverterWorkForSetColumnIntToString() throws InterruptedException {
-        decoder.processMessage(enumFieldEventInt(), null, null, false, false);
+        decoder.processMessage(enumFieldEventInt(), null, null, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
         Column column = table.columnWithName("set_col");
@@ -207,7 +207,7 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldConverterWorkForDatetimeColumn() throws InterruptedException {
-        decoder.processMessage(temporalFieldEvent(), null, null, false, false);
+        decoder.processMessage(temporalFieldEvent(), null, null, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
         Column column = table.columnWithName("datetime_col");

@@ -12,8 +12,24 @@ import io.debezium.connector.common.BaseSourceInfo;
 import io.debezium.relational.TableId;
 
 /**
- * Coordinates from the vitess database log to establish the relation between the change streamed
- * and the source log position. Maps to {@code source} field in {@code Envelope}.
+ * Represents information about the source of a change event from Vitess.
+ * This class is used to track the relationship between a change streamed and its position in
+ * the source VStream. It includes fields that map to the {@code source} field in the {@code Envelope}.
+ *
+ * <p>
+ * The {@link #currentVgtid} is the VGTID of the transaction currently being processed,
+ * </p>
+ *
+ * <p>
+ * The {@link #restartVgtid} is the VGTID of the last transaction that has been fully processed.
+ * </p>
+ *
+ * <p>
+ * When a VStream is resumed from transaction N, it receives transaction events starting at N+1 (exclusive start).
+ * Thus, the {@link #restartVgtid} can only be updated once all events of the transaction have been successfully produced.
+ * The {@link #currentVgtid} queues the VGTID of a transaction while it is being processed. The {@link #currentVgtid} is written to the
+ * {@link #restartVgtid} once all events in the transaction have been produced.
+ * </p>
  */
 @NotThreadSafe
 public class SourceInfo extends BaseSourceInfo {
@@ -79,6 +95,13 @@ public class SourceInfo extends BaseSourceInfo {
         return restartVgtid;
     }
 
+    /**
+     * Reset the {@link #currentVgtid} and {@link #restartVgtid} to the provided vgtid
+     * <p>Note: This should be only done if all events of that VGTID have been completely processed.</p>
+     *
+     * @param vgtid VGTID to set the current & restart VGTID to.
+     * @param commitTime Commit time to update timestamp to
+     */
     public void resetVgtid(Vgtid vgtid, Instant commitTime) {
         this.restartVgtid = vgtid;
         this.currentVgtid = vgtid;
@@ -86,7 +109,12 @@ public class SourceInfo extends BaseSourceInfo {
     }
 
     /**
-     * Rotate current and restart vgtid. Only rotate wen necessary.
+     * Rotates the new, current and restart VGTIDs when necessary.
+     * Sets {@link #currentVgtid} to newVgtid. Sets {@link #restartVgtid} to {@link #currentVgtid}.
+     * This should only be called after all events are produced successfully for {@link #currentVgtid}.
+     *
+     * @param newVgtid The new VGTID to set the current VGTID to.
+     * @param commitTime Commit time to update timestamp to.
      */
     public void rotateVgtid(Vgtid newVgtid, Instant commitTime) {
         // Only rotate when necessary: when newVgtid is not the currentVgtid

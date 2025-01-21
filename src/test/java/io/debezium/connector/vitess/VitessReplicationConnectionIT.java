@@ -81,7 +81,7 @@ public class VitessReplicationConnectionIT {
         AtomicBoolean started = new AtomicBoolean(false);
         connection.startStreaming(
                 startingVgtid,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     if (!started.get()) {
                         started.set(true);
                     }
@@ -125,7 +125,7 @@ public class VitessReplicationConnectionIT {
         AtomicBoolean started = new AtomicBoolean(false);
         connection.startStreaming(
                 startingVgtid,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     if (!started.get()) {
                         started.set(true);
                     }
@@ -168,7 +168,7 @@ public class VitessReplicationConnectionIT {
         AtomicBoolean started = new AtomicBoolean(false);
         connection.startStreaming(
                 startingVgtid,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     if (!started.get()) {
                         started.set(true);
                     }
@@ -212,7 +212,7 @@ public class VitessReplicationConnectionIT {
         AtomicBoolean started = new AtomicBoolean(false);
         connection.startStreaming(
                 startingVgtid,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     if (!started.get()) {
                         started.set(true);
                     }
@@ -252,7 +252,7 @@ public class VitessReplicationConnectionIT {
             AtomicBoolean started = new AtomicBoolean(false);
             connection.startStreaming(
                     startingVgtid,
-                    (message, vgtid, isLastRowEventOfTransaction) -> {
+                    (message, vgtid) -> {
                         if (!started.get()) {
                             started.set(true);
                         }
@@ -319,7 +319,7 @@ public class VitessReplicationConnectionIT {
             AtomicBoolean started = new AtomicBoolean(false);
             connection.startStreaming(
                     startingVgtid,
-                    (message, vgtid, isLastRowEventOfTransaction) -> {
+                    (message, vgtid) -> {
                         if (!started.get()) {
                             started.set(true);
                         }
@@ -381,7 +381,7 @@ public class VitessReplicationConnectionIT {
             AtomicBoolean started = new AtomicBoolean(false);
             connection.startStreaming(
                     startingVgtid,
-                    (message, vgtid, isLastRowEventOfTransaction) -> {
+                    (message, vgtid) -> {
                         if (!started.get()) {
                             started.set(true);
                         }
@@ -490,7 +490,7 @@ public class VitessReplicationConnectionIT {
             BlockingQueue<MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
             connection.startStreaming(
                     startingVgtid,
-                    (message, vgtid, isLastRowEventOfTransaction) -> {
+                    (message, vgtid) -> {
                         consumedMessages.add(new MessageAndVgtid(message, vgtid));
                     },
                     error);
@@ -566,7 +566,7 @@ public class VitessReplicationConnectionIT {
             AtomicBoolean started = new AtomicBoolean(false);
             connection.startStreaming(
                     startingVgtid,
-                    (message, vgtid, isLastRowEventOfTransaction) -> {
+                    (message, vgtid) -> {
                         if (!started.get()) {
                             started.set(true);
                         }
@@ -649,7 +649,7 @@ public class VitessReplicationConnectionIT {
             BlockingQueue<MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
             connection.startStreaming(
                     startingVgtid,
-                    (message, vgtid, isLastRowEventOfTransaction) -> {
+                    (message, vgtid) -> {
                         consumedMessages.add(new MessageAndVgtid(message, vgtid));
                     },
                     error);

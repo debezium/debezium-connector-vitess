@@ -57,7 +57,6 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     public void processMessage(Binlogdata.VEvent vEvent,
                                ReplicationMessageProcessor processor,
                                Vgtid newVgtid,
-                               boolean isLastRowEventOfTransaction,
                                boolean isInVStreamCopy)
             throws InterruptedException {
         final Binlogdata.VEventType vEventType = vEvent.getType();
@@ -69,7 +68,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                 handleCommitMessage(vEvent, processor, newVgtid);
                 break;
             case ROW:
-                decodeRows(vEvent, processor, newVgtid, isLastRowEventOfTransaction);
+                decodeRows(vEvent, processor, newVgtid);
                 break;
             case FIELD:
                 // field type event has table schema
@@ -100,7 +99,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             this.transactionId = newVgtid.toString();
         }
         processor.process(
-                new DdlMessage(transactionId, eventTimestamp, vEvent.getStatement(), vEvent.getKeyspace(), vEvent.getShard()), newVgtid, false);
+                new DdlMessage(transactionId, eventTimestamp, vEvent.getStatement(), vEvent.getKeyspace(), vEvent.getShard()), newVgtid);
     }
 
     private void handleOther(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)
@@ -111,12 +110,12 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             this.transactionId = newVgtid.toString();
         }
         processor.process(
-                new OtherMessage(transactionId, eventTimestamp), newVgtid, false);
+                new OtherMessage(transactionId, eventTimestamp), newVgtid);
     }
 
     private void handleHeartbeat(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid) throws InterruptedException {
         Instant eventTimestamp = Instant.ofEpochSecond(vEvent.getTimestamp());
-        processor.process(new HeartbeatMessage(eventTimestamp), newVgtid, false);
+        processor.process(new HeartbeatMessage(eventTimestamp), newVgtid);
     }
 
     private void handleBeginMessage(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)
@@ -133,7 +132,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         }
         LOGGER.trace("Timestamp of begin transaction: {}", eventTimestamp);
         processor.process(
-                new TransactionalMessage(Operation.BEGIN, transactionId, eventTimestamp, vEvent.getKeyspace(), vEvent.getShard()), newVgtid, false);
+                new TransactionalMessage(Operation.BEGIN, transactionId, eventTimestamp, vEvent.getKeyspace(), vEvent.getShard()), newVgtid);
     }
 
     private void handleCommitMessage(
@@ -147,10 +146,10 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         }
         LOGGER.trace("Timestamp of commit transaction: {}", commitTimestamp);
         processor.process(
-                new TransactionalMessage(Operation.COMMIT, transactionId, eventTimestamp, vEvent.getKeyspace(), vEvent.getShard()), newVgtid, false);
+                new TransactionalMessage(Operation.COMMIT, transactionId, eventTimestamp, vEvent.getKeyspace(), vEvent.getShard()), newVgtid);
     }
 
-    private void decodeRows(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid, boolean isLastRowEventOfTransaction)
+    private void decodeRows(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)
             throws InterruptedException {
         Binlogdata.RowEvent rowEvent = vEvent.getRowEvent();
         String[] schemaTableTuple = rowEvent.getTableName().split("\\.");
@@ -169,16 +168,15 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             for (int i = 0; i < numOfRowChanges; i++) {
                 Binlogdata.RowChange rowChange = rowEvent.getRowChanges(i);
                 numOfRowChangesEventSeen++;
-                boolean isLastRowOfTransaction = isLastRowEventOfTransaction && numOfRowChangesEventSeen == numOfRowChanges ? true : false;
                 if (rowChange.hasAfter() && !rowChange.hasBefore()) {
-                    decodeInsert(rowChange.getAfter(), schemaName, tableName, shard, processor, newVgtid, isLastRowOfTransaction);
+                    decodeInsert(rowChange.getAfter(), schemaName, tableName, shard, processor, newVgtid);
                 }
                 else if (rowChange.hasAfter() && rowChange.hasBefore()) {
                     decodeUpdate(
-                            rowChange.getBefore(), rowChange.getAfter(), schemaName, tableName, shard, processor, newVgtid, isLastRowOfTransaction);
+                            rowChange.getBefore(), rowChange.getAfter(), schemaName, tableName, shard, processor, newVgtid);
                 }
                 else if (!rowChange.hasAfter() && rowChange.hasBefore()) {
-                    decodeDelete(rowChange.getBefore(), schemaName, tableName, shard, processor, newVgtid, isLastRowOfTransaction);
+                    decodeDelete(rowChange.getBefore(), schemaName, tableName, shard, processor, newVgtid);
                 }
                 else {
                     LOGGER.error("{} decodeRow skipped.", vEvent);
@@ -193,8 +191,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                               String tableName,
                               String shard,
                               ReplicationMessageProcessor processor,
-                              Vgtid newVgtid,
-                              boolean isLastRowEventOfTransaction)
+                              Vgtid newVgtid)
             throws InterruptedException {
         Optional<Table> resolvedTable = resolveRelation(shard, schemaName, tableName);
 
@@ -221,8 +218,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                         shard,
                         null,
                         columns),
-                newVgtid,
-                isLastRowEventOfTransaction);
+                newVgtid);
     }
 
     private void decodeUpdate(
@@ -232,8 +228,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                               String tableName,
                               String shard,
                               ReplicationMessageProcessor processor,
-                              Vgtid newVgtid,
-                              boolean isLastRowEventOfTransaction)
+                              Vgtid newVgtid)
             throws InterruptedException {
         Optional<Table> resolvedTable = resolveRelation(shard, schemaName, tableName);
 
@@ -262,8 +257,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                         shard,
                         oldColumns,
                         newColumns),
-                newVgtid,
-                isLastRowEventOfTransaction);
+                newVgtid);
     }
 
     private void decodeDelete(
@@ -272,8 +266,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                               String tableName,
                               String shard,
                               ReplicationMessageProcessor processor,
-                              Vgtid newVgtid,
-                              boolean isLastRowOfTransaction)
+                              Vgtid newVgtid)
             throws InterruptedException {
         Optional<Table> resolvedTable = resolveRelation(shard, schemaName, tableName);
 
@@ -301,8 +294,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                         shard,
                         columns,
                         null),
-                newVgtid,
-                isLastRowOfTransaction);
+                newVgtid);
     }
 
     /** Resolve table from a prior FIELD message or empty when the table is filtered */

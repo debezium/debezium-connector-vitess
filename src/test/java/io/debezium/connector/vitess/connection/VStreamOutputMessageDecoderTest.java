@@ -63,7 +63,7 @@ public class VStreamOutputMessageDecoderTest {
         final boolean[] processed = { false };
         decoder.processMessage(
                 event,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(TransactionalMessage.class);
@@ -74,7 +74,6 @@ public class VStreamOutputMessageDecoderTest {
                     processed[0] = true;
                 },
                 newVgtid,
-                false,
                 false);
         assertThat(processed[0]).isTrue();
     }
@@ -94,7 +93,7 @@ public class VStreamOutputMessageDecoderTest {
         final boolean[] processed = { false };
         decoder.processMessage(
                 event,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(HeartbeatMessage.class);
@@ -102,7 +101,6 @@ public class VStreamOutputMessageDecoderTest {
                     processed[0] = true;
                 },
                 newVgtid,
-                false,
                 false);
         assertThat(processed[0]).isTrue();
     }
@@ -120,7 +118,7 @@ public class VStreamOutputMessageDecoderTest {
         final boolean[] processed = { false };
         decoder.processMessage(
                 event,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(TransactionalMessage.class);
@@ -128,7 +126,6 @@ public class VStreamOutputMessageDecoderTest {
                     processed[0] = true;
                 },
                 null,
-                false,
                 false);
         assertThat(processed[0]).isFalse();
     }
@@ -149,7 +146,7 @@ public class VStreamOutputMessageDecoderTest {
         final boolean[] processed = { false };
         decoder.processMessage(
                 event,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(TransactionalMessage.class);
@@ -160,7 +157,6 @@ public class VStreamOutputMessageDecoderTest {
                     processed[0] = true;
                 },
                 newVgtid,
-                false,
                 false);
         assertThat(processed[0]).isTrue();
     }
@@ -178,7 +174,7 @@ public class VStreamOutputMessageDecoderTest {
         final boolean[] processed = { false };
         decoder.processMessage(
                 event,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(TransactionalMessage.class);
@@ -186,7 +182,6 @@ public class VStreamOutputMessageDecoderTest {
                     processed[0] = true;
                 },
                 null,
-                false,
                 false);
         assertThat(processed[0]).isFalse();
     }
@@ -204,7 +199,7 @@ public class VStreamOutputMessageDecoderTest {
         final boolean[] processed = { false };
         decoder.processMessage(
                 event,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(DdlMessage.class);
@@ -212,7 +207,6 @@ public class VStreamOutputMessageDecoderTest {
                     processed[0] = true;
                 },
                 null,
-                false,
                 false);
         assertThat(processed[0]).isTrue();
     }
@@ -229,7 +223,7 @@ public class VStreamOutputMessageDecoderTest {
         final boolean[] processed = { false };
         decoder.processMessage(
                 event,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(OtherMessage.class);
@@ -237,7 +231,6 @@ public class VStreamOutputMessageDecoderTest {
                     processed[0] = true;
                 },
                 null,
-                false,
                 false);
         assertThat(processed[0]).isTrue();
     }
@@ -245,7 +238,7 @@ public class VStreamOutputMessageDecoderTest {
     @Test
     public void shouldProcessFieldEvent() throws Exception {
         // exercise SUT
-        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false, false);
+        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
         // verify outcome
@@ -264,9 +257,9 @@ public class VStreamOutputMessageDecoderTest {
         String shard2 = "80-";
         // exercise SUT
         decoder.processMessage(TestHelper.newFieldEvent(TestHelper.columnValuesSubset(), shard1, TestHelper.TEST_SHARDED_KEYSPACE),
-                null, null, false, false);
+                null, null, false);
         decoder.processMessage(TestHelper.newFieldEvent(TestHelper.columnValuesSubset(), shard2, TestHelper.TEST_SHARDED_KEYSPACE),
-                null, null, false, false);
+                null, null, false);
         Table table = schema.tableFor(new TableId(shard1, TestHelper.TEST_SHARDED_KEYSPACE, TestHelper.TEST_TABLE));
 
         // verify outcome
@@ -280,7 +273,7 @@ public class VStreamOutputMessageDecoderTest {
 
         decoder.processMessage(
                 TestHelper.insertEvent(TestHelper.columnValuesSubset(), shard1, TestHelper.TEST_SHARDED_KEYSPACE),
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
@@ -288,11 +281,11 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message.getOldTupleList()).isNull();
                     assertThat(message.getNewTupleList().size()).isEqualTo(TestHelper.columnSubsetNumOfColumns());
                 },
-                null, false, false);
+                null, false);
 
         decoder.processMessage(
                 TestHelper.insertEvent(TestHelper.columnValuesSubset(), shard2, TestHelper.TEST_SHARDED_KEYSPACE),
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
@@ -300,11 +293,11 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message.getOldTupleList()).isNull();
                     assertThat(message.getNewTupleList().size()).isEqualTo(TestHelper.columnSubsetNumOfColumns());
                 },
-                null, false, false);
+                null, false);
 
         // update schema for shard 2
         decoder.processMessage(TestHelper.newFieldEvent(TestHelper.defaultColumnValues(), shard2, TestHelper.TEST_SHARDED_KEYSPACE),
-                null, null, false, false);
+                null, null, false);
         Table tableAfterSchemaChange = schema.tableFor(new TableId(shard2, TestHelper.TEST_SHARDED_KEYSPACE, TestHelper.TEST_TABLE));
 
         // verify outcome
@@ -319,7 +312,7 @@ public class VStreamOutputMessageDecoderTest {
         // shard 2 has been updated with new schema, so should handle values that match the new schema
         decoder.processMessage(
                 TestHelper.insertEvent(TestHelper.defaultColumnValues(), shard2, TestHelper.TEST_SHARDED_KEYSPACE),
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
@@ -327,12 +320,12 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message.getOldTupleList()).isNull();
                     assertThat(message.getNewTupleList().size()).isEqualTo(TestHelper.defaultNumOfColumns());
                 },
-                null, false, false);
+                null, false);
 
         // shard 1 has not been updated with new schema so it should still be able to handle values with the old schema
         decoder.processMessage(
                 TestHelper.insertEvent(TestHelper.columnValuesSubset(), shard1, TestHelper.TEST_SHARDED_KEYSPACE),
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
@@ -340,7 +333,7 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message.getOldTupleList()).isNull();
                     assertThat(message.getNewTupleList().size()).isEqualTo(TestHelper.columnSubsetNumOfColumns());
                 },
-                null, false, false);
+                null, false);
     }
 
     @Test
@@ -349,9 +342,9 @@ public class VStreamOutputMessageDecoderTest {
         String shard2 = "80-";
         // exercise SUT
         decoder.processMessage(TestHelper.defaultFieldEvent(shard1, TestHelper.TEST_SHARDED_KEYSPACE),
-                null, null, false, false);
+                null, null, false);
         decoder.processMessage(TestHelper.defaultFieldEvent(shard2, TestHelper.TEST_SHARDED_KEYSPACE),
-                null, null, false, false);
+                null, null, false);
         Table table = schema.tableFor(new TableId(shard1, TestHelper.TEST_SHARDED_KEYSPACE, TestHelper.TEST_TABLE));
 
         // verify outcome
@@ -365,7 +358,7 @@ public class VStreamOutputMessageDecoderTest {
 
         decoder.processMessage(
                 TestHelper.insertEvent(TestHelper.defaultColumnValues(), shard1, TestHelper.TEST_SHARDED_KEYSPACE),
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
@@ -373,11 +366,11 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message.getOldTupleList()).isNull();
                     assertThat(message.getNewTupleList().size()).isEqualTo(TestHelper.defaultNumOfColumns());
                 },
-                null, false, false);
+                null, false);
 
         decoder.processMessage(
                 TestHelper.insertEvent(TestHelper.defaultColumnValues(), shard2, TestHelper.TEST_SHARDED_KEYSPACE),
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
@@ -385,11 +378,11 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message.getOldTupleList()).isNull();
                     assertThat(message.getNewTupleList().size()).isEqualTo(TestHelper.defaultNumOfColumns());
                 },
-                null, false, false);
+                null, false);
 
         // update schema for shard 2
         decoder.processMessage(TestHelper.newFieldEvent(TestHelper.columnValuesSubset(), shard2, TestHelper.TEST_SHARDED_KEYSPACE),
-                null, null, false, false);
+                null, null, false);
         Table tableAfterSchemaChange = schema.tableFor(new TableId(shard2, TestHelper.TEST_SHARDED_KEYSPACE, TestHelper.TEST_TABLE));
 
         // verify outcome
@@ -404,7 +397,7 @@ public class VStreamOutputMessageDecoderTest {
         // shard 2 has been updated with new schema, so should handle values that match the new schema
         decoder.processMessage(
                 TestHelper.insertEvent(TestHelper.columnValuesSubset(), shard2, TestHelper.TEST_SHARDED_KEYSPACE),
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
@@ -412,12 +405,12 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message.getOldTupleList()).isNull();
                     assertThat(message.getNewTupleList().size()).isEqualTo(TestHelper.columnSubsetNumOfColumns());
                 },
-                null, false, false);
+                null, false);
 
         // shard 1 has not been updated with new schema so it should still be able to handle values with the old schema
         decoder.processMessage(
                 TestHelper.insertEvent(TestHelper.defaultColumnValues(), shard1, TestHelper.TEST_SHARDED_KEYSPACE),
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
@@ -425,13 +418,13 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message.getOldTupleList()).isNull();
                     assertThat(message.getNewTupleList().size()).isEqualTo(TestHelper.defaultNumOfColumns());
                 },
-                null, false, false);
+                null, false);
     }
 
     @Test
     public void shouldThrowExceptionWithDetailedMessageOnRowSchemaMismatch() throws Exception {
         // exercise SUT
-        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false, false);
+        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
         // verify outcome
@@ -445,7 +438,7 @@ public class VStreamOutputMessageDecoderTest {
 
         assertThatThrownBy(() -> {
             decoder.processMessage(TestHelper.insertEvent(
-                    TestHelper.columnValuesSubset()), null, null, false, false);
+                    TestHelper.columnValuesSubset()), null, null, false);
         }).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("bool_col")
                 .hasMessageContaining("long_col");
@@ -454,14 +447,14 @@ public class VStreamOutputMessageDecoderTest {
     @Test
     public void shouldProcessInsertEvent() throws Exception {
         // setup fixture
-        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false, false);
+        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);
         schema.tableFor(TestHelper.defaultTableId());
 
         // exercise SUT
         final boolean[] processed = { false };
         decoder.processMessage(
                 TestHelper.defaultInsertEvent(),
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
@@ -471,21 +464,21 @@ public class VStreamOutputMessageDecoderTest {
                     assertThat(message.getNewTupleList().size()).isEqualTo(TestHelper.defaultNumOfColumns());
                     processed[0] = true;
                 },
-                null, false, false);
+                null, false);
         assertThat(processed[0]).isTrue();
     }
 
     @Test
     public void shouldProcessDeleteEvent() throws Exception {
         // setup fixture
-        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false, false);
+        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);
         schema.tableFor(TestHelper.defaultTableId());
 
         // exercise SUT
         final boolean[] processed = { false };
         decoder.processMessage(
                 TestHelper.defaultDeleteEvent(),
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
@@ -495,21 +488,21 @@ public class VStreamOutputMessageDecoderTest {
                     processed[0] = true;
                 },
                 null,
-                false, false);
+                false);
         assertThat(processed[0]).isTrue();
     }
 
     @Test
     public void shouldProcessUpdateEvent() throws Exception {
         // setup fixture
-        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false, false);
+        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);
         schema.tableFor(TestHelper.defaultTableId());
 
         // exercise SUT
         final boolean[] processed = { false };
         decoder.processMessage(
                 TestHelper.defaultUpdateEvent(),
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message).isNotNull();
                     assertThat(message).isInstanceOf(VStreamOutputReplicationMessage.class);
@@ -519,7 +512,7 @@ public class VStreamOutputMessageDecoderTest {
                     processed[0] = true;
                 },
                 null,
-                false, false);
+                false);
         assertThat(processed[0]).isTrue();
     }
 
@@ -537,7 +530,7 @@ public class VStreamOutputMessageDecoderTest {
                 .setTimestamp(expectedCommitTimestamp)
                 .build();
         decoder.setCommitTimestamp(Instant.ofEpochSecond(commitEvent.getTimestamp()));
-        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false, false);
+        decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);
         schema.tableFor(TestHelper.defaultTableId());
         schema.tableFor(TestHelper.defaultTableId());
         Vgtid newVgtid = Vgtid.of(VgtidTest.VGTID_JSON);
@@ -545,44 +538,44 @@ public class VStreamOutputMessageDecoderTest {
         // exercise SUT
         decoder.processMessage(
                 beginEvent,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedBeginTimestamp);
                 },
                 newVgtid,
-                false, false);
+                false);
         decoder.processMessage(
                 TestHelper.defaultInsertEvent(),
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedCommitTimestamp);
                 },
                 null,
-                false, false);
+                false);
         decoder.processMessage(
                 TestHelper.defaultUpdateEvent(),
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedCommitTimestamp);
                 },
                 null,
-                false, false);
+                false);
         decoder.processMessage(
                 TestHelper.defaultDeleteEvent(),
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedCommitTimestamp);
                 },
                 null,
-                false, false);
+                false);
         decoder.processMessage(
                 commitEvent,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedCommitTimestamp);
                 },
                 newVgtid,
-                false, false);
+                false);
     }
 
     @Test
@@ -606,27 +599,27 @@ public class VStreamOutputMessageDecoderTest {
 
         decoder.processMessage(
                 otherEvent,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedEventTimestamp);
                 },
                 newVgtid,
-                false, false);
+                false);
         decoder.processMessage(
                 ddlEvent,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedEventTimestamp);
                 },
                 null,
-                false, false);
+                false);
         decoder.processMessage(
                 commitEvent,
-                (message, vgtid, isLastRowEventOfTransaction) -> {
+                (message, vgtid) -> {
                     // verify outcome
                     assertThat(message.getCommitTime().getEpochSecond()).isEqualTo(expectedCommitTimestamp);
                 },
                 null,
-                false, false);
+                false);
     }
 }

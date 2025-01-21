@@ -114,7 +114,7 @@ CREATE TABLE no_pk_table
 DROP TABLE IF EXISTS pk_single_unique_key_table;
 CREATE TABLE pk_single_unique_key_table
 (
-    id             BIGINT NOT NULL,
+    id             INT NOT NULL,
     int_col        INT,
     PRIMARY KEY (id),
     UNIQUE KEY unique_col (int_col)

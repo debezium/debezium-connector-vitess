@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.vitess;
 
+import static io.debezium.connector.vitess.TestHelper.PK_FIELD;
 import static io.debezium.connector.vitess.TestHelper.TEST_EMPTY_SHARD_KEYSPACE;
 import static io.debezium.connector.vitess.TestHelper.TEST_NON_EMPTY_SHARD;
 import static io.debezium.connector.vitess.TestHelper.TEST_SERVER;
@@ -1810,7 +1811,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 Map<String, ?> prevOffset = record.sourceOffset();
                 Map<String, ?> prevPartition = record.sourcePartition();
                 Testing.print(String.format("Offset: %s, partition: %s", prevOffset, prevPartition));
-                final String vgtidStr = (String) prevOffset.get(SourceInfo.VGTID_KEY);
+                Struct value = (Struct) record.value();
+                Struct source = (Struct) value.get("source");
+                final String vgtidStr = (String) source.get(SourceInfo.VGTID_KEY);
                 final String expectedJSONString = "[{\"keyspace\":\"test_unsharded_keyspace\",\"shard\":\"0\"," +
                         "\"gtid\":\"MySQL56/6a18875e-6d37-11ee-ac9a-0242ac110002:1-224\"," +
                         "\"table_p_ks\":[{\"table_name\":\"enum_table\",\"lastpk\":" +
@@ -1855,7 +1858,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 Map<String, ?> prevOffset = record.sourceOffset();
                 Map<String, ?> prevPartition = record.sourcePartition();
                 Testing.print(String.format("Offset: %s, partition: %s", prevOffset, prevPartition));
-                final String vgtidStr = (String) prevOffset.get(SourceInfo.VGTID_KEY);
+                Struct value = (Struct) record.value();
+                Struct source = (Struct) value.get("source");
+                final String vgtidStr = (String) source.get(SourceInfo.VGTID_KEY);
                 final String expectedJSONString = "[{\"keyspace\":\"test_unsharded_keyspace\",\"shard\":\"0\"," +
                         "\"gtid\":\"MySQL56/6a18875e-6d37-11ee-ac9a-0242ac110002:1-224\"," +
                         "\"table_p_ks\":[{\"table_name\":\"enum_ambiguous_table\",\"lastpk\":" +
@@ -1894,7 +1899,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 Map<String, ?> prevOffset = record.sourceOffset();
                 Map<String, ?> prevPartition = record.sourcePartition();
                 Testing.print(String.format("Offset: %s, partition: %s", prevOffset, prevPartition));
-                final String vgtidStr = (String) prevOffset.get(SourceInfo.VGTID_KEY);
+                Struct value = (Struct) record.value();
+                Struct source = (Struct) value.get("source");
+                final String vgtidStr = (String) source.get(SourceInfo.VGTID_KEY);
                 final String expectedJSONString = "[{\"keyspace\":\"test_unsharded_keyspace\",\"shard\":\"0\"," +
                         "\"gtid\":\"MySQL56/6a18875e-6d37-11ee-ac9a-0242ac110002:1-224\"," +
                         "\"table_p_ks\":[{\"table_name\":\"numeric_table\",\"lastpk\":" +
@@ -1962,6 +1969,63 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
             assertRecordInserted(TEST_UNSHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD, Long.valueOf(i));
         }
         assertNoRecordsToConsume();
+    }
+
+    @Test
+    public void testRepeatEventWithLastVgtid() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + "pk_single_unique_key_table";
+        startConnector(Function.identity(), false, false, 1,
+                -1, -1, tableInclude, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 6;
+        consumer = testConsumer(expectedRecordsCount);
+        consumer.expects(expectedRecordsCount);
+
+        TestHelper.execute("INSERT INTO pk_single_unique_key_table (id, int_col) VALUES (1, 1);");
+        TestHelper.execute(List.of(
+                "INSERT INTO pk_single_unique_key_table (id, int_col) VALUES (2, 2);",
+                "UPDATE pk_single_unique_key_table SET id = 3 WHERE ID = 2;"));
+        TestHelper.execute("INSERT INTO pk_single_unique_key_table (id, int_col) VALUES (4, 4);");
+
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+
+        SourceRecord insertedRecordTx1 = consumer.remove();
+        VerifyRecord.isValidInsert(insertedRecordTx1, PK_FIELD, 1);
+
+        SourceRecord insertedRecordTx2 = consumer.remove();
+        VerifyRecord.isValidInsert(insertedRecordTx2, PK_FIELD, 2);
+        SourceRecord pkeyUpdateDeletedRecordTx2 = consumer.remove();
+        VerifyRecord.isValidDelete(pkeyUpdateDeletedRecordTx2, PK_FIELD, 2);
+        SourceRecord pKeyUpdateTombstoneRecordTx2 = consumer.remove();
+        VerifyRecord.isValidTombstone(pKeyUpdateTombstoneRecordTx2);
+        SourceRecord pKeyUpdateInsertedRecordTx2 = consumer.remove();
+        VerifyRecord.isValidInsert(pKeyUpdateInsertedRecordTx2, PK_FIELD, 3);
+
+        SourceRecord insertedRecordTx3 = consumer.remove();
+        VerifyRecord.isValidInsert(insertedRecordTx3, PK_FIELD, 4);
+
+        String insertedRecordTx1Vgtid = (String) insertedRecordTx1.sourceOffset().get("vgtid");
+
+        String insertedRecordTx2Vgtid = (String) insertedRecordTx2.sourceOffset().get("vgtid");
+        // Ensure the last operation of the transaction does not prematurely update its offsets for its events
+        String pkeyUpdateDeletedRecordTx2Vgtid = (String) pkeyUpdateDeletedRecordTx2.sourceOffset().get("vgtid");
+        String pKeyUpdateTombstoneRecordTx2Vgtid = (String) pKeyUpdateTombstoneRecordTx2.sourceOffset().get("vgtid");
+        String pKeyUpdateInsertedRecordTx2Vgtid = (String) pKeyUpdateInsertedRecordTx2.sourceOffset().get("vgtid");
+
+        String insertedRecordTx3Vgtid = (String) insertedRecordTx3.sourceOffset().get("vgtid");
+
+        // The VGTIDs are differerent between Tx1 & Tx2
+        assertThat(insertedRecordTx1Vgtid).isNotEqualTo(insertedRecordTx2Vgtid);
+
+        // The VGTIDs are all the same of Tx2
+        assertThat(insertedRecordTx2Vgtid).isEqualTo(pkeyUpdateDeletedRecordTx2Vgtid);
+        assertThat(pkeyUpdateDeletedRecordTx2Vgtid).isEqualTo(pKeyUpdateTombstoneRecordTx2Vgtid);
+        assertThat(pKeyUpdateTombstoneRecordTx2Vgtid).isEqualTo(pKeyUpdateInsertedRecordTx2Vgtid);
+
+        // The N+3 transaction is distinct
+        assertThat(insertedRecordTx3Vgtid).isNotEqualTo(insertedRecordTx2Vgtid);
     }
 
     @Test
@@ -2060,8 +2124,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         stopConnector();
         startConnector(Function.identity(), false, false, 1, -1, -1, tableInclude, null, null);
 
-        // We shouldn't receive a record written before restarting the connector.
-        consumer = testConsumer(expectedRecordsCount);
+        // Since the previous VGTID was the empty string to trigger a snapshot "" we end up resuming with that VGTID so we expect
+        // the snapshot row followed by the inserted row
+        consumer = testConsumer(expectedRecordsCount + 1);
         assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
     }
 
@@ -2104,8 +2169,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         startConnector(Function.identity(), hasMultipleShards, offsetStoragePerTask, numTasks, gen, 1, null, "");
 
         consumer = testConsumer(1);
-        executeAndWait("INSERT INTO pk_single_unique_key_table (id, int_col) VALUES (1, 1);",
-                TEST_UNSHARDED_KEYSPACE);
+        executeAndWait("INSERT INTO pk_single_unique_key_table (id, int_col) VALUES (1, 1);", TEST_UNSHARDED_KEYSPACE);
 
         SourceRecord record = consumer.remove();
         Map<String, ?> prevOffset = record.sourceOffset();

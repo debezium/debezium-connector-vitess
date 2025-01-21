@@ -54,11 +54,10 @@ import org.junit.Assert;
 import org.junit.ComparisonFailure;
 import org.skyscreamer.jsonassert.JSONAssert;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.BaseEncoding;
 
+import io.debezium.connector.vitess.pipeline.txmetadata.Gtid;
 import io.debezium.data.Json;
 import io.debezium.data.SchemaUtil;
 import io.debezium.data.VerifyRecord;
@@ -660,20 +659,39 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
         Object snapshot = offset.get(SourceInfo.SNAPSHOT_KEY);
         assertNull("Snapshot marker not expected, but found", snapshot);
 
-        if (hasMultipleShards) {
-            String shardGtidsInJson = offset.get(SourceInfo.VGTID_KEY).toString();
-            try {
-                List<Vgtid.ShardGtid> shardGtids = MAPPER.readValue(shardGtidsInJson, new TypeReference<List<Vgtid.ShardGtid>>() {
-                });
-                assertThat(shardGtids.size() > 1).isTrue();
+        String offsetVgtidJson = offset.get(SourceInfo.VGTID_KEY).toString();
+        String sourceVgtidJson = expectedRecordOffset.vgtid;
+
+        Vgtid offsetVgtid = Vgtid.of(offsetVgtidJson);
+        Vgtid sourceVgtid = Vgtid.of(sourceVgtidJson);
+
+        List<Vgtid.ShardGtid> offsetShardGtids = offsetVgtid.getShardGtids();
+        assertThat(offsetShardGtids.size()).isEqualTo(sourceVgtid.getShardGtids().size());
+
+        for (Vgtid.ShardGtid offsetShardGtid : offsetShardGtids) {
+            String shard = offsetShardGtid.getShard();
+            Vgtid.ShardGtid sourceShardGtid = sourceVgtid.getShardGtid(shard);
+
+            String offsetGtidString = offsetShardGtid.getGtid();
+            String sourceGtidString = sourceShardGtid.getGtid();
+
+            if (!offsetGtidString.equals("current") && !offsetGtidString.equals("")) {
+                Gtid offsetGtid = new Gtid(offsetGtidString);
+                Gtid sourceGtid = new Gtid(sourceGtidString);
+
+                Integer offsetSequence = Integer.valueOf(offsetGtid.getSequenceValues().get(0));
+                Integer sourceSequence = Integer.valueOf(sourceGtid.getSequenceValues().get(0));
+
+                boolean equals = offsetGtid.equals(sourceGtid);
+                boolean isOffsetOneBehindSource = offsetSequence + 1 == sourceSequence;
+
+                assertThat(equals || isOffsetOneBehindSource).isTrue();
             }
-            catch (JsonProcessingException e) {
-                throw new IllegalStateException(e);
-            }
+
         }
 
-        if (expectedRecordOffset != null) {
-            Assert.assertEquals(expectedRecordOffset.getVgtid(), offset.get(SourceInfo.VGTID_KEY));
+        if (hasMultipleShards) {
+            assertThat(offsetShardGtids.size() > 1).isTrue();
         }
     }
 

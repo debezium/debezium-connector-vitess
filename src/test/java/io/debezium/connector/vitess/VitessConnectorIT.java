@@ -2169,7 +2169,8 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         startConnector(Function.identity(), hasMultipleShards, offsetStoragePerTask, numTasks, gen, 1, null, "");
 
         consumer = testConsumer(1);
-        executeAndWait("INSERT INTO pk_single_unique_key_table (id, int_col) VALUES (1, 1);", TEST_UNSHARDED_KEYSPACE);
+        executeAndWait("INSERT INTO pk_single_unique_key_table (id, int_col) VALUES (1, 1);",
+                TEST_UNSHARDED_KEYSPACE);
 
         SourceRecord record = consumer.remove();
         Map<String, ?> prevOffset = record.sourceOffset();

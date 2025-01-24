@@ -18,6 +18,9 @@ public class TransactionalMessage implements ReplicationMessage {
     private final String shard;
 
     public TransactionalMessage(Operation operation, String transactionId, Instant commitTime, String keyspace, String shard) {
+        if (operation != Operation.BEGIN && operation != Operation.COMMIT) {
+            throw new IllegalArgumentException("TransactionalMessage can only have BEGIN or COMMIT operations");
+        }
         this.transactionId = transactionId;
         this.commitTime = commitTime;
         this.operation = operation;

@@ -67,6 +67,7 @@ import io.debezium.connector.vitess.transforms.RemoveField;
 import io.debezium.converters.CloudEventsConverterTest;
 import io.debezium.converters.spi.CloudEventsMaker;
 import io.debezium.data.Envelope;
+import io.debezium.data.SchemaAndValueField;
 import io.debezium.data.VerifyRecord;
 import io.debezium.doc.FixFor;
 import io.debezium.embedded.AbstractConnectorTest;
@@ -450,8 +451,10 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @Test
     public void shouldConsumeEventsWithTruncatedColumn() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
+        final String truncateConfigValue = schemasAndValuesForStringTypesTruncated().stream().map(
+                x -> String.format("%s.%s.%s", TEST_UNSHARDED_KEYSPACE, "string_table", x.getFieldName())).collect(Collectors.joining(","));
         startConnector(builder -> builder.with("column.truncate.to.1.chars",
-                TEST_UNSHARDED_KEYSPACE + ".string_table.mediumtext_col"), false,
+                truncateConfigValue), false,
                 false, 1, -1, -1, null,
                 VitessConnectorConfig.SnapshotMode.NEVER, "");
         assertConnectorIsRunning();

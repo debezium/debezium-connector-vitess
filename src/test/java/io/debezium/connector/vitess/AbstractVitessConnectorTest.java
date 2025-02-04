@@ -195,17 +195,25 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
         final List<SchemaAndValueField> fields = new ArrayList<>();
         fields.addAll(
                 Arrays.asList(
-                        new SchemaAndValueField("char_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "a"),
-                        new SchemaAndValueField("varchar_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "bc"),
-                        new SchemaAndValueField("varchar_ko_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "상품 명1"),
-                        new SchemaAndValueField("varchar_ja_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "リンゴ"),
-                        new SchemaAndValueField("tinytext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "gh"),
-                        new SchemaAndValueField("text_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "ij"),
+                        new SchemaAndValueField("char_col", SchemaBuilder.string().optional()
+                                .parameter("truncateLength", "1").build(), "a"),
+                        new SchemaAndValueField("varchar_col", SchemaBuilder.string().optional()
+                                .parameter("truncateLength", "1").build(), "b"),
+                        new SchemaAndValueField("varchar_ko_col", SchemaBuilder.string().optional()
+                                .parameter("truncateLength", "1").build(), "상"),
+                        new SchemaAndValueField("varchar_ja_col", SchemaBuilder.string().optional()
+                                .parameter("truncateLength", "1").build(), "リ"),
+                        new SchemaAndValueField("tinytext_col", SchemaBuilder.string().optional()
+                                .parameter("truncateLength", "1").build(), "g"),
+                        new SchemaAndValueField("text_col", SchemaBuilder.string().optional()
+                                .parameter("truncateLength", "1").build(), "i"),
                         new SchemaAndValueField("mediumtext_col", SchemaBuilder.string().optional()
                                 .parameter("truncateLength", "1").build(), "k"),
-                        new SchemaAndValueField("longtext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "mn"),
-                        new SchemaAndValueField("json_col", Json.builder().optional().build(),
-                                "{\"key1\":\"value1\",\"key2\":{\"key21\":\"value21\",\"key22\":\"value22\"}}")));
+                        new SchemaAndValueField("longtext_col", SchemaBuilder.string().optional()
+                                .parameter("truncateLength", "1").build(), "m"),
+                        new SchemaAndValueField("json_col", Json.builder().optional()
+                                .parameter("truncateLength", "1").build(),
+                                "{")));
         return fields;
     }
 
@@ -766,6 +774,11 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
     protected static class SchemaAndValueField {
         private final Schema schema;
         private final Object value;
+
+        public String getFieldName() {
+            return fieldName;
+        }
+
         private final String fieldName;
 
         public SchemaAndValueField(String fieldName, Schema schema, Object value) {
@@ -818,6 +831,10 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
             else {
                 Schema schema = content.schema().field(fieldName).schema();
                 if (Json.LOGICAL_NAME.equals(schema.name())) {
+                    if (value.equals(actualValue)) {
+                        // If the string values are identical, don't bother parsing
+                        return;
+                    }
                     try {
                         JSONAssert.assertEquals("Values don't match for field '" + fieldName + "'", (String) value, (String) actualValue, false);
                     }

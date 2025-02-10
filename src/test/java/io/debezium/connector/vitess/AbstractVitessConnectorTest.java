@@ -105,6 +105,22 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
             + "longtext_col,"
             + "json_col)"
             + " VALUES ('a', 'bc', '상품 명1', 'リンゴ', 'gh', 'ij', 'kl', 'mn', '{\"key1\": \"value1\", \"key2\": {\"key21\": \"value21\", \"key22\": \"value22\"}}');";
+    protected static final String INSERT_CHAR_SET_COLLATE_STMT = "INSERT INTO character_set_collate_table (" +
+            "varchar_ascii_collate_ascii_bin_col," +
+            "varchar_col," +
+            "char_ascii_collate_ascii_bin_col," +
+            "char_col," +
+            "binary_ascii_collate_ascii_bin_col," +
+            "varbinary_col," +
+            "text_ascii_collate_ascii_bin_col," +
+            "text_col," +
+            "blob_ascii_collate_ascii_bin_col," +
+            "enum_ascii_collate_ascii_bin_col," +
+            "enum_col," +
+            "set_ascii_collate_ascii_bin_col," +
+            "set_col" +
+            ") " +
+            "VALUES (\"foo\", \"foo\", \"foobarfoo\", \"foobarfoo\", \"foobarfoo\", \"foo\", \"foo\", \"foo\", \"foo\", \"small\", \"small\", \"a\", \"a\");";
     protected static final String INSERT_BYTES_TYPES_STMT = "INSERT INTO string_table ("
             + "binary_col,"
             + "varbinary_col,"
@@ -188,6 +204,26 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                         new SchemaAndValueField("longtext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "mn"),
                         new SchemaAndValueField("json_col", Json.builder().optional().build(),
                                 "{\"key1\":\"value1\",\"key2\":{\"key21\":\"value21\",\"key22\":\"value22\"}}")));
+        return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForCharSetCollateTypes() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField("varchar_ascii_collate_ascii_bin_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "foo"),
+                        new SchemaAndValueField("varchar_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "foo"),
+                        new SchemaAndValueField("char_ascii_collate_ascii_bin_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "foobarfoo"),
+                        new SchemaAndValueField("char_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "foobarfoo"),
+                        new SchemaAndValueField("binary_ascii_collate_ascii_bin_col", SchemaBuilder.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap("foobarfoo".getBytes())),
+                        new SchemaAndValueField("varbinary_col", SchemaBuilder.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap("foo".getBytes())),
+                        new SchemaAndValueField("text_ascii_collate_ascii_bin_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "foo"),
+                        new SchemaAndValueField("text_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "foo"),
+                        new SchemaAndValueField("blob_ascii_collate_ascii_bin_col", SchemaBuilder.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap("foo".getBytes())),
+                        new SchemaAndValueField("enum_ascii_collate_ascii_bin_col", io.debezium.data.Enum.builder("small,medium,large").optional().build(), "small"),
+                        new SchemaAndValueField("enum_col", io.debezium.data.Enum.builder("small,medium,large").optional().build(), "small"),
+                        new SchemaAndValueField("set_ascii_collate_ascii_bin_col", io.debezium.data.EnumSet.builder("a,b,c,d").optional().build(), "a"),
+                        new SchemaAndValueField("set_col", io.debezium.data.EnumSet.builder("a,b,c,d").optional().build(), "a")));
         return fields;
     }
 

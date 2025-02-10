@@ -142,7 +142,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
     @Test
     @FixFor("DBZ-2776")
-    public void shouldReceiveChangesForInsertsWithDifferentDataTypes() throws Exception {
+    public void shouldReceiveChangesForInsertsWithNumericTypes() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         startConnector();
         assertConnectorIsRunning();
@@ -152,15 +152,48 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         consumer.expects(expectedRecordsCount);
         assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    @FixFor("DBZ-2776")
+    public void shouldReceiveChangesForInsertsWithStringTypes() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector();
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
 
         consumer.expects(expectedRecordsCount);
         assertInsert(INSERT_STRING_TYPES_STMT, schemasAndValuesForStringTypes(), TestHelper.PK_FIELD);
+    }
 
-        consumer.expects(expectedRecordsCount);
-        assertInsert(INSERT_BYTES_TYPES_STMT, schemasAndValuesForBytesTypesAsBytes(), TestHelper.PK_FIELD);
+    @Test
+    @FixFor("DBZ-2776")
+    public void shouldReceiveChangesForInsertsWithByteTypes() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector();
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
 
         consumer.expects(expectedRecordsCount);
         assertInsert(INSERT_SET_TYPE_STMT, schemasAndValuesForSetType(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    @FixFor("DBZ-2776")
+    public void shouldReceiveChangesForInsertsWithSetTypes() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector();
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_BYTES_TYPES_STMT, schemasAndValuesForBytesTypesAsBytes(), TestHelper.PK_FIELD);
     }
 
     @Test
@@ -1555,41 +1588,18 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @Test
     @FixFor("DBZ-2578")
     public void shouldConvertVarcharCharacterSetCollateColumnToString() throws Exception {
-        final boolean hasMultipleShards = true;
+        final boolean hasMultipleShards = false;
 
-        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_UNSHARDED_KEYSPACE);
         TestHelper.applyVSchema("vitess_vschema.json");
         startConnector(hasMultipleShards);
         assertConnectorIsRunning();
 
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
-        String varcharCharacterSetCollateColumnAsciiBin = "varchar_character_set_ascii_collate_ascii_bin_col";
-        String varcharCharacterSetCollateColumnAscii = "varchar_character_set_ascii_collate_ascii_col";
-        String varcharCharacterSetCollateColumnLatin1Bin = "varchar_character_set_ascii_collate_latin1_bin_col";
-        String varcharColumn = "varchar_col";
-        String varbinaryColumn = "varbinary_col";
-        String expectedVarchar = "foo";
-        String query = String.format("INSERT INTO character_set_collate_table (%s, %s, %s, %s, %s) VALUES (\"%s\", \"%s\", \"%s\", \"%s\", \"%s\");",
-                varcharCharacterSetCollateColumnAsciiBin,
-                varcharCharacterSetCollateColumnAscii,
-                varcharCharacterSetCollateColumnLatin1Bin,
-                varcharColumn,
-                varbinaryColumn,
-                expectedVarchar,
-                expectedVarchar,
-                expectedVarchar,
-                expectedVarchar,
-                expectedVarchar);
-        SourceRecord record = assertInsert(query, null, TEST_SHARDED_KEYSPACE, null, hasMultipleShards);
-        Struct recordValueStruct = (Struct) record.value();
-        Struct afterStruct = (Struct) recordValueStruct.get("after");
-        Object actualVarchar = afterStruct.get(varcharColumn);
-        assertThat(actualVarchar).isEqualTo(expectedVarchar);
-        assertThat(afterStruct.get(varcharCharacterSetCollateColumnAsciiBin)).isEqualTo(actualVarchar);
-        assertThat(afterStruct.get(varcharCharacterSetCollateColumnAscii)).isEqualTo(actualVarchar);
-        assertThat(afterStruct.get(varcharCharacterSetCollateColumnLatin1Bin)).isEqualTo(actualVarchar);
-        assertThat(afterStruct.get(varbinaryColumn).getClass()).isNotEqualTo(actualVarchar);
+        System.out.println(INSERT_CHAR_SET_COLLATE_STMT);
+        SourceRecord record = assertInsert(INSERT_CHAR_SET_COLLATE_STMT, schemasAndValuesForCharSetCollateTypes(), TEST_UNSHARDED_KEYSPACE, TestHelper.PK_FIELD,
+                hasMultipleShards);
     }
 
     @Test

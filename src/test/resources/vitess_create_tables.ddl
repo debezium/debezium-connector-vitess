@@ -157,10 +157,19 @@ CREATE TABLE comp_pk_table
 DROP TABLE IF EXISTS character_set_collate_table;
 CREATE TABLE character_set_collate_table
 (
-    id                                                   BIGINT NOT NULL,
-    `varchar_character_set_ascii_collate_ascii_bin_col`      VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-    `varchar_character_set_ascii_collate_ascii_col`          VARCHAR(32) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
-    `varchar_character_set_ascii_collate_latin1_bin_col`     VARCHAR(32) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
-    `varchar_col`                                            VARCHAR(32) NOT NULL,
-    `varbinary_col`                                          VARBINARY(32) NOT NULL
+    id                                         BIGINT NOT NULL AUTO_INCREMENT,
+    `varchar_ascii_collate_ascii_bin_col`      VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin,
+    `varchar_col`                              VARCHAR(32),
+    `char_ascii_collate_ascii_bin_col`         CHAR(9) CHARACTER SET ascii COLLATE ascii_bin,
+    `char_col`                                 CHAR(9),
+    `binary_ascii_collate_ascii_bin_col`       BINARY(9), -- character set & collation are binary by default
+    `varbinary_col`                            VARBINARY(32), -- character set & collation are binary by default
+    `text_ascii_collate_ascii_bin_col`         TEXT CHARACTER SET ascii COLLATE ascii_bin,
+    `text_col`                                 TEXT,
+    `blob_ascii_collate_ascii_bin_col`         BLOB, -- character set & collation are binary by default
+    `enum_ascii_collate_ascii_bin_col`         ENUM('small', 'medium', 'large') CHARACTER SET ascii COLLATE ascii_bin DEFAULT 'medium',
+    `enum_col`                                 ENUM('small', 'medium', 'large') DEFAULT 'medium',
+    `set_ascii_collate_ascii_bin_col`          SET ('a', 'b', 'c', 'd') CHARACTER SET ascii COLLATE ascii_bin DEFAULT 'b',
+    `set_col`                                  SET ('a', 'b', 'c', 'd') DEFAULT 'b',
+    PRIMARY KEY (id)
 );

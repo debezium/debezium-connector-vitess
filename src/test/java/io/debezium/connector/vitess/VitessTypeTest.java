@@ -47,6 +47,20 @@ public class VitessTypeTest {
     }
 
     @Test
+    public void shouldResolveVitessTypeWhereColumnTypeDiffers() {
+        Query.Field varcharCollateBinary = Query.Field.newBuilder().setType(Query.Type.VARBINARY).setColumnType("varchar(32)").build();
+        assertThat(VitessType.resolve(varcharCollateBinary).getJdbcId()).isEqualTo(Types.VARCHAR);
+        Query.Field charCollateBinary = Query.Field.newBuilder().setType(Query.Type.BINARY).setColumnType("char(9)").build();
+        assertThat(VitessType.resolve(charCollateBinary).getJdbcId()).isEqualTo(Types.VARCHAR); // TODO: Why not char?
+        Query.Field binary = Query.Field.newBuilder().setType(Query.Type.BINARY).setColumnType("binary(9)").build();
+        assertThat(VitessType.resolve(binary).getJdbcId()).isEqualTo(Types.BINARY);
+        Query.Field varBinary = Query.Field.newBuilder().setType(Query.Type.VARBINARY).setColumnType("varbinary(9)").build();
+        assertThat(VitessType.resolve(varBinary).getJdbcId()).isEqualTo(Types.BINARY); // TODO: Why not varbinary
+        Query.Field textCollateBinary = Query.Field.newBuilder().setType(Query.Type.BLOB).setColumnType("text").build();
+        assertThat(VitessType.resolve(textCollateBinary).getJdbcId()).isEqualTo(Types.VARCHAR); // Why not
+    }
+
+    @Test
     public void shouldResolveEnumToVitessTypeWithIntMappingWhenNotInCopyPhase() {
         Query.Field enumField = Query.Field.newBuilder()
                 .setType(Query.Type.ENUM)

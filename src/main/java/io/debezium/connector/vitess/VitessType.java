@@ -105,29 +105,30 @@ public class VitessType {
             case "YEAR":
                 return new VitessType(type, Types.INTEGER);
             case "ENUM":
-                if (isEnumSetStringValue) {
-                    return new VitessType(type, Types.VARCHAR, resolveEnumAndSetValues(field.getColumnType()));
-                }
-                else {
-                    return new VitessType(type, Types.INTEGER, resolveEnumAndSetValues(field.getColumnType()));
-                }
             case "SET":
-                if (isEnumSetStringValue) {
-                    return new VitessType(type, Types.VARCHAR, resolveEnumAndSetValues(field.getColumnType()));
-                }
-                else {
-                    return new VitessType(type, Types.BIGINT, resolveEnumAndSetValues(field.getColumnType()));
-                }
+                return getEnumOrSetVitessType(isEnumSetStringValue, type, field);
             case "UINT32":
             case "INT64":
                 return new VitessType(type, Types.BIGINT);
             case "BLOB":
+                if (VitessValueConverter.matches(field.getColumnType().toUpperCase(), "TEXT")) {
+                    return new VitessType(type, Types.VARCHAR);
+                }
                 return new VitessType(type, Types.BLOB);
             case "VARBINARY":
-                if (field.getColumnType().toUpperCase().contains("VARCHAR")) {
+                if (VitessValueConverter.matches(field.getColumnType().toUpperCase(), "VARCHAR")) {
                     return new VitessType(type, Types.VARCHAR);
                 }
             case "BINARY":
+                if (VitessValueConverter.matches(field.getColumnType().toUpperCase(), "CHAR")) {
+                    return new VitessType(type, Types.VARCHAR);
+                }
+                else if (VitessValueConverter.matches(field.getColumnType().toUpperCase(), "ENUM")) {
+                    return getEnumOrSetVitessType(isEnumSetStringValue, "ENUM", field);
+                }
+                else if (VitessValueConverter.matches(field.getColumnType().toUpperCase(), "SET")) {
+                    return getEnumOrSetVitessType(isEnumSetStringValue, "SET", field);
+                }
                 return new VitessType(type, Types.BINARY);
             case "UINT64":
             case "VARCHAR":
@@ -151,6 +152,23 @@ public class VitessType {
             default:
                 return new VitessType(type, Types.OTHER);
         }
+    }
+
+    private static VitessType getEnumOrSetVitessType(boolean isEnumSetStringValue, String type, Query.Field field) {
+        int jdbcType;
+        if (type.equals("ENUM") && !isEnumSetStringValue) {
+            jdbcType = Types.INTEGER;
+        }
+        else if (type.equals("SET") && !isEnumSetStringValue) {
+            // Set types can have at most 64 items, each item can be present or not, so total is 2^64 so need a BIGINT
+            jdbcType = Types.BIGINT;
+        }
+        else {
+            // This is only called when the column type matches either enum or set, so it must be the case that isEnumSetStringValue is true,
+            // so we should interpret the value as a string
+            jdbcType = Types.VARCHAR;
+        }
+        return new VitessType(type, jdbcType, resolveEnumAndSetValues(field.getColumnType()));
     }
 
     /**

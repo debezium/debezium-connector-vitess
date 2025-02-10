@@ -221,7 +221,7 @@ public class VitessValueConverter extends JdbcValueConverters {
      * @param upperCaseMatch the upper case form of the expected type or prefix of the type; may not be null
      * @return {@code true} if the type matches the specified type, or {@code false} otherwise
      */
-    protected boolean matches(String upperCaseTypeName, String upperCaseMatch) {
+    protected static boolean matches(String upperCaseTypeName, String upperCaseMatch) {
         if (upperCaseTypeName == null) {
             return false;
         }

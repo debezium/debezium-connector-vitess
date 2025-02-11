@@ -1597,7 +1597,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
-        System.out.println(INSERT_CHAR_SET_COLLATE_STMT);
         SourceRecord record = assertInsert(INSERT_CHAR_SET_COLLATE_STMT, schemasAndValuesForCharSetCollateTypes(), TEST_UNSHARDED_KEYSPACE, TestHelper.PK_FIELD,
                 hasMultipleShards);
     }

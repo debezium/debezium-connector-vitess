@@ -52,7 +52,8 @@ public class VitessValueConverterTest {
                 ZoneOffset.UTC,
                 config.binaryHandlingMode(),
                 config.includeUnknownDatatypes(),
-                config.getBigIntUnsgnedHandlingMode());
+                config.getBigIntUnsgnedHandlingMode(),
+                false);
         schema = new VitessDatabaseSchema(
                 config,
                 SchemaNameAdjuster.create(),

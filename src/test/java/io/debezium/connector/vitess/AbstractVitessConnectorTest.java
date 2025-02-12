@@ -144,6 +144,20 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
     protected static final String DATETIME = "2020-02-12 01:02:03";
     protected static final String TIMESTAMP = "2020-02-13 01:02:03";
 
+    protected static final String ZERO_TIME = "00:00:00";
+    protected static final String ZERO_DATE = "0000-00-00";
+    protected static final String ZERO_DATETIME = "0000-00-00 00:00:00";
+    protected static final String ZERO_TIMESTAMP = "0000-00-00 00:00:00";
+    protected static final String ZERO_TIMESTAMP_PRECISION6 = ZERO_TIMESTAMP + ".000000";
+    protected static final String ZERO_YEAR = "0000";
+
+    protected static final String EPOCH_DATE = "1970-01-01";
+    protected static final String EPOCH_DATETIME = "1970-01-01 00:00:00";
+    protected static final String EPOCH_DATETIME_PRECISION4 = EPOCH_DATETIME + ".0000";
+    protected static final String EPOCH_TIMESTAMP = "1970-01-01 00:00:01"; // MySQL allowed lower bound is one second past the epoch
+    protected static final String EPOCH_TIMESTAMP_PRECISION6 = EPOCH_TIMESTAMP + ".000000";
+    protected static final String EPOCH_YEAR = "1970";
+
     protected static final String YEAR = "2020";
     protected static final String INSERT_TIME_TYPES_STMT = "INSERT INTO time_table ("
             + "time_col,"
@@ -152,6 +166,33 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
             + "timestamp_col,"
             + "year_col)"
             + String.format(" VALUES ('%s', '%s', '%s', '%s', '%s')", TIME, DATE, DATETIME, TIMESTAMP, YEAR);
+
+    protected static final String INSERT_TIME_TYPES_ZERO_VALUE_STMT = "INSERT INTO time_table_zero_value ("
+            + "time_col,"
+            + "time_col4,"
+            + "date_col,"
+            + "datetime_col,"
+            + "datetime_col4,"
+            + "timestamp_col,"
+            + "timestamp_col6,"
+            + "year_col)"
+            + String.format(" VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')",
+                    ZERO_TIME, ZERO_TIME, ZERO_DATE, ZERO_DATETIME, ZERO_DATETIME, ZERO_TIMESTAMP, ZERO_TIMESTAMP, ZERO_YEAR);
+
+    protected static final String INSERT_TIME_TYPES_EPOCH_VALUE_STMT = "INSERT INTO time_table_zero_value ("
+            + "time_col,"
+            + "time_col4,"
+            + "date_col,"
+            + "datetime_col,"
+            + "datetime_col4,"
+            + "timestamp_col,"
+            + "timestamp_col6,"
+            + "year_col)"
+            + String.format(" VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')",
+                    ZERO_TIME, ZERO_TIME, EPOCH_DATE, EPOCH_DATETIME, EPOCH_DATETIME, EPOCH_TIMESTAMP, EPOCH_TIMESTAMP, EPOCH_YEAR);
+
+    protected static final String INSERT_TIME_TYPES_ZERO_VALUE_NULLABLE_STMT = INSERT_TIME_TYPES_ZERO_VALUE_STMT.replace(
+            "time_table_zero_value", "time_table_zero_value_nullable");
 
     protected static final String TIME_PRECISION1 = TIME + ".1";
     protected static final String TIME_PRECISION4 = TIME + ".1234";
@@ -357,6 +398,82 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
         fields.addAll(
                 Arrays.asList(
                         new SchemaAndValueField("set_col", io.debezium.data.EnumSet.builder("a,b,c,d").build(), "a,c")));
+        return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForTimeTypeZeroDate() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField("time_col", MicroTime.schema(), getDurationMicros(ZERO_TIME)),
+                        new SchemaAndValueField("time_col4", MicroTime.schema(), getDurationMicros(ZERO_TIME)),
+                        new SchemaAndValueField("date_col", io.debezium.time.Date.schema(), getDateIntDays(EPOCH_DATE)),
+                        new SchemaAndValueField(
+                                "datetime_col", Timestamp.schema(), getMillisForDatetime(EPOCH_DATETIME, 0)),
+                        new SchemaAndValueField(
+                                "datetime_col4", MicroTimestamp.schema(), getMicrosForDatetime(EPOCH_DATETIME_PRECISION4, 4)),
+                        new SchemaAndValueField(
+                                "timestamp_col", ZonedTimestamp.schema(), ZERO_TIMESTAMP),
+                        new SchemaAndValueField(
+                                "timestamp_col6", ZonedTimestamp.schema(), ZERO_TIMESTAMP_PRECISION6),
+                        new SchemaAndValueField("year_col", Year.schema(), Integer.valueOf(ZERO_YEAR))));
+        return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForTimeTypeZeroDateNullable() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField("time_col", MicroTime.builder().optional().build(), getDurationMicros(ZERO_TIME)),
+                        new SchemaAndValueField("time_col4", MicroTime.builder().optional().build(), getDurationMicros(ZERO_TIME)),
+                        new SchemaAndValueField("date_col", io.debezium.time.Date.builder().optional().schema(), null),
+                        new SchemaAndValueField(
+                                "datetime_col", Timestamp.builder().optional().schema(), null),
+                        new SchemaAndValueField(
+                                "datetime_col4", MicroTimestamp.builder().optional().schema(), null),
+                        new SchemaAndValueField(
+                                "timestamp_col", ZonedTimestamp.builder().optional().schema(), ZERO_TIMESTAMP),
+                        new SchemaAndValueField(
+                                "timestamp_col6", ZonedTimestamp.builder().optional().schema(), ZERO_TIMESTAMP_PRECISION6),
+                        new SchemaAndValueField("year_col", Year.builder().optional().schema(), Integer.valueOf(ZERO_YEAR))));
+        return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForTimeTypeZeroDateToNull() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField("time_col", MicroTime.schema(), getDurationMicros(ZERO_TIME)),
+                        new SchemaAndValueField("time_col4", MicroTime.schema(), getDurationMicros(ZERO_TIME)),
+                        new SchemaAndValueField("date_col", io.debezium.time.Date.builder().optional().schema(), null),
+                        new SchemaAndValueField(
+                                "datetime_col", Timestamp.builder().optional().schema(), null),
+                        new SchemaAndValueField(
+                                "datetime_col4", MicroTimestamp.builder().optional().schema(), null),
+                        new SchemaAndValueField(
+                                "timestamp_col", ZonedTimestamp.schema(), ZERO_TIMESTAMP),
+                        new SchemaAndValueField(
+                                "timestamp_col6", ZonedTimestamp.schema(), ZERO_TIMESTAMP_PRECISION6),
+                        new SchemaAndValueField("year_col", Year.schema(), Integer.valueOf(ZERO_YEAR))));
+        return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForTimeTypeTemporalToNullWithEpoch() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField("time_col", MicroTime.schema(), getDurationMicros(ZERO_TIME)),
+                        new SchemaAndValueField("time_col4", MicroTime.schema(), getDurationMicros(ZERO_TIME)),
+                        new SchemaAndValueField("date_col", io.debezium.time.Date.builder().optional().schema(), getDateIntDays(EPOCH_DATE)),
+                        new SchemaAndValueField(
+                                "datetime_col", Timestamp.builder().optional().schema(), getMillisForDatetime(EPOCH_DATETIME, 0)),
+                        new SchemaAndValueField(
+                                "datetime_col4", MicroTimestamp.builder().optional().schema(), getMicrosForDatetime(EPOCH_DATETIME_PRECISION4, 4)),
+                        new SchemaAndValueField(
+                                "timestamp_col", ZonedTimestamp.schema(), EPOCH_TIMESTAMP),
+                        new SchemaAndValueField(
+                                "timestamp_col6", ZonedTimestamp.schema(), EPOCH_TIMESTAMP_PRECISION6),
+                        new SchemaAndValueField("year_col", Year.schema(), Integer.valueOf(EPOCH_YEAR))));
         return fields;
     }
 

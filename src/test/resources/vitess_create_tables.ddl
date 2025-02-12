@@ -102,6 +102,36 @@ CREATE TABLE time_table_precision
     PRIMARY KEY (id)
 );
 
+DROP TABLE IF EXISTS time_table_zero_value;
+CREATE TABLE time_table_zero_value
+(
+    id             BIGINT       NOT NULL AUTO_INCREMENT,
+    time_col       TIME         NOT NULL DEFAULT '00:00:00',
+    time_col4      TIME(4)      NOT NULL DEFAULT '00:00:00.0000',
+    date_col       DATE         NOT NULL DEFAULT '0000-00-00',
+    datetime_col   DATETIME     NOT NULL DEFAULT '0000-00-00 00:00:00',
+    datetime_col4  DATETIME(4)  NOT NULL DEFAULT '0000-00-00 00:00:00.00',
+    timestamp_col  TIMESTAMP    NOT NULL DEFAULT '0000-00-00 00:00:00',
+    timestamp_col6 TIMESTAMP(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
+    year_col       YEAR         NOT NULL DEFAULT '0000',
+    PRIMARY KEY (id)
+);
+
+DROP TABLE IF EXISTS time_table_zero_value_nullable;
+CREATE TABLE time_table_zero_value_nullable
+(
+    id             BIGINT       NOT NULL AUTO_INCREMENT,
+    time_col       TIME         DEFAULT '00:00:00',
+    time_col4      TIME(4)      DEFAULT '00:00:00.0000',
+    date_col       DATE         DEFAULT '0000-00-00',
+    datetime_col   DATETIME     DEFAULT '0000-00-00 00:00:00',
+    datetime_col4  DATETIME(4)  DEFAULT '0000-00-00 00:00:00.00',
+    timestamp_col  TIMESTAMP    DEFAULT '0000-00-00 00:00:00',
+    timestamp_col6 TIMESTAMP(6) DEFAULT '0000-00-00 00:00:00.000000',
+    year_col       YEAR         DEFAULT '0000',
+    PRIMARY KEY (id)
+);
+
 DROP TABLE IF EXISTS time_table_default;
 
 DROP TABLE IF EXISTS no_pk_table;

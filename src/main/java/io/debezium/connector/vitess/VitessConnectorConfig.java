@@ -440,6 +440,17 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     + "'precise' represents values as precise (Java's 'BigDecimal') values;"
                     + "'long' represents values using Java's 'long', which may not offer the precision but will be far easier to use in consumers.");
 
+    public static final Field OVERRIDE_DATETIME_TO_NULLABLE = Field.create("override.datetime.to.nullable")
+            .withDisplayName("Override datetime to nullable")
+            .withType(Type.BOOLEAN)
+            .withDefault(false)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription("If enabled, makes all date & datetime columns nullable. Date & datetime types are incapable of representing zero-date values i.e., with" +
+                    "month or day set to zero, e.g., 0000-00-00 or 0000-00-00 00:00:00. By overriding to nullable, the null value can be set in place" +
+                    "of these zero-value temporal types. If disabled, zero-dates are converted to the epoch value (and cannot be differentiated from " +
+                    "an actual epoch value)");
+
     public static final Field TIME_PRECISION_MODE = RelationalDatabaseConnectorConfig.TIME_PRECISION_MODE
             .withEnum(TemporalPrecisionMode.class, TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS)
             .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR, 26))
@@ -486,6 +497,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     BINARY_HANDLING_MODE,
                     SCHEMA_NAME_ADJUSTMENT_MODE,
                     OFFSET_STORAGE_PER_TASK,
+                    OVERRIDE_DATETIME_TO_NULLABLE,
                     OFFSET_STORAGE_TASK_KEY_GEN,
                     PREV_NUM_TASKS,
                     EXCLUDE_EMPTY_SHARDS)
@@ -715,6 +727,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public boolean offsetStoragePerTask() {
         return getConfig().getBoolean(OFFSET_STORAGE_PER_TASK);
+    }
+
+    public boolean overrideDatetimeToNullable() {
+        return getConfig().getBoolean(OVERRIDE_DATETIME_TO_NULLABLE);
     }
 
     public int getOffsetStorageTaskKeyGen() {

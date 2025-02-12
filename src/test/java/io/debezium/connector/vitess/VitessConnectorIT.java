@@ -67,7 +67,6 @@ import io.debezium.connector.vitess.transforms.RemoveField;
 import io.debezium.converters.CloudEventsConverterTest;
 import io.debezium.converters.spi.CloudEventsMaker;
 import io.debezium.data.Envelope;
-import io.debezium.data.SchemaAndValueField;
 import io.debezium.data.VerifyRecord;
 import io.debezium.doc.FixFor;
 import io.debezium.embedded.AbstractConnectorTest;
@@ -403,6 +402,60 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         consumer.expects(expectedRecordsCount);
         assertInsert(INSERT_TIME_TYPES_STMT, schemasAndValuesForTimeType(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void shouldReceiveChangesForInsertsWithTimestampTypesZeroValues() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector();
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_TIME_TYPES_ZERO_VALUE_STMT, schemasAndValuesForTimeTypeZeroDate(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void shouldReceiveChangesForInsertsWithTimestampTypesZeroValuesNullable() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector();
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_TIME_TYPES_ZERO_VALUE_NULLABLE_STMT, schemasAndValuesForTimeTypeZeroDateNullable(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void shouldReceiveChangesForInsertsWithTimestampTypesZeroValueToNull() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(config -> config.with(
+                VitessConnectorConfig.OVERRIDE_DATETIME_TO_NULLABLE, "true"), false);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_TIME_TYPES_ZERO_VALUE_STMT, schemasAndValuesForTimeTypeZeroDateToNull(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void shouldReceiveChangesForInsertsWithTimestampTypesZeroValueToNullWithEpoch() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(config -> config.with(
+                VitessConnectorConfig.OVERRIDE_DATETIME_TO_NULLABLE, "true"), false);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_TIME_TYPES_EPOCH_VALUE_STMT, schemasAndValuesForTimeTypeTemporalToNullWithEpoch(), TestHelper.PK_FIELD);
     }
 
     @Test

@@ -43,6 +43,7 @@ public class VitessValueConverter extends JdbcValueConverters {
     private static final BigDecimal BIGINT_CORRECTION = BIGINT_MAX_VALUE.add(BigDecimal.ONE);
 
     private final boolean includeUnknownDatatypes;
+    private final boolean overrideDatetimeToNullable;
     private final VitessConnectorConfig.BigIntUnsignedHandlingMode bigIntUnsignedHandlingMode;
 
     private static final Pattern DATE_FIELD_PATTERN = Pattern.compile("([0-9]*)-([0-9]*)-([0-9]*)");
@@ -54,9 +55,11 @@ public class VitessValueConverter extends JdbcValueConverters {
                                 ZoneOffset defaultOffset,
                                 BinaryHandlingMode binaryMode,
                                 boolean includeUnknownDatatypes,
-                                VitessConnectorConfig.BigIntUnsignedHandlingMode bigIntUnsignedHandlingMode) {
+                                VitessConnectorConfig.BigIntUnsignedHandlingMode bigIntUnsignedHandlingMode,
+                                boolean overrideDatetimeToNullable) {
         super(decimalMode, temporalPrecisionMode, defaultOffset, null, null, binaryMode);
         this.includeUnknownDatatypes = includeUnknownDatatypes;
+        this.overrideDatetimeToNullable = overrideDatetimeToNullable;
         this.bigIntUnsignedHandlingMode = bigIntUnsignedHandlingMode;
     }
 
@@ -96,15 +99,27 @@ public class VitessValueConverter extends JdbcValueConverters {
         if (jdbcSchemaBuilder == null) {
             return includeUnknownDatatypes ? SchemaBuilder.bytes() : null;
         }
-        else {
-            return jdbcSchemaBuilder;
+        if (overrideDatetimeToNullable && isDateOrDateTime(typeName)) {
+            return jdbcSchemaBuilder.optional();
         }
+        return jdbcSchemaBuilder;
+    }
+
+    public static boolean isDateOrDateTime(String typeName) {
+        return matches(typeName, Query.Type.DATETIME.name()) || matches(typeName, Query.Type.DATE.name());
     }
 
     // Convert Java value to Kafka Connect value.
     @Override
-    public ValueConverter converter(Column column, Field fieldDefn) {
-        String typeName = column.typeName().toUpperCase();
+    public ValueConverter converter(Column inputColumn, Field fieldDefn) {
+        String typeName = inputColumn.typeName().toUpperCase();
+        final Column column;
+        if (overrideDatetimeToNullable && isDateOrDateTime(typeName)) {
+            column = inputColumn.edit().optional(true).create();
+        }
+        else {
+            column = inputColumn;
+        }
         if (matches(typeName, Query.Type.ENUM.name())) {
             return (data) -> convertEnumToString(column.enumValues(), column, fieldDefn, data);
         }
@@ -221,7 +236,7 @@ public class VitessValueConverter extends JdbcValueConverters {
      * @param upperCaseMatch the upper case form of the expected type or prefix of the type; may not be null
      * @return {@code true} if the type matches the specified type, or {@code false} otherwise
      */
-    protected boolean matches(String upperCaseTypeName, String upperCaseMatch) {
+    protected static boolean matches(String upperCaseTypeName, String upperCaseMatch) {
         if (upperCaseTypeName == null) {
             return false;
         }
@@ -351,6 +366,15 @@ public class VitessValueConverter extends JdbcValueConverters {
         return isNegative && !duration.isNegative() ? duration.negated() : duration;
     }
 
+    /**
+     * Called for DATE type of MySQL. Converts the date to a LocalDate
+     *
+     * If the datetimeString cannot be represented by Timestamp, then it returns null.
+     * This happens if either month or day are equal to zero. Note: zero year can be represented by Timestamp.
+     *
+     * @param dateString The dateString to convert to a LocalDate
+     * @return LocalDate
+     */
     public static LocalDate stringToLocalDate(String dateString) {
         final Matcher matcher = DATE_FIELD_PATTERN.matcher(dateString);
         if (!matcher.matches()) {
@@ -361,14 +385,28 @@ public class VitessValueConverter extends JdbcValueConverters {
         final int month = Integer.parseInt(matcher.group(2));
         final int day = Integer.parseInt(matcher.group(3));
 
-        if (year == 0 || month == 0 || day == 0) {
+        if (month == 0 || day == 0) {
+            // year == 0 is valid and can be represented by LocalDate
             INVALID_VALUE_LOGGER.warn("Invalid value '{}' stored in column converted to empty value", dateString);
             return null;
         }
         return LocalDate.of(year, month, day);
     }
 
+    /**
+     * Called for DATETIME type of MySQL. Converts the datetimeString to a Timestamp.
+     *
+     * If the datetimeString cannot be represented by Timestamp, then it returns null.
+     * This happens if either month or day are equal to zero. Note: zero year can be represented by Timestamp.
+     *
+     * @param datetimeString The String to convert
+     * @return The java.sql.Timestamp
+     */
     public static Timestamp stringToTimestamp(String datetimeString) {
+        if (datetimeString.matches("^\\d{4}-00-00.*$")) {
+            INVALID_VALUE_LOGGER.warn("Invalid value '{}' stored in column converted to null value", datetimeString);
+            return null;
+        }
         return Timestamp.valueOf(datetimeString);
     }
 }

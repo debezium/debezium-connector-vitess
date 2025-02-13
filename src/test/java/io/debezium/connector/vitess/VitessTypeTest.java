@@ -60,6 +60,9 @@ public class VitessTypeTest {
         assertThat(VitessType.resolve(textCollateBinary).getJdbcId()).isEqualTo(Types.VARCHAR);
         Query.Field mediumtextCollateBinary = Query.Field.newBuilder().setType(Query.Type.BLOB).setColumnType("mediumtext").build();
         assertThat(VitessType.resolve(mediumtextCollateBinary).getJdbcId()).isEqualTo(Types.VARCHAR);
+        // A normal blob preserves its original type (we don't convert all to varchar)
+        Query.Field blob = Query.Field.newBuilder().setType(Query.Type.BLOB).setColumnType("blob").build();
+        assertThat(VitessType.resolve(blob).getJdbcId()).isEqualTo(Types.BLOB);
     }
 
     @Test

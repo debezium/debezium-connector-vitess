@@ -111,7 +111,7 @@ public class VitessType {
             case "INT64":
                 return new VitessType(type, Types.BIGINT);
             case "BLOB":
-                if (VitessValueConverter.matches(field.getColumnType().toUpperCase(), "TEXT")) {
+                if (matchAny(field, List.of("TINYTEXT", "TEXT", "MEDIUMTEXT", "LONGTEXT"))) {
                     return new VitessType(type, Types.VARCHAR);
                 }
                 return new VitessType(type, Types.BLOB);
@@ -152,6 +152,11 @@ public class VitessType {
             default:
                 return new VitessType(type, Types.OTHER);
         }
+    }
+
+    private static boolean matchAny(Query.Field field, List<String> types) {
+        String upperCaseType = field.getColumnType().toUpperCase();
+        return types.stream().filter(type -> VitessValueConverter.matches(upperCaseType, type)).findAny().isPresent();
     }
 
     private static VitessType getEnumOrSetVitessType(boolean isEnumSetStringValue, String type, Query.Field field) {

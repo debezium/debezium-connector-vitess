@@ -164,8 +164,14 @@ CREATE TABLE character_set_collate_table
     `char_col`                                 CHAR(9),
     `binary_ascii_collate_ascii_bin_col`       BINARY(9), -- character set & collation are binary by default
     `varbinary_col`                            VARBINARY(32), -- character set & collation are binary by default
+    `tinytext_ascii_collate_ascii_bin_col`     TINYTEXT CHARACTER SET ascii COLLATE ascii_bin,
+    `tinytext_col`                             TINYTEXT,
     `text_ascii_collate_ascii_bin_col`         TEXT CHARACTER SET ascii COLLATE ascii_bin,
     `text_col`                                 TEXT,
+    `mediumtext_ascii_collate_ascii_bin_col`   MEDIUMTEXT CHARACTER SET ascii COLLATE ascii_bin,
+    `mediumtext_col`                           MEDIUMTEXT,
+    `longtext_ascii_collate_ascii_bin_col`     LONGTEXT CHARACTER SET ascii COLLATE ascii_bin,
+    `longtext_col`                             LONGTEXT,
     `blob_ascii_collate_ascii_bin_col`         BLOB, -- character set & collation are binary by default
     `enum_ascii_collate_ascii_bin_col`         ENUM('small', 'medium', 'large') CHARACTER SET ascii COLLATE ascii_bin DEFAULT 'medium',
     `enum_col`                                 ENUM('small', 'medium', 'large') DEFAULT 'medium',

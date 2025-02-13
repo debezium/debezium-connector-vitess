@@ -57,7 +57,9 @@ public class VitessTypeTest {
         Query.Field varBinary = Query.Field.newBuilder().setType(Query.Type.VARBINARY).setColumnType("varbinary(9)").build();
         assertThat(VitessType.resolve(varBinary).getJdbcId()).isEqualTo(Types.BINARY);
         Query.Field textCollateBinary = Query.Field.newBuilder().setType(Query.Type.BLOB).setColumnType("text").build();
-        assertThat(VitessType.resolve(textCollateBinary).getJdbcId()).isEqualTo(Types.VARCHAR); // Why not
+        assertThat(VitessType.resolve(textCollateBinary).getJdbcId()).isEqualTo(Types.VARCHAR);
+        Query.Field mediumtextCollateBinary = Query.Field.newBuilder().setType(Query.Type.BLOB).setColumnType("mediumtext").build();
+        assertThat(VitessType.resolve(mediumtextCollateBinary).getJdbcId()).isEqualTo(Types.VARCHAR);
     }
 
     @Test

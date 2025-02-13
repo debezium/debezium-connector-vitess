@@ -112,15 +112,21 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
             "char_col," +
             "binary_ascii_collate_ascii_bin_col," +
             "varbinary_col," +
+            "tinytext_ascii_collate_ascii_bin_col," +
+            "tinytext_col," +
             "text_ascii_collate_ascii_bin_col," +
             "text_col," +
+            "mediumtext_ascii_collate_ascii_bin_col," +
+            "mediumtext_col," +
+            "longtext_ascii_collate_ascii_bin_col," +
+            "longtext_col," +
             "blob_ascii_collate_ascii_bin_col," +
             "enum_ascii_collate_ascii_bin_col," +
             "enum_col," +
             "set_ascii_collate_ascii_bin_col," +
             "set_col" +
             ") " +
-            "VALUES (\"foo\", \"foo\", \"foobarfoo\", \"foobarfoo\", \"foobarfoo\", \"foo\", \"foo\", \"foo\", \"foo\", \"small\", \"small\", \"a\", \"a\");";
+            "VALUES (\"foo\", \"foo\", \"foobarfoo\", \"foobarfoo\", \"foobarfoo\", \"foo\", \"foo\", \"foo\", \"foo\", \"foo\", \"foo\", \"foo\", \"foo\", \"foo\", \"foo\", \"small\", \"small\", \"a\", \"a\");";
     protected static final String INSERT_BYTES_TYPES_STMT = "INSERT INTO string_table ("
             + "binary_col,"
             + "varbinary_col,"
@@ -217,8 +223,14 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                         new SchemaAndValueField("char_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "foobarfoo"),
                         new SchemaAndValueField("binary_ascii_collate_ascii_bin_col", SchemaBuilder.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap("foobarfoo".getBytes())),
                         new SchemaAndValueField("varbinary_col", SchemaBuilder.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap("foo".getBytes())),
+                        new SchemaAndValueField("tinytext_ascii_collate_ascii_bin_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "foo"),
+                        new SchemaAndValueField("tinytext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "foo"),
                         new SchemaAndValueField("text_ascii_collate_ascii_bin_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "foo"),
                         new SchemaAndValueField("text_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "foo"),
+                        new SchemaAndValueField("mediumtext_ascii_collate_ascii_bin_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "foo"),
+                        new SchemaAndValueField("mediumtext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "foo"),
+                        new SchemaAndValueField("longtext_ascii_collate_ascii_bin_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "foo"),
+                        new SchemaAndValueField("longtext_col", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "foo"),
                         new SchemaAndValueField("blob_ascii_collate_ascii_bin_col", SchemaBuilder.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap("foo".getBytes())),
                         new SchemaAndValueField("enum_ascii_collate_ascii_bin_col", io.debezium.data.Enum.builder("small,medium,large").optional().build(), "small"),
                         new SchemaAndValueField("enum_col", io.debezium.data.Enum.builder("small,medium,large").optional().build(), "small"),

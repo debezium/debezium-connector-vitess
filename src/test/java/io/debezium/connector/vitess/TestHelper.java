@@ -79,6 +79,33 @@ public class TestHelper {
             "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\",\"table_p_ks\":[]}" +
             "]";
 
+    public static final String VGTID_JSON_TEMPLATE_SINGLE_SHARD = "[" +
+            "{\"keyspace\":\"%s\",\"shard\":\"%s\",\"gtid\":\"%s\",\"table_p_ks\":[]}" +
+            "]";
+
+    public static final String TEST_HOST2_GTID = "MySQL56/b653fbaa-b71d-11ef-a099-0afffae24b7d:1-3939";
+
+    public static final String VGTID_JSON_DISTINCT_HOSTS = String.format(
+            VGTID_JSON_TEMPLATE,
+            TEST_SHARDED_KEYSPACE,
+            VgtidTest.TEST_SHARD,
+            VgtidTest.TEST_GTID,
+            TEST_SHARDED_KEYSPACE,
+            VgtidTest.TEST_SHARD2,
+            TEST_HOST2_GTID);
+
+    public static final String VGTID_JSON_SHARD2 = String.format(
+            VGTID_JSON_TEMPLATE_SINGLE_SHARD,
+            TEST_SHARDED_KEYSPACE,
+            VgtidTest.TEST_SHARD2,
+            TEST_HOST2_GTID);
+
+    public static final String VGTID_JSON_SHARD1 = String.format(
+            VGTID_JSON_TEMPLATE_SINGLE_SHARD,
+            TEST_SHARDED_KEYSPACE,
+            VgtidTest.TEST_SHARD,
+            VgtidTest.TEST_GTID);
+
     protected static final String INSERT_STMT = "INSERT INTO t1 (int_col) VALUES (1);";
     protected static final List<String> SETUP_TABLES_STMT = Arrays.asList(
             "DROP TABLE IF EXISTS t1;",
@@ -216,6 +243,10 @@ public class TestHelper {
 
     public static void execute(String statement, String database) {
         execute(Collections.singletonList(statement), database);
+    }
+
+    public static void execute(String statement, String shard, VitessConnectorConfig config) {
+        new VitessMetadata(config).executeQuery(statement, shard);
     }
 
     protected static void executeDDL(String ddlFile) throws Exception {

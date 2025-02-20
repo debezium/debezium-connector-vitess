@@ -6,8 +6,13 @@
 package io.debezium.connector.vitess;
 
 import static io.debezium.connector.vitess.TestHelper.TEST_SERVER;
+import static io.debezium.connector.vitess.TestHelper.TEST_SHARD1;
+import static io.debezium.connector.vitess.TestHelper.TEST_SHARD2;
 import static io.debezium.connector.vitess.TestHelper.TEST_SHARDED_KEYSPACE;
 import static io.debezium.connector.vitess.TestHelper.TEST_UNSHARDED_KEYSPACE;
+import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_DISTINCT_HOSTS;
+import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_SHARD1;
+import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_SHARD2;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertArrayEquals;
@@ -289,6 +294,24 @@ public class VitessConnectorTest {
         assertThat(secondVgtid.getShardGtids()).isEqualTo(Collect.arrayListOf(
                 new Vgtid.ShardGtid(TEST_SHARDED_KEYSPACE, shards.get(1), "current")));
         assertEquals("value", firstConfig.get("key"));
+    }
+
+    @Test
+    public void testScaleDownTasks() {
+        List<String> shards = Arrays.asList(TEST_SHARD1, TEST_SHARD2);
+        int prevNumTasks = 2;
+        int prevGen = 0;
+        final Map<String, Map<String, ?>> prevVgtids = Collect.hashMapOf(
+                VitessConnector.getTaskKeyName(0, prevNumTasks, prevGen), getVgtidOffset(VGTID_JSON_SHARD1),
+                VitessConnector.getTaskKeyName(1, prevNumTasks, prevGen), getVgtidOffset(VGTID_JSON_SHARD2));
+
+        int numTasks = 1;
+        int gen = 1;
+        Map<String, Map<String, String>> offsets = getOffsetFromStorage(numTasks, shards, gen, prevNumTasks, null, prevVgtids,
+                (config) -> config.with(VitessConnectorConfig.KEYSPACE.name(), TEST_SHARDED_KEYSPACE));
+        String taskKeyName = VitessConnector.getTaskKeyName(0, numTasks, gen);
+        Map<String, String> taskOffsets = offsets.get(taskKeyName);
+        assertThat(Vgtid.of(taskOffsets.get(SourceInfo.VGTID_KEY))).isEqualTo(Vgtid.of(VGTID_JSON_DISTINCT_HOSTS));
     }
 
     @Test

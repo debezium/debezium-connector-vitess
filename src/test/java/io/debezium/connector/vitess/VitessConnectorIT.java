@@ -1418,6 +1418,64 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    public void shouldScaleDownTasksReadPriorOffsets() throws Exception {
+        final boolean hasMultipleShards = true;
+
+        Configuration.Builder configBuilder = TestHelper.defaultConfig(
+                true, true, 2, 0, 2, null,
+                VitessConnectorConfig.SnapshotMode.NEVER);
+        configBuilder = configBuilder
+                .with(VitessConnectorConfig.KEYSPACE, TEST_SHARDED_KEYSPACE);
+        VitessConnectorConfig config = new VitessConnectorConfig(configBuilder.build());
+
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(Function.identity(), hasMultipleShards, true, 2, 0, 2, null,
+                VitessConnectorConfig.SnapshotMode.NEVER, null);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 2;
+        consumer = testConsumer(expectedRecordsCount);
+
+        TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, "-80", config);
+        TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, "-80", config);
+
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.remove();
+        SourceRecord lastRecordShard1 = consumer.remove();
+
+        consumer.expects(expectedRecordsCount);
+
+        TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, "80-", config);
+        TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, "80-", config);
+
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.remove();
+        SourceRecord lastRecordShard2 = consumer.remove();
+        String shard1Gtid = Vgtid.of((String) lastRecordShard1.sourceOffset().get(SourceInfo.VGTID_KEY)).getShardGtid("-80").getGtid();
+        String shard2Gtid = Vgtid.of((String) lastRecordShard2.sourceOffset().get(SourceInfo.VGTID_KEY)).getShardGtid("80-").getGtid();
+
+        stopConnector();
+        assertConnectorNotRunning();
+
+        consumer.expects(2);
+
+        startConnector(Function.identity(), hasMultipleShards, true, 1, 1, 2, null,
+                VitessConnectorConfig.SnapshotMode.NEVER, null);
+        assertConnectorIsRunning();
+
+        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+
+        SourceRecord record1 = consumer.remove();
+        Vgtid record1Vgtid = Vgtid.of((String) record1.sourceOffset().get(SourceInfo.VGTID_KEY));
+        String record1Shard1Gtid = record1Vgtid.getShardGtid("-80").getGtid();
+        String record1Shard2Gtid = record1Vgtid.getShardGtid("80-").getGtid();
+        // Assert that we resumed from the last saved point with previous task number/generation
+        assertThat(record1Shard1Gtid).isEqualTo(shard1Gtid);
+        assertThat(record1Shard2Gtid).isEqualTo(shard2Gtid);
+    }
+
+    @Test
     public void shouldMaintainEpochMapWithChangeInOffsetStoragePerTask() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
         TestHelper.applyVSchema("vitess_vschema.json");

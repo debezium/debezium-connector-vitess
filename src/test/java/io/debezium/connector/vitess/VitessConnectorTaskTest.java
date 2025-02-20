@@ -6,6 +6,9 @@
 package io.debezium.connector.vitess;
 
 import static io.debezium.connector.vitess.TestHelper.TEST_SERVER;
+import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_DISTINCT_HOSTS;
+import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_SHARD1;
+import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_SHARD2;
 import static io.debezium.connector.vitess.VgtidTest.VGTID_JSON;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
@@ -133,6 +136,42 @@ public class VitessConnectorTaskTest {
         task.start(config);
         String expectedMessage = "Using offsets from previous gen";
         assertThat(vitessLogInterceptor.containsMessage(expectedMessage)).isTrue();
+    }
+
+    @Test
+    public void shouldReadPreviousGenOffsetsWhenTasksDecrease() {
+        int prevGen = 0;
+        int gen = 1;
+        int prevNumTasks = 2;
+        int numTasks = 1;
+        int taskId0 = 0;
+        int taskId1 = 1;
+        String taskKeyPrevGen0 = VitessConnector.getTaskKeyName(taskId0, prevNumTasks, prevGen);
+        String taskKeyPrevGen1 = VitessConnector.getTaskKeyName(taskId1, prevNumTasks, prevGen);
+        ContextHelper helper = new ContextHelper();
+        helper.storeOffsets(null, Map.of(taskKeyPrevGen0, VGTID_JSON_SHARD1, taskKeyPrevGen1, VGTID_JSON_SHARD2));
+
+        String taskKey = VitessConnector.getTaskKeyName(taskId0, numTasks, gen);
+        String shards = "-80,80-";
+        Configuration config = TestHelper.defaultConfig(
+                true,
+                true,
+                numTasks,
+                gen,
+                prevNumTasks,
+                null,
+                VitessConnectorConfig.SnapshotMode.NEVER,
+                shards)
+                .with(VitessConnectorConfig.VITESS_TASK_KEY_CONFIG, taskKey)
+                .with(VitessConnectorConfig.VITESS_TASK_SHARDS_CONFIG, shards)
+                .with(VitessConnectorConfig.VITESS_TOTAL_TASKS_CONFIG, numTasks)
+                .build();
+        VitessConnectorTask task = new VitessConnectorTask();
+        task.initialize(helper.getSourceTaskContext());
+        task.start(config);
+        Configuration configWithOffsets = task.getConfigWithOffsets(config);
+        Vgtid loadedVgtid = Vgtid.of(configWithOffsets.getString(VitessConnectorConfig.VITESS_TASK_VGTID_CONFIG));
+        assertThat(loadedVgtid).isEqualTo(Vgtid.of(VGTID_JSON_DISTINCT_HOSTS));
     }
 
     @Test

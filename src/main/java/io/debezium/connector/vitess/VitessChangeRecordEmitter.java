@@ -8,6 +8,7 @@ package io.debezium.connector.vitess;
 import java.util.List;
 import java.util.Objects;
 
+import io.debezium.jdbc.TemporalPrecisionMode;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
@@ -36,6 +37,9 @@ class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter<VitessPart
     private final VitessDatabaseSchema schema;
     private final VitessConnectorConfig connectorConfig;
     private final TableId tableId;
+    private final Table table;
+    private final boolean includeUnknownDatatypes;
+    private final TemporalPrecisionMode temporalPrecisionMode;
 
     VitessChangeRecordEmitter(
                               VitessPartition partition,
@@ -51,6 +55,10 @@ class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter<VitessPart
         this.connectorConfig = connectorConfig;
         this.tableId = VitessDatabaseSchema.parse(message.getTable());
         Objects.requireNonNull(tableId);
+        this.table = schema.tableFor(tableId);
+        Objects.requireNonNull(table);
+        this.includeUnknownDatatypes = connectorConfig.includeUnknownDatatypes();
+        this.temporalPrecisionMode = connectorConfig.getTemporalPrecisionMode();
     }
 
     @Override
@@ -95,15 +103,12 @@ class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter<VitessPart
         if (columns == null || columns.isEmpty()) {
             return null;
         }
-        final Table table = schema.tableFor(tableId);
-        Objects.requireNonNull(table);
-
         Object[] values = new Object[columns.size()];
         for (ReplicationMessage.Column column : columns) {
             final String columnName = Strings.unquoteIdentifierPart(column.getName());
             int position = getPosition(columnName, table, values.length);
             if (position != -1) {
-                Object value = column.getValue(connectorConfig.includeUnknownDatatypes(), connectorConfig.getTemporalPrecisionMode());
+                Object value = column.getValue(includeUnknownDatatypes, temporalPrecisionMode);
                 values[position] = value;
             }
             else {

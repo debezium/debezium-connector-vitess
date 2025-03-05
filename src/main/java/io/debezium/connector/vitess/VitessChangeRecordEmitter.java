@@ -36,6 +36,8 @@ class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter<VitessPart
     private final VitessDatabaseSchema schema;
     private final VitessConnectorConfig connectorConfig;
     private final TableId tableId;
+    private final Table table;
+    private final boolean includeUnknownDatatypes;
 
     VitessChangeRecordEmitter(
                               VitessPartition partition,
@@ -51,6 +53,9 @@ class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter<VitessPart
         this.connectorConfig = connectorConfig;
         this.tableId = VitessDatabaseSchema.parse(message.getTable());
         Objects.requireNonNull(tableId);
+        this.table = schema.tableFor(tableId);
+        Objects.requireNonNull(table);
+        this.includeUnknownDatatypes = connectorConfig.includeUnknownDatatypes();
     }
 
     @Override
@@ -95,15 +100,12 @@ class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter<VitessPart
         if (columns == null || columns.isEmpty()) {
             return null;
         }
-        final Table table = schema.tableFor(tableId);
-        Objects.requireNonNull(table);
-
         Object[] values = new Object[columns.size()];
         for (ReplicationMessage.Column column : columns) {
             final String columnName = Strings.unquoteIdentifierPart(column.getName());
             int position = getPosition(columnName, table, values.length);
             if (position != -1) {
-                Object value = column.getValue(connectorConfig.includeUnknownDatatypes());
+                Object value = column.getValue(includeUnknownDatatypes);
                 values[position] = value;
             }
             else {

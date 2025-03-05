@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -36,6 +37,8 @@ public class Vgtid {
     private final Binlogdata.VGtid rawVgtid;
     private final List<ShardGtid> shardGtids = new ArrayList<>();
     private final HashMap<String, ShardGtid> shardNameToShardGtid = new HashMap<>();
+    // Vgtid cannot be modified, so we can cache the string representation to improve performance
+    private Optional<String> cachedVgtidString = Optional.empty();
 
     private Vgtid(Binlogdata.VGtid rawVgtid) {
         this.rawVgtid = rawVgtid;
@@ -119,8 +122,12 @@ public class Vgtid {
 
     @Override
     public String toString() {
+        if (cachedVgtidString.isPresent()) {
+            return cachedVgtidString.get();
+        }
         try {
-            return MAPPER.writeValueAsString(shardGtids);
+            cachedVgtidString = Optional.of(MAPPER.writeValueAsString(shardGtids));
+            return cachedVgtidString.get();
         }
         catch (JsonProcessingException e) {
             throw new IllegalStateException(e);

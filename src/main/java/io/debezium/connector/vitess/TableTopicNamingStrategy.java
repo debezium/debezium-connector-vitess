@@ -15,7 +15,9 @@ import org.slf4j.LoggerFactory;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
+import io.debezium.relational.Selectors;
 import io.debezium.relational.TableId;
+import io.debezium.relational.Tables;
 import io.debezium.schema.AbstractTopicNamingStrategy;
 import io.debezium.util.Collect;
 import io.debezium.util.Strings;
@@ -54,6 +56,15 @@ public class TableTopicNamingStrategy extends AbstractTopicNamingStrategy<TableI
             .withValidation(CommonConnectorConfig::validateTopicName)
             .withDescription("Overrides the topic.prefix used for the data change topic.");
 
+    public static final Field OVERRIDE_DATA_CHANGE_TOPIC_PREFIX_EXCLUDE_LIST = Field.create("override.data.change.topic.prefix.exclude.list")
+            .withDisplayName("Override data change topic prefix exclusion regex list")
+            .withType(ConfigDef.Type.STRING)
+            .withWidth(ConfigDef.Width.MEDIUM)
+            .withImportance(ConfigDef.Importance.LOW)
+            .withValidation(Field::isListOfRegex)
+            .withDescription("Prevents overriding the topic.prefix used for the data change topic for tables matching the list of regular expressions. " +
+                    "One use case is for not overriding the vitess heartbeat table.");
+
     public static final Field OVERRIDE_SCHEMA_CHANGE_TOPIC = Field.create("override.schema.change.topic")
             .withDisplayName("Override schema change topic name")
             .withType(ConfigDef.Type.STRING)
@@ -63,6 +74,7 @@ public class TableTopicNamingStrategy extends AbstractTopicNamingStrategy<TableI
             .withDescription("Overrides the name of the schema change topic (if not set uses topic.prefx).");
 
     private String overrideDataChangeTopicPrefix;
+    private Tables.TableFilter overrideDataChangeTopicPrefixFilter;
     private String overrideSchemaChangeTopic;
 
     public TableTopicNamingStrategy(Properties props) {
@@ -75,12 +87,19 @@ public class TableTopicNamingStrategy extends AbstractTopicNamingStrategy<TableI
         Configuration config = Configuration.from(props);
         final Field.Set configFields = Field.setOf(
                 OVERRIDE_DATA_CHANGE_TOPIC_PREFIX,
+                OVERRIDE_DATA_CHANGE_TOPIC_PREFIX_EXCLUDE_LIST,
                 OVERRIDE_SCHEMA_CHANGE_TOPIC);
         if (!config.validateAndRecord(configFields, LOGGER::error)) {
             throw new ConnectException("Unable to validate config.");
         }
 
         overrideDataChangeTopicPrefix = config.getString(OVERRIDE_DATA_CHANGE_TOPIC_PREFIX);
+        overrideDataChangeTopicPrefixFilter = Tables.TableFilter.fromPredicate(
+                Selectors.tableSelector()
+                        .excludeTables(
+                                config.getString(OVERRIDE_DATA_CHANGE_TOPIC_PREFIX_EXCLUDE_LIST),
+                                new VitessTableIdToStringMapper())
+                        .build());
         overrideSchemaChangeTopic = config.getString(OVERRIDE_SCHEMA_CHANGE_TOPIC);
     }
 
@@ -91,7 +110,7 @@ public class TableTopicNamingStrategy extends AbstractTopicNamingStrategy<TableI
     @Override
     public String dataChangeTopic(TableId id) {
         String topicName;
-        if (!Strings.isNullOrBlank(overrideDataChangeTopicPrefix)) {
+        if (!Strings.isNullOrBlank(overrideDataChangeTopicPrefix) && overrideDataChangeTopicPrefixFilter.isIncluded(id)) {
             topicName = mkString(Collect.arrayListOf(overrideDataChangeTopicPrefix, id.table()), delimiter);
         }
         else {

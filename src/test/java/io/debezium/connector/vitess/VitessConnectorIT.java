@@ -24,6 +24,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -214,6 +215,35 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         AbstractConnectorTest.SourceRecords records = consumeRecordsByTopic(expectedHeartbeatRecords, 1);
         assertThat(records.recordsForTopic(topic).size()).isEqualTo(expectedHeartbeatRecords);
+    }
+
+    @Test
+    @FixFor("DBZ-8775")
+    public void shouldStreamKeyspaceHeartbeats() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        String tableInclude = TEST_EMPTY_SHARD_KEYSPACE + ".heartbeat";
+        startConnector(config -> config
+                .with(VitessConnectorConfig.STREAM_KEYSPACE_HEARTBEATS, true)
+                .with(VitessConnectorConfig.KEYSPACE, TEST_EMPTY_SHARD_KEYSPACE)
+                .with(VitessConnectorConfig.EXCLUDE_EMPTY_SHARDS, true)
+                .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, tableInclude),
+                false);
+        assertConnectorIsRunning();
+
+        Awaitility
+                .await()
+                .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                .pollInterval(Duration.ofSeconds(1))
+                .until(() -> consumeRecord() != null);
+
+        SourceRecord heartbeatRecord = consumeRecord();
+        Struct value = (Struct) heartbeatRecord.value();
+        String keyspaceShard = TEST_EMPTY_SHARD_KEYSPACE + ":" + TEST_SHARD1;
+        Struct before = (Struct) value.get("before");
+        Struct after = (Struct) value.get("after");
+        assertThat(before.get("keyspaceShard")).isEqualTo(ByteBuffer.wrap(keyspaceShard.getBytes()));
+        assertThat(after.get("keyspaceShard")).isEqualTo(ByteBuffer.wrap(keyspaceShard.getBytes()));
+        assertThat(Long.valueOf((String) before.get("ts"))).isLessThan(Long.valueOf((String) after.get("ts")));
     }
 
     @Test

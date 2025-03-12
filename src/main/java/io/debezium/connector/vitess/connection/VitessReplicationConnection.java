@@ -288,6 +288,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
         Vtgate.VStreamFlags vStreamFlags = Vtgate.VStreamFlags.newBuilder()
                 .setStopOnReshard(config.getStopOnReshard())
                 .setHeartbeatInterval(getHeartbeatSeconds())
+                .setStreamKeyspaceHeartbeats(config.getStreamKeyspaceHeartbeats())
                 .build();
         // Add filtering for whitelist tables
         Binlogdata.Filter.Builder filterBuilder = Binlogdata.Filter.newBuilder();

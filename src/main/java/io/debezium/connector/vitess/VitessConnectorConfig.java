@@ -226,6 +226,15 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDescription(
                     "Vitess Keyspace is equivalent to MySQL database (a.k.a schema). E.p. \"commerce\"");
 
+    public static final Field STREAM_KEYSPACE_HEARTBEATS = Field.create(VITESS_CONFIG_GROUP_PREFIX + "stream.keyspace.heartbeats")
+            .withDisplayName("stream.keyspace.heartbeats")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.SHORT)
+            .withDefault(false)
+            .withImportance(ConfigDef.Importance.LOW)
+            .withDescription("Streams the events for the vitess heartbeat tables. Heartbeats must also be enabled on the Vitess tablets. " +
+                    "If a Debezium table include list is configured, the heartbeat table should be specified there, the format is `<keyspace>.heartbeat)`");
+
     public static final Field SHARD = Field.create(VITESS_CONFIG_GROUP_PREFIX + "shard")
             .withDisplayName("Shard")
             .withType(Type.STRING)
@@ -500,6 +509,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     OVERRIDE_DATETIME_TO_NULLABLE,
                     OFFSET_STORAGE_TASK_KEY_GEN,
                     PREV_NUM_TASKS,
+                    STREAM_KEYSPACE_HEARTBEATS,
                     EXCLUDE_EMPTY_SHARDS)
             .events(
                     INCLUDE_UNKNOWN_DATATYPES,
@@ -608,6 +618,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public boolean excludeEmptyShards() {
         return getConfig().getBoolean(EXCLUDE_EMPTY_SHARDS);
+    }
+
+    public boolean getStreamKeyspaceHeartbeats() {
+        return getConfig().getBoolean(STREAM_KEYSPACE_HEARTBEATS);
     }
 
     private static int validateVgtids(Configuration config, Field field, ValidationOutput problems) {

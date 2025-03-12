@@ -128,4 +128,20 @@ public class VitessConnectorConfigTest {
         assertThat(inputs.size()).isEqualTo(0);
     }
 
+    @Test
+    public void shouldEnableStreamKeyspaceHeartbeatsConfig() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.STREAM_KEYSPACE_HEARTBEATS, true)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getStreamKeyspaceHeartbeats()).isTrue();
+    }
+
+    @Test
+    public void shouldDefaultDisableStreamKeyspaceHeartbeatsConfig() {
+        Configuration configuration = TestHelper.defaultConfig().build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getStreamKeyspaceHeartbeats()).isFalse();
+    }
+
 }

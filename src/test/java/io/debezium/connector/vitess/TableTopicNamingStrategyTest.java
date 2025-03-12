@@ -43,6 +43,19 @@ public class TableTopicNamingStrategyTest {
     }
 
     @Test
+    public void shouldGetOverrideDataChangeTopicForHeartbeatTable() {
+        TableId tableId = new TableId("shard", "keyspace", "heartbeat");
+        final Properties props = new Properties();
+        props.put("topic.delimiter", ".");
+        props.put("topic.prefix", "prefix");
+        props.put(TableTopicNamingStrategy.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX_EXCLUDE_LIST.name(), "keyspace.heartbeat");
+        props.put(TableTopicNamingStrategy.OVERRIDE_DATA_CHANGE_TOPIC_PREFIX.name(), "override-prefix");
+        TopicNamingStrategy strategy = new TableTopicNamingStrategy(props);
+        String topicName = strategy.dataChangeTopic(tableId);
+        assertThat(topicName).isEqualTo("prefix.heartbeat");
+    }
+
+    @Test
     public void shouldUseTopicPrefixIfOverrideIsNotSpecified() {
         TableId tableId = new TableId("shard", "keyspace", "table");
         final Properties props = new Properties();

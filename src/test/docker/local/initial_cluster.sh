@@ -46,7 +46,7 @@ wait_for_healthy_shard test_sharded_keyspace 80- || exit 1
 # start vttablets for non-empty shard of the keyspace test_empty_shard_keyspace
 for i in 400 401 402; do
 	CELL=zone1 TABLET_UID=$i ./scripts/mysqlctl-up.sh
-	SHARD=-80 CELL=zone1 KEYSPACE=test_empty_shard_keyspace TABLET_UID=$i ./scripts/vttablet-up.sh
+	SHARD=-80 CELL=zone1 KEYSPACE=test_empty_shard_keyspace TABLET_UID=$i HEARTBEAT_ON_DEMAND=false ./scripts/vttablet-up.sh
 done
 
 # intentionally do not start any tablets in the 80- shard

@@ -18,6 +18,7 @@ source "$(dirname "${BASH_SOURCE[0]:-$0}")/../env.sh"
 
 cell=${CELL:-'test'}
 keyspace=${KEYSPACE:-'test_keyspace'}
+heartbeat_on_demand=${HEARTBEAT_ON_DEMAND:-'true'}
 shard=${SHARD:-'0'}
 uid=$TABLET_UID
 mysql_port=$[17000 + $uid]
@@ -55,8 +56,8 @@ vttablet \
  --service_map 'grpc-queryservice,grpc-tabletmanager,grpc-updatestream' \
  --pid_file $VTDATAROOT/$tablet_dir/vttablet.pid \
  --heartbeat_enable \
- --heartbeat_interval=250ms \
- --heartbeat_on_demand_duration=5s \
+ --heartbeat_interval 1s \
+ $( [[ $heartbeat_on_demand == "true" ]] && echo "--heartbeat_on_demand_duration=5s" ) \
  > $VTDATAROOT/$tablet_dir/vttablet.out 2>&1 &
 
 # Block waiting for the tablet to be listening

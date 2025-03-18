@@ -19,6 +19,8 @@ source "$(dirname "${BASH_SOURCE[0]:-$0}")/../env.sh"
 cell=${CELL:-'test'}
 keyspace=${KEYSPACE:-'test_keyspace'}
 heartbeat_on_demand=${HEARTBEAT_ON_DEMAND:-'true'}
+heartbeat_interval=${HEARTBEAT_INTERVAL:-'1s'}
+copy_phase_duration=${COPY_PHASE_DURATION:-'1h'}
 shard=${SHARD:-'0'}
 uid=$TABLET_UID
 mysql_port=$[17000 + $uid]
@@ -56,7 +58,8 @@ vttablet \
  --service_map 'grpc-queryservice,grpc-tabletmanager,grpc-updatestream' \
  --pid_file $VTDATAROOT/$tablet_dir/vttablet.pid \
  --heartbeat_enable \
- --heartbeat_interval 1s \
+ --heartbeat_interval $heartbeat_interval \
+ --vreplication_copy_phase_duration $copy_phase_duration \
  $( [[ $heartbeat_on_demand == "true" ]] && echo "--heartbeat_on_demand_duration=5s" ) \
  > $VTDATAROOT/$tablet_dir/vttablet.out 2>&1 &
 

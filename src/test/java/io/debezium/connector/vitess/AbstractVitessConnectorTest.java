@@ -77,7 +77,8 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
 
     protected static final Pattern INSERT_TABLE_MATCHING_PATTERN = Pattern.compile("insert into (.*)\\(.*\\) VALUES .*", Pattern.CASE_INSENSITIVE);
 
-    protected static final String INSERT_NUMERIC_TYPES_STMT = "INSERT INTO numeric_table ("
+    protected static final String INSERT_NUMERIC_TYPES_ROW = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
+    protected static final String INSERT_NUMERIC_TYPES_PREFIX = "INSERT INTO numeric_table ("
             + "tinyint_col,"
             + "tinyint_unsigned_col,"
             + "smallint_col,"
@@ -93,7 +94,12 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
             + "double_col,"
             + "decimal_col,"
             + "boolean_col)"
-            + " VALUES (1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true);";
+            + " VALUES ";
+    protected static final String INSERT_NUMERIC_TYPES_STMT = INSERT_NUMERIC_TYPES_PREFIX
+            + INSERT_NUMERIC_TYPES_ROW + ";";
+    protected static final String UPDATE_NUMERIC_TYPES_TEMPLATE = "UPDATE numeric_table SET " +
+            "int_col = %d " +
+            "WHERE id <= %d;";
     protected static final String INSERT_STRING_TYPES_STMT = "INSERT INTO string_table ("
             + "char_col,"
             + "varchar_col,"
@@ -550,6 +556,20 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
         }
     }
 
+    protected String buildInsertStatement(int numRows) {
+        StringBuilder insertRows = new StringBuilder().append(INSERT_NUMERIC_TYPES_PREFIX + INSERT_NUMERIC_TYPES_ROW);
+        for (int i = 1; i < numRows; i++) {
+            insertRows.append(", ").append(INSERT_NUMERIC_TYPES_ROW);
+        }
+
+        String insertRowsStatement = insertRows.toString();
+        return insertRowsStatement;
+    }
+
+    protected String buildUpdateStatement(int primaryKeyUpperBound, int newValue) {
+        return String.format(UPDATE_NUMERIC_TYPES_TEMPLATE, newValue, primaryKeyUpperBound);
+    }
+
     private long getDurationMicros(String time) {
         return Duration.between(LocalTime.MIN, LocalTime.parse(time)).toNanos() / 1000;
     }
@@ -657,7 +677,12 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
         }
     }
 
-    protected TestConsumer testConsumer(int expectedRecordsCount, String... topicPrefixes) throws InterruptedException {
+    protected TestConsumer testConsumer(int expectedRecordsCount, String... tableNames) throws InterruptedException {
+        TestConsumer consumer = new TestConsumer(expectedRecordsCount, tableNames);
+        return consumer;
+    }
+
+    protected TestConsumer testConsumer(int expectedRecordsCount, List<String> topicPrefixes) throws InterruptedException {
         TestConsumer consumer = new TestConsumer(expectedRecordsCount, topicPrefixes);
         return consumer;
     }
@@ -669,12 +694,18 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
         private final List<String> topicPrefixes;
         private boolean ignoreExtraRecords = false;
 
-        protected TestConsumer(int expectedRecordsCount, String... topicPrefixes) {
+        protected TestConsumer(int expectedRecordsCount, String... tableNames) {
             this.expectedRecordsCount = expectedRecordsCount;
             this.records = new ConcurrentLinkedQueue<>();
-            this.topicPrefixes = Arrays.stream(topicPrefixes)
+            this.topicPrefixes = Arrays.stream(tableNames)
                     .map(p -> TestHelper.TEST_SERVER + "." + p)
                     .collect(Collectors.toList());
+        }
+
+        protected TestConsumer(int expectedRecordsCount, List<String> topicPrefixes) {
+            this.expectedRecordsCount = expectedRecordsCount;
+            this.records = new ConcurrentLinkedQueue<>();
+            this.topicPrefixes = topicPrefixes;
         }
 
         public void setIgnoreExtraRecords(boolean ignoreExtraRecords) {
@@ -772,6 +803,10 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
             await(timeout, timeout / 60, unit);
         }
 
+        protected void awaitDefault() throws InterruptedException {
+            await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        }
+
         protected void await(long timeout, long extraRecordsTimeout, TimeUnit unit) throws InterruptedException {
             final ElapsedTimeStrategy timer = ElapsedTimeStrategy.constant(Clock.SYSTEM, unit.toMillis(timeout));
             while (!timer.hasElapsed()) {
@@ -787,7 +822,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                     }
                 }
             }
-            if (records.size() != expectedRecordsCount) {
+            if (records.size() < expectedRecordsCount || !ignoreExtraRecords && records.size() > expectedRecordsCount) {
                 fail(
                         "Consumer is still expecting "
                                 + (expectedRecordsCount - records.size())

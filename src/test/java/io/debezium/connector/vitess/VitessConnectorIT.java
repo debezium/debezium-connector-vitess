@@ -7,6 +7,7 @@ package io.debezium.connector.vitess;
 
 import static io.debezium.connector.vitess.TestHelper.PK_FIELD;
 import static io.debezium.connector.vitess.TestHelper.TEST_EMPTY_SHARD_KEYSPACE;
+import static io.debezium.connector.vitess.TestHelper.TEST_HEARTBEAT_KEYSPACE;
 import static io.debezium.connector.vitess.TestHelper.TEST_NON_EMPTY_SHARD;
 import static io.debezium.connector.vitess.TestHelper.TEST_SERVER;
 import static io.debezium.connector.vitess.TestHelper.TEST_SHARD;
@@ -220,14 +221,13 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     @Test
     @FixFor("DBZ-8775")
     public void shouldStreamKeyspaceHeartbeats() throws Exception {
-        TestHelper.executeDDL("vitess_create_tables.ddl");
-        String tableInclude = TEST_EMPTY_SHARD_KEYSPACE + ".heartbeat";
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_HEARTBEAT_KEYSPACE);
+        String tableInclude = TEST_HEARTBEAT_KEYSPACE + ".heartbeat";
         startConnector(config -> config
                 .with(VitessConnectorConfig.STREAM_KEYSPACE_HEARTBEATS, true)
-                .with(VitessConnectorConfig.KEYSPACE, TEST_EMPTY_SHARD_KEYSPACE)
-                .with(VitessConnectorConfig.EXCLUDE_EMPTY_SHARDS, true)
+                .with(VitessConnectorConfig.KEYSPACE, TEST_HEARTBEAT_KEYSPACE)
                 .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, tableInclude),
-                false);
+                true);
         assertConnectorIsRunning();
 
         Awaitility
@@ -238,12 +238,108 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         SourceRecord heartbeatRecord = consumeRecord();
         Struct value = (Struct) heartbeatRecord.value();
-        String keyspaceShard = TEST_EMPTY_SHARD_KEYSPACE + ":" + TEST_SHARD1;
+        String keyspaceShard = TEST_HEARTBEAT_KEYSPACE + ":" + TEST_SHARD;
         Struct before = (Struct) value.get("before");
         Struct after = (Struct) value.get("after");
         assertThat(before.get("keyspaceShard")).isEqualTo(ByteBuffer.wrap(keyspaceShard.getBytes()));
         assertThat(after.get("keyspaceShard")).isEqualTo(ByteBuffer.wrap(keyspaceShard.getBytes()));
         assertThat(Long.valueOf((String) before.get("ts"))).isLessThan(Long.valueOf((String) after.get("ts")));
+    }
+
+    @Test
+    @FixFor("DBZ-8775")
+    public void shouldStreamKeyspaceHeartbeatsDuringSnapshot() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_HEARTBEAT_KEYSPACE);
+        String numericTable = "numeric_table";
+        String heartbeatTable = "heartbeat";
+        String fullTableNameNumeric = String.format("%s.%s", TEST_HEARTBEAT_KEYSPACE, numericTable);
+        String fullTableNameHeartbeat = String.format("%s.%s", TEST_HEARTBEAT_KEYSPACE, heartbeatTable);
+        String tableInclude = String.join(",", fullTableNameNumeric, fullTableNameHeartbeat);
+
+        Function<Configuration.Builder, Configuration.Builder> configBuilder = config -> config
+                .with(VitessConnectorConfig.TOPIC_PREFIX, TEST_SERVER + "_get_vgtid")
+                .with(VitessConnectorConfig.STREAM_KEYSPACE_HEARTBEATS, true)
+                .with(VitessConnectorConfig.KEYSPACE, TEST_HEARTBEAT_KEYSPACE)
+                .with(VitessConnectorConfig.SHARD, TEST_SHARD)
+                .with(VitessConnectorConfig.TABLE_INCLUDE_LIST, tableInclude);
+
+        // Add rows to the table we will snapshot later
+        int totalTableRows = 10;
+        String statement = buildInsertStatement(totalTableRows);
+        TestHelper.execute(statement, TEST_HEARTBEAT_KEYSPACE);
+
+        // Start connector, stop after we receive a heartbeat record
+        startConnector(configBuilder, false);
+        int expectedHeartbeatRecords = 1;
+        TestConsumer consumer = testConsumer(expectedHeartbeatRecords);
+        consumer.setIgnoreExtraRecords(true);
+        consumer.awaitDefault();
+        stopConnector();
+
+        // Get the VGTID of the first record
+        SourceRecord firstRecord = consumer.remove();
+        assertThat(firstRecord).isNotNull();
+        String firstVgtidString = (String) firstRecord.sourceOffset().get("vgtid");
+        Vgtid firstVgtid = Vgtid.of(firstVgtidString);
+        String gtid = firstVgtid.getShardGtid(TEST_SHARD).getGtid();
+
+        // Modify all rows that have already been marked as sent (to trigger a catchup phase from Vitess)
+        Integer updateRecordsCount = totalTableRows / 2;
+        int newValue = 4567;
+        String updateStatement = buildUpdateStatement(updateRecordsCount, newValue);
+        TestHelper.execute(updateStatement, TEST_HEARTBEAT_KEYSPACE);
+        // Wait to maximize the chance of Vitess entering a catch-up phase for these updates
+        Thread.sleep(3 * 1000);
+
+        // Create a VGTID to start from that indicates we are part-way through a snapshot
+        String configVgtid = String.format("[{\"keyspace\":\"%s\",\"shard\":\"%s\"," +
+                "\"gtid\":\"%s\"," +
+                "\"table_p_ks\":[{\"table_name\":\"%s\",\"lastpk\":{\"fields\":" +
+                "[{\"name\":\"id\",\"type\":\"INT64\",\"charset\":63,\"flags\":49667}]," +
+                "\"rows\":[{\"lengths\":[\"%d\"],\"values\":\"%d\"}]}}]}]",
+                TEST_HEARTBEAT_KEYSPACE, TEST_SHARD, gtid, numericTable, updateRecordsCount.toString().length(), updateRecordsCount);
+
+        // Resume the VStream Copy from the partial snapshot VGTID, a replication phase should start
+        Function<Configuration.Builder, Configuration.Builder> configBuilder2 = config -> configBuilder.apply(config)
+                .with(VitessConnectorConfig.TOPIC_PREFIX, TEST_SERVER)
+                .with(VitessConnectorConfig.VGTID, configVgtid);
+        startConnector(configBuilder2, false);
+
+        // We expect the total again because we will have all the updates, followed by remaining rows, which completes the
+        // VStream copy. After that we expect some heartbeat records
+        int totalExpectedRecords = totalTableRows + expectedHeartbeatRecords;
+        TestConsumer consumer2 = testConsumer(totalExpectedRecords, List.of(
+                String.format("%s.%s", TEST_SERVER, fullTableNameNumeric),
+                String.format("%s.%s", TEST_SERVER, fullTableNameHeartbeat)));
+        consumer2.setIgnoreExtraRecords(true);
+        consumer2.awaitDefault();
+        stopConnector();
+        int count = 0;
+        while (!consumer2.isEmpty()) {
+            SourceRecord record = consumer2.remove();
+            Struct value = (Struct) record.value();
+            Struct source = (Struct) value.get("source");
+            String vgtidString = (String) record.sourceOffset().get("vgtid");
+            Vgtid vgtid = Vgtid.of(vgtidString);
+            String table = source.getString("table");
+            String operation = value.getString("op");
+            if (count < updateRecordsCount) {
+                assertThat(operation).isEqualTo("u");
+                assertThat(vgtid.willTriggerVStreamCopy()).isTrue();
+                assertThat(table).isEqualTo(numericTable);
+            }
+            else if (count < totalTableRows) {
+                assertThat(operation).isEqualTo("c");
+                assertThat(vgtid.willTriggerVStreamCopy()).isTrue();
+                assertThat(table).isEqualTo(numericTable);
+            }
+            else {
+                assertThat(operation).isEqualTo("u");
+                assertThat(vgtid.willTriggerVStreamCopy()).isFalse();
+                assertThat(table).isEqualTo(heartbeatTable);
+            }
+            count++;
+        }
     }
 
     @Test
@@ -299,7 +395,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         int expectedTotalRecords = expectedDataChangeRecords + expectedSchemaChangeRecords;
         consumer = testConsumer(expectedTotalRecords);
         consumer.expects(expectedTotalRecords);
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
         for (int i = 0; i < expectedTotalRecords; i++) {
             SourceRecord record = consumer.remove();
             Struct value = (Struct) record.value();
@@ -343,7 +439,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         int expectedTotalRecords = expectedDataChangeRecords + expectedSchemaChangeRecords;
         consumer = testConsumer(expectedTotalRecords);
         consumer.expects(expectedTotalRecords);
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
         for (int i = 0; i < expectedTotalRecords; i++) {
             SourceRecord record = consumer.remove();
             Struct value = (Struct) record.value();
@@ -394,7 +490,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         int expectedSchemaChangeRecords = 12;
         consumer = testConsumer(expectedSchemaChangeRecords);
         consumer.expects(expectedSchemaChangeRecords);
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
         for (int i = 0; i < expectedSchemaChangeRecords; i++) {
             SourceRecord record = consumer.remove();
             assertThat(record.topic()).isEqualTo(schemaChangeTopic);
@@ -831,29 +927,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // The first response contains BEGIN and ROW events; The last response contains ROW, VGTID and COMMIT events.
         int expectedRecordsCount = 10000;
         consumer = testConsumer(expectedRecordsCount);
-        String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
-        StringBuilder insertRows = new StringBuilder().append("INSERT INTO numeric_table ("
-                + "tinyint_col,"
-                + "tinyint_unsigned_col,"
-                + "smallint_col,"
-                + "smallint_unsigned_col,"
-                + "mediumint_col,"
-                + "mediumint_unsigned_col,"
-                + "int_col,"
-                + "int_unsigned_col,"
-                + "bigint_col,"
-                + "bigint_unsigned_col,"
-                + "bigint_unsigned_overflow_col,"
-                + "float_col,"
-                + "double_col,"
-                + "decimal_col,"
-                + "boolean_col)"
-                + " VALUES " + rowValue);
-        for (int i = 1; i < expectedRecordsCount; i++) {
-            insertRows.append(", ").append(rowValue);
-        }
-
-        String insertRowsStatement = insertRows.toString();
+        String insertRowsStatement = buildInsertStatement(expectedRecordsCount);
         try {
             // exercise SUT
             executeAndWait(insertRowsStatement);
@@ -892,30 +966,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount + 2);
 
-        String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
-        String insertQuery = "INSERT INTO numeric_table ("
-                + "tinyint_col,"
-                + "tinyint_unsigned_col,"
-                + "smallint_col,"
-                + "smallint_unsigned_col,"
-                + "mediumint_col,"
-                + "mediumint_unsigned_col,"
-                + "int_col,"
-                + "int_unsigned_col,"
-                + "bigint_col,"
-                + "bigint_unsigned_col,"
-                + "bigint_unsigned_overflow_col,"
-                + "float_col,"
-                + "double_col,"
-                + "decimal_col,"
-                + "boolean_col)"
-                + " VALUES " + rowValue;
-        StringBuilder insertRows = new StringBuilder().append(insertQuery);
-        for (int i = 1; i < expectedRecordsCount; i++) {
-            insertRows.append(", ").append(rowValue);
-        }
-
-        String insertRowsStatement = insertRows.toString();
+        String insertRowsStatement = buildInsertStatement(expectedRecordsCount);
 
         // exercise SUT
         executeAndWait(insertRowsStatement, TEST_SHARDED_KEYSPACE);
@@ -960,30 +1011,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount + 2);
 
-        String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
-        String insertQuery = "INSERT INTO numeric_table ("
-                + "tinyint_col,"
-                + "tinyint_unsigned_col,"
-                + "smallint_col,"
-                + "smallint_unsigned_col,"
-                + "mediumint_col,"
-                + "mediumint_unsigned_col,"
-                + "int_col,"
-                + "int_unsigned_col,"
-                + "bigint_col,"
-                + "bigint_unsigned_col,"
-                + "bigint_unsigned_overflow_col,"
-                + "float_col,"
-                + "double_col,"
-                + "decimal_col,"
-                + "boolean_col)"
-                + " VALUES " + rowValue;
-        StringBuilder insertRows = new StringBuilder().append(insertQuery);
-        for (int i = 1; i < expectedRecordsCount; i++) {
-            insertRows.append(", ").append(rowValue);
-        }
-
-        String insertRowsStatement = insertRows.toString();
+        String insertRowsStatement = buildInsertStatement(expectedRecordsCount);
 
         // exercise SUT
         executeAndWait(insertRowsStatement, TEST_SHARDED_KEYSPACE);
@@ -1023,30 +1051,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
 
-        String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
-        String insertQuery = "INSERT INTO numeric_table ("
-                + "tinyint_col,"
-                + "tinyint_unsigned_col,"
-                + "smallint_col,"
-                + "smallint_unsigned_col,"
-                + "mediumint_col,"
-                + "mediumint_unsigned_col,"
-                + "int_col,"
-                + "int_unsigned_col,"
-                + "bigint_col,"
-                + "bigint_unsigned_col,"
-                + "bigint_unsigned_overflow_col,"
-                + "float_col,"
-                + "double_col,"
-                + "decimal_col,"
-                + "boolean_col)"
-                + " VALUES " + rowValue;
-        StringBuilder insertRows = new StringBuilder().append(insertQuery);
-        for (int i = 1; i < expectedRecordsCount; i++) {
-            insertRows.append(", ").append(rowValue);
-        }
-
-        String insertRowsStatement = insertRows.toString();
+        String insertRowsStatement = buildInsertStatement(expectedRecordsCount);
 
         // exercise SUT
         executeAndWait(insertRowsStatement, TEST_SHARDED_KEYSPACE);
@@ -1090,30 +1095,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
 
-        String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
-        String insertQuery = "INSERT INTO numeric_table ("
-                + "tinyint_col,"
-                + "tinyint_unsigned_col,"
-                + "smallint_col,"
-                + "smallint_unsigned_col,"
-                + "mediumint_col,"
-                + "mediumint_unsigned_col,"
-                + "int_col,"
-                + "int_unsigned_col,"
-                + "bigint_col,"
-                + "bigint_unsigned_col,"
-                + "bigint_unsigned_overflow_col,"
-                + "float_col,"
-                + "double_col,"
-                + "decimal_col,"
-                + "boolean_col)"
-                + " VALUES " + rowValue;
-        StringBuilder insertRows = new StringBuilder().append(insertQuery);
-        for (int i = 1; i < expectedRecordsCount; i++) {
-            insertRows.append(", ").append(rowValue);
-        }
-
-        String insertRowsStatement = insertRows.toString();
+        String insertRowsStatement = buildInsertStatement(expectedRecordsCount);
 
         // exercise SUT
         executeAndWait(insertRowsStatement, TEST_SHARDED_KEYSPACE);
@@ -1175,30 +1157,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount + 2);
 
-        String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
-        String insertQuery = "INSERT INTO numeric_table ("
-                + "tinyint_col,"
-                + "tinyint_unsigned_col,"
-                + "smallint_col,"
-                + "smallint_unsigned_col,"
-                + "mediumint_col,"
-                + "mediumint_unsigned_col,"
-                + "int_col,"
-                + "int_unsigned_col,"
-                + "bigint_col,"
-                + "bigint_unsigned_col,"
-                + "bigint_unsigned_overflow_col,"
-                + "float_col,"
-                + "double_col,"
-                + "decimal_col,"
-                + "boolean_col)"
-                + " VALUES " + rowValue;
-        StringBuilder insertRows = new StringBuilder().append(insertQuery);
-        for (int i = 1; i < expectedRecordsCount; i++) {
-            insertRows.append(", ").append(rowValue);
-        }
-
-        String insertRowsStatement = insertRows.toString();
+        String insertRowsStatement = buildInsertStatement(expectedRecordsCount);
 
         // exercise SUT
         executeAndWait(insertRowsStatement, TEST_SHARDED_KEYSPACE);
@@ -1523,7 +1482,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, "-80", config);
         TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, "-80", config);
 
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
         consumer.remove();
         SourceRecord lastRecordShard1 = consumer.remove();
 
@@ -1532,7 +1491,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, "80-", config);
         TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, "80-", config);
 
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
         consumer.remove();
         SourceRecord lastRecordShard2 = consumer.remove();
         String shard1Gtid = Vgtid.of((String) lastRecordShard1.sourceOffset().get(SourceInfo.VGTID_KEY)).getShardGtid("-80").getGtid();
@@ -1547,7 +1506,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 VitessConnectorConfig.SnapshotMode.NEVER, null);
         assertConnectorIsRunning();
 
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
 
         SourceRecord record1 = consumer.remove();
         Vgtid record1Vgtid = Vgtid.of((String) record1.sourceOffset().get(SourceInfo.VGTID_KEY));
@@ -1924,7 +1883,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // We should receive a record written before starting the connector.
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
         SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
         assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, "numeric_table");
         assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
@@ -1954,7 +1913,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         // We should receive a record written before starting the connector.
         consumer = testConsumer(totalRecordsCount);
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
         for (int i = 1; i <= totalRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_ENUM_TYPE_STMT), TestHelper.PK_FIELD);
             assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, tableName);
@@ -2001,7 +1960,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         // We should receive a record written before starting the connector.
         consumer = testConsumer(totalRecordsCount);
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
         for (int i = 1; i <= totalRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_ENUM_AMBIGUOUS_TYPE_STMT), TestHelper.PK_FIELD);
             assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, tableName);
@@ -2042,7 +2001,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         // We should receive a record written before starting the connector.
         consumer = testConsumer(expectedSnapshotRecordsCount);
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
         for (int i = 1; i <= expectedSnapshotRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
             assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, tableName);
@@ -2073,30 +2032,8 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     public void testMidSnapshotRecoveryLargeTable() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         int expectedSnapshotRecordsCount = 10000;
-        String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
         String tableName = "numeric_table";
-        StringBuilder insertRows = new StringBuilder().append("INSERT INTO numeric_table ("
-                + "tinyint_col,"
-                + "tinyint_unsigned_col,"
-                + "smallint_col,"
-                + "smallint_unsigned_col,"
-                + "mediumint_col,"
-                + "mediumint_unsigned_col,"
-                + "int_col,"
-                + "int_unsigned_col,"
-                + "bigint_col,"
-                + "bigint_unsigned_col,"
-                + "bigint_unsigned_overflow_col,"
-                + "float_col,"
-                + "double_col,"
-                + "decimal_col,"
-                + "boolean_col)"
-                + " VALUES " + rowValue);
-        for (int i = 1; i < expectedSnapshotRecordsCount; i++) {
-            insertRows.append(", ").append(rowValue);
-        }
-
-        String insertRowsStatement = insertRows.toString();
+        String insertRowsStatement = buildInsertStatement(expectedSnapshotRecordsCount);
         TestHelper.execute(insertRowsStatement);
 
         String tableInclude = TEST_UNSHARDED_KEYSPACE + "." + tableName;
@@ -2116,7 +2053,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         consumer = testConsumer(expectedSnapshotRecordsCount, tableInclude);
         startConnector(Function.identity(), false, false, 1,
                 -1, -1, tableInclude, VitessConnectorConfig.SnapshotMode.INITIAL, TestHelper.TEST_SHARD);
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
 
         for (int i = 1; i <= expectedSnapshotRecordsCount; i++) {
             assertRecordInserted(TEST_UNSHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD, Long.valueOf(i));
@@ -2142,7 +2079,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 "UPDATE pk_single_unique_key_table SET id = 3 WHERE ID = 2;"));
         TestHelper.execute("INSERT INTO pk_single_unique_key_table (id, int_col) VALUES (4, 4);");
 
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
 
         SourceRecord insertedRecordTx1 = consumer.remove();
         VerifyRecord.isValidInsert(insertedRecordTx1, PK_FIELD, 1);
@@ -2204,7 +2141,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // records in total. Primary key value indicates the last primary key streamed.
         int expectedSnapshotRecordsCount = 5;
         consumer = testConsumer(expectedSnapshotRecordsCount);
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
         for (int i = 1; i <= expectedSnapshotRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
             assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, "numeric_table");
@@ -2245,7 +2182,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // We should receive a record written before starting the connector.
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
         SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT, TEST_SHARDED_KEYSPACE), TestHelper.PK_FIELD);
         assertSourceInfo(record, TEST_SERVER, TEST_SHARDED_KEYSPACE, "numeric_table");
         assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
@@ -2268,7 +2205,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // We should receive a record written before starting the connector.
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
         SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
         assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, "numeric_table");
         assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
@@ -2293,7 +2230,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // We should receive a record written before starting the connector.
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
         SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(INSERT_NUMERIC_TYPES_STMT), TestHelper.PK_FIELD);
         assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, "numeric_table");
         assertRecordSchemaAndValues(schemasAndValuesForNumericTypes(), record, Envelope.FieldName.AFTER);
@@ -2431,7 +2368,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                         config.getInteger(VitessConnectorConfig.TASKS_MAX_CONFIG),
                         config.getInteger(VitessConnectorConfig.OFFSET_STORAGE_TASK_KEY_GEN))
                 : null;
-        waitForStreamingRunning(taskId);
+        waitForStreamingRunning(taskId, Module.name(), config.getString(VitessConnectorConfig.TOPIC_PREFIX));
         waitForVStreamStarted(logInterceptor);
     }
 
@@ -2495,7 +2432,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
             else {
                 executeAndWait(statement);
             }
-            consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+            consumer.awaitDefault();
             SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(statement, keyspace), pkField);
             assertRecordOffset(record, hasMultipleShards);
             assertSourceInfo(record, TEST_SERVER, keyspace, table.table());
@@ -2608,7 +2545,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
     private void executeAndWait(List<String> statements, String database) throws Exception {
         TestHelper.execute(statements, database);
-        consumer.await(TestHelper.waitTimeForRecords(), TimeUnit.SECONDS);
+        consumer.awaitDefault();
     }
 
     private static String topicName(String suffix) {

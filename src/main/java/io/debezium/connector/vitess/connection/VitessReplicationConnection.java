@@ -293,7 +293,6 @@ public class VitessReplicationConnection implements ReplicationConnection {
         // Add filtering for whitelist tables
         Binlogdata.Filter.Builder filterBuilder = Binlogdata.Filter.newBuilder();
         if (!Strings.isNullOrEmpty(config.tableIncludeList())) {
-            final String keyspace = config.getKeyspace();
             final List<String> allTables = new VitessMetadata(config).getTables();
             List<String> includedTables = VitessConnector.getIncludedTables(config, allTables);
             for (String table : includedTables) {

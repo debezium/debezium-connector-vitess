@@ -15,6 +15,7 @@ CELL=zone1 ./scripts/vtctld-up.sh
 vtctldclient CreateKeyspace --durability-policy=semi_sync test_unsharded_keyspace || fail "Failed to create and configure unsharded keyspace"
 vtctldclient CreateKeyspace --durability-policy=semi_sync test_sharded_keyspace || fail "Failed to create and configure sharded keyspace"
 vtctldclient CreateKeyspace --durability-policy=semi_sync test_empty_shard_keyspace || fail "Failed to create and configure empty shard keyspace"
+vtctldclient CreateKeyspace --durability-policy=semi_sync test_heartbeat_keyspace || fail "Failed to create and configure heartbeat keyspace"
 
 # start vttablets for unsharded keyspace test_unsharded_keyspace
 for i in 100 101 102; do
@@ -46,12 +47,21 @@ wait_for_healthy_shard test_sharded_keyspace 80- || exit 1
 # start vttablets for non-empty shard of the keyspace test_empty_shard_keyspace
 for i in 400 401 402; do
 	CELL=zone1 TABLET_UID=$i ./scripts/mysqlctl-up.sh
-	SHARD=-80 CELL=zone1 KEYSPACE=test_empty_shard_keyspace TABLET_UID=$i HEARTBEAT_ON_DEMAND=false ./scripts/vttablet-up.sh
+	SHARD=-80 CELL=zone1 KEYSPACE=test_empty_shard_keyspace TABLET_UID=$i ./scripts/vttablet-up.sh
 done
 
 # intentionally do not start any tablets in the 80- shard
 
 wait_for_healthy_shard test_empty_shard_keyspace -80 || exit 1
+
+# start vttablets for unsharded keyspace test_heartbeat_keyspace
+for i in 500 501 502; do
+	CELL=zone1 TABLET_UID=$i ./scripts/mysqlctl-up.sh
+	CELL=zone1 KEYSPACE=test_heartbeat_keyspace TABLET_UID=$i \
+    HEARTBEAT_ON_DEMAND=false COPY_PHASE_DURATION=500ms HEARTBEAT_INTERVAL=10ms ./scripts/vttablet-up.sh
+done
+
+wait_for_healthy_shard test_heartbeat_keyspace 0 || exit 1
 
 # Create the shard that will be empty with no tablets
 echo "Creating 80- shard"

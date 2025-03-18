@@ -44,6 +44,7 @@ public class TestHelper {
     public static final String TEST_UNSHARDED_KEYSPACE = "test_unsharded_keyspace";
     public static final String TEST_SHARDED_KEYSPACE = "test_sharded_keyspace";
     public static final String TEST_EMPTY_SHARD_KEYSPACE = "test_empty_shard_keyspace";
+    public static final String TEST_HEARTBEAT_KEYSPACE = "test_heartbeat_keyspace";
     public static final String TEST_NON_EMPTY_SHARD = "-80";
     public static final String TEST_SHARD = "0";
     public static final String TEST_SHARD1 = "-80";

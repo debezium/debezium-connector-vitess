@@ -13,6 +13,7 @@ import org.junit.Test;
 
 import io.debezium.connector.vitess.AnonymousValue;
 import io.debezium.connector.vitess.VitessType;
+import io.debezium.jdbc.TemporalPrecisionMode;
 
 public class ReplicationMessageColumnTest {
 
@@ -23,7 +24,7 @@ public class ReplicationMessageColumnTest {
                 new VitessType(AnonymousValue.getString(), Types.INTEGER),
                 true,
                 "10".getBytes());
-        Object columnValue = column.getValue(false);
+        Object columnValue = column.getValue(false, TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(columnValue).isEqualTo(10);
     }
 
@@ -34,6 +35,6 @@ public class ReplicationMessageColumnTest {
                 new VitessType(AnonymousValue.getString(), Types.INTEGER),
                 true,
                 "10.1".getBytes());
-        column.getValue(false);
+        column.getValue(false, TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
     }
 }

@@ -10,6 +10,7 @@ import static io.debezium.connector.vitess.connection.ReplicationMessage.Column;
 import java.nio.charset.StandardCharsets;
 
 import io.debezium.connector.vitess.VitessType;
+import io.debezium.jdbc.TemporalPrecisionMode;
 
 /** Logical represenation of both column type and value. */
 public class ReplicationMessageColumn implements Column {
@@ -43,11 +44,11 @@ public class ReplicationMessageColumn implements Column {
     }
 
     @Override
-    public Object getValue(boolean includeUnknownDatatypes) {
+    public Object getValue(boolean includeUnknownDatatypes, TemporalPrecisionMode temporalPrecisionMode) {
         final VitessColumnValue columnValue = new VitessColumnValue(rawValue);
 
         return ReplicationMessageColumnValueResolver.resolveValue(
-                type, columnValue, includeUnknownDatatypes);
+                type, columnValue, includeUnknownDatatypes, temporalPrecisionMode);
     }
 
     public byte[] getRawValue() {

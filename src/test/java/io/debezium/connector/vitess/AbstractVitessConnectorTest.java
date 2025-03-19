@@ -151,8 +151,10 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
     protected static final String TIMESTAMP = "2020-02-13 01:02:03";
 
     protected static final String ZERO_TIME = "00:00:00";
+    protected static final String ZERO_TIME_PRECISION4 = ZERO_TIME + ".0000";
     protected static final String ZERO_DATE = "0000-00-00";
     protected static final String ZERO_DATETIME = "0000-00-00 00:00:00";
+    protected static final String ZERO_DATETIME_PRECISION4 = ZERO_DATETIME + ".0000";
     protected static final String ZERO_TIMESTAMP = "0000-00-00 00:00:00";
     protected static final String ZERO_TIMESTAMP_PRECISION6 = ZERO_TIMESTAMP + ".000000";
     protected static final String ZERO_YEAR = "0000";
@@ -418,6 +420,25 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                                 "datetime_col", Timestamp.schema(), getMillisForDatetime(EPOCH_DATETIME, 0)),
                         new SchemaAndValueField(
                                 "datetime_col4", MicroTimestamp.schema(), getMicrosForDatetime(EPOCH_DATETIME_PRECISION4, 4)),
+                        new SchemaAndValueField(
+                                "timestamp_col", ZonedTimestamp.schema(), ZERO_TIMESTAMP),
+                        new SchemaAndValueField(
+                                "timestamp_col6", ZonedTimestamp.schema(), ZERO_TIMESTAMP_PRECISION6),
+                        new SchemaAndValueField("year_col", Year.schema(), Integer.valueOf(ZERO_YEAR))));
+        return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForTimeTypeZeroDateString() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField("time_col", Schema.STRING_SCHEMA, ZERO_TIME),
+                        new SchemaAndValueField("time_col4", Schema.STRING_SCHEMA, ZERO_TIME_PRECISION4),
+                        new SchemaAndValueField("date_col", Schema.STRING_SCHEMA, ZERO_DATE),
+                        new SchemaAndValueField(
+                                "datetime_col", Schema.STRING_SCHEMA, ZERO_DATETIME),
+                        new SchemaAndValueField(
+                                "datetime_col4", Schema.STRING_SCHEMA, ZERO_DATETIME_PRECISION4),
                         new SchemaAndValueField(
                                 "timestamp_col", ZonedTimestamp.schema(), ZERO_TIMESTAMP),
                         new SchemaAndValueField(

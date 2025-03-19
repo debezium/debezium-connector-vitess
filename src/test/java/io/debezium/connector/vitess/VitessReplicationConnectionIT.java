@@ -33,6 +33,7 @@ import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.doc.FixFor;
 import io.debezium.heartbeat.Heartbeat;
+import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.schema.DefaultTopicNamingStrategy;
@@ -605,11 +606,11 @@ public class VitessReplicationConnectionIT {
             assertThat(dml.getOldTupleList().get(0).getName()).isEqualTo("id");
             assertThat(dml.getOldTupleList().get(1).getName()).isEqualTo("int_col");
             assertThat(dml.getOldTupleList().get(2).getName()).isEqualTo("name");
-            assertThat(dml.getOldTupleList().get(2).getValue(false)).isNull();
+            assertThat(dml.getOldTupleList().get(2).getValue(false, TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS)).isNull();
             assertThat(dml.getNewTupleList().get(0).getName()).isEqualTo("id");
             assertThat(dml.getNewTupleList().get(1).getName()).isEqualTo("int_col");
             assertThat(dml.getNewTupleList().get(2).getName()).isEqualTo("name");
-            assertThat(dml.getNewTupleList().get(2).getValue(false)).isEqualTo("abc");
+            assertThat(dml.getNewTupleList().get(2).getValue(false, TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS)).isEqualTo("abc");
         }
         finally {
             if (error.get() != null) {

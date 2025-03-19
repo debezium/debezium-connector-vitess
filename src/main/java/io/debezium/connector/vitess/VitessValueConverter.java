@@ -7,7 +7,6 @@ package io.debezium.connector.vitess;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
-import java.sql.Types;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -94,6 +93,9 @@ public class VitessValueConverter extends JdbcValueConverters {
                     throw new IllegalArgumentException("Unknown bigIntUnsignedHandlingMode: " + bigIntUnsignedHandlingMode);
             }
         }
+        if (isTemporal(typeName) && temporalPrecisionMode.equals(TemporalPrecisionMode.ISOSTRING)) {
+            return SchemaBuilder.string();
+        }
 
         final SchemaBuilder jdbcSchemaBuilder = super.schemaBuilder(column);
         if (jdbcSchemaBuilder == null) {
@@ -107,6 +109,17 @@ public class VitessValueConverter extends JdbcValueConverters {
 
     public static boolean isDateOrDateTime(String typeName) {
         return matches(typeName, Query.Type.DATETIME.name()) || matches(typeName, Query.Type.DATE.name());
+    }
+
+    /**
+     * Detect data types that are affected by {@link TemporalPrecisionMode}. Specifically, date, time, and datetime
+     * @param typeName
+     * @return if it is a temporal type
+     */
+    private static boolean isTemporal(String typeName) {
+        return matches(typeName, Query.Type.DATE.name()) ||
+                matches(typeName, Query.Type.TIME.name()) ||
+                matches(typeName, Query.Type.DATETIME.name());
     }
 
     // Convert Java value to Kafka Connect value.
@@ -141,13 +154,8 @@ public class VitessValueConverter extends JdbcValueConverters {
             }
         }
 
-        switch (column.jdbcType()) {
-            case Types.TIME:
-                if (temporalPrecisionMode == TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS) {
-                    return data -> convertDurationToMicroseconds(column, fieldDefn, data);
-                }
-            case Types.TIMESTAMP:
-                return ((ValueConverter) (data -> convertTimestampToLocalDateTime(column, fieldDefn, data))).and(super.converter(column, fieldDefn));
+        if (isTemporal(typeName) && temporalPrecisionMode.equals(TemporalPrecisionMode.ISOSTRING)) {
+            return (data) -> convertString(column, fieldDefn, data);
         }
 
         final ValueConverter jdbcConverter = super.converter(column, fieldDefn);
@@ -159,29 +167,6 @@ public class VitessValueConverter extends JdbcValueConverters {
         else {
             return jdbcConverter;
         }
-    }
-
-    protected static Object convertTimestampToLocalDateTime(Column column, Field fieldDefn, Object data) {
-        if (data == null && !fieldDefn.schema().isOptional()) {
-            return null;
-        }
-        if (!(data instanceof Timestamp)) {
-            return data;
-        }
-
-        return ((Timestamp) data).toLocalDateTime();
-    }
-
-    protected Object convertDurationToMicroseconds(Column column, Field fieldDefn, Object data) {
-        return convertValue(column, fieldDefn, data, 0L, (r) -> {
-            try {
-                if (data instanceof Duration) {
-                    r.deliver(((Duration) data).toNanos() / 1_000);
-                }
-            }
-            catch (IllegalArgumentException e) {
-            }
-        });
     }
 
     /**

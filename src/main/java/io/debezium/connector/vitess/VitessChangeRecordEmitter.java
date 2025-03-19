@@ -103,7 +103,7 @@ class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter<VitessPart
             final String columnName = Strings.unquoteIdentifierPart(column.getName());
             int position = getPosition(columnName, table, values.length);
             if (position != -1) {
-                Object value = column.getValue(connectorConfig.includeUnknownDatatypes());
+                Object value = column.getValue(connectorConfig.includeUnknownDatatypes(), connectorConfig.getTemporalPrecisionMode());
                 values[position] = value;
             }
             else {

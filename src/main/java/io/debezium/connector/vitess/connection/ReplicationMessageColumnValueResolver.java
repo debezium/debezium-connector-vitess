@@ -6,15 +6,26 @@
 package io.debezium.connector.vitess.connection;
 
 import java.sql.Types;
+import java.util.Map;
+import java.util.function.Function;
 
 import io.debezium.connector.vitess.VitessType;
 import io.debezium.connector.vitess.VitessValueConverter;
+import io.debezium.jdbc.TemporalPrecisionMode;
 
 /** Resolve raw column value to Java value */
 public class ReplicationMessageColumnValueResolver {
 
-    public static Object resolveValue(
-                                      VitessType vitessType, ReplicationMessage.ColumnValue<byte[]> value, boolean includeUnknownDatatypes) {
+    private static Map<Integer, Function<String, Object>> temporalTypeToConverter = Map.of(
+            Types.TIME, VitessValueConverter::stringToDuration,
+            Types.DATE, VitessValueConverter::stringToLocalDate,
+            Types.TIMESTAMP, VitessValueConverter::stringToTimestamp);
+
+    public static Object resolveValue(VitessType vitessType,
+                                      ReplicationMessage.ColumnValue<byte[]> value,
+                                      boolean includeUnknownDatatypes,
+                                      TemporalPrecisionMode temporalPrecisionMode) {
+
         if (value.isNull()) {
             return null;
         }
@@ -37,15 +48,26 @@ public class ReplicationMessageColumnValueResolver {
             case Types.DOUBLE:
                 return value.asDouble();
             case Types.TIME:
-                return VitessValueConverter.stringToDuration(value.asString());
             case Types.TIMESTAMP: // This is a misnomer and is the case for DATETIME
-                return VitessValueConverter.stringToTimestamp(value.asString());
             case Types.DATE:
-                return VitessValueConverter.stringToLocalDate(value.asString());
+                Function<String, Object> converter = temporalTypeToConverter.get(vitessType.getJdbcId());
+                return convertOrReturnString(converter, value, temporalPrecisionMode);
             default:
                 break;
         }
 
         return value.asDefault(vitessType, includeUnknownDatatypes);
+    }
+
+    private static Object convertOrReturnString(Function<String, Object> converter,
+                                                ReplicationMessage.ColumnValue<byte[]> value,
+                                                TemporalPrecisionMode temporalPrecisionMode) {
+        String stringValue = value.asString();
+        if (temporalPrecisionMode.equals(TemporalPrecisionMode.ISOSTRING)) {
+            return stringValue;
+        }
+        else {
+            return converter.apply(stringValue);
+        }
     }
 }

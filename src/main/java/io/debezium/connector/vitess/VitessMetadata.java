@@ -129,7 +129,6 @@ public class VitessMetadata {
     private static List<String> getFlattenedRowsFromResponse(Vtgate.ExecuteResponse response) {
         validateResponse(response);
         Query.QueryResult result = response.getResult();
-        validateResult(result);
         List<List<String>> rows = parseRows(result.getRowsList());
         return flattenAndConcat(rows);
     }
@@ -137,18 +136,12 @@ public class VitessMetadata {
     private static List<List<String>> getRowsFromResponse(Vtgate.ExecuteResponse response) {
         validateResponse(response);
         Query.QueryResult result = response.getResult();
-        validateResult(result);
         return parseRows(result.getRowsList());
     }
 
     private static void validateResponse(Vtgate.ExecuteResponse response) {
         assert response != null && !response.hasError() && response.hasResult()
                 : String.format("Error response: %s", response);
-    }
-
-    private static void validateResult(Query.QueryResult result) {
-        List<Query.Row> rows = result.getRowsList();
-        assert !rows.isEmpty() : String.format("Empty response: %s", result);
     }
 
     @VisibleForTesting

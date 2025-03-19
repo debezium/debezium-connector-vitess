@@ -18,6 +18,7 @@ import org.junit.Test;
 
 import io.debezium.connector.vitess.AnonymousValue;
 import io.debezium.connector.vitess.VitessType;
+import io.debezium.jdbc.TemporalPrecisionMode;
 
 public class ReplicationMessageColumnValueResolverTest {
 
@@ -26,7 +27,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.INTEGER),
                 new VitessColumnValue("10".getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo(10);
     }
 
@@ -35,7 +37,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.SMALLINT),
                 new VitessColumnValue("10".getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo((short) 10);
     }
 
@@ -44,7 +47,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.BIGINT),
                 new VitessColumnValue("10".getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo(10L);
     }
 
@@ -53,7 +57,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.VARCHAR),
                 new VitessColumnValue("foo".getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo("foo");
     }
 
@@ -62,7 +67,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.BLOB),
                 new VitessColumnValue("foo".getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo("foo".getBytes());
     }
 
@@ -71,7 +77,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.BINARY),
                 new VitessColumnValue("foo".getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo("foo".getBytes());
     }
 
@@ -80,7 +87,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.FLOAT),
                 new VitessColumnValue("1.1".getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo(1.1F);
     }
 
@@ -89,7 +97,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.DOUBLE),
                 new VitessColumnValue("1.1".getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo(1.1D);
     }
 
@@ -98,7 +107,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.OTHER),
                 new VitessColumnValue("foo".getBytes()),
-                true);
+                true,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo("foo");
     }
 
@@ -107,7 +117,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.OTHER),
                 new VitessColumnValue("foo".getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isNull();
     }
 
@@ -116,8 +127,20 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.TIME),
                 new VitessColumnValue("01:02:03".getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo(Duration.ofSeconds(3 + 2 * 60 + 1 * 60 * 60));
+    }
+
+    @Test
+    public void shouldResolveTimeToString() {
+        String timeString = "01:02:03";
+        Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
+                new VitessType(AnonymousValue.getString(), Types.TIME),
+                new VitessColumnValue(timeString.getBytes()),
+                false,
+                TemporalPrecisionMode.ISOSTRING);
+        assertThat(resolvedJavaValue).isEqualTo(timeString);
     }
 
     @Test
@@ -125,7 +148,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.TIME),
                 new VitessColumnValue("01:02:03.666".getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo(Duration.ofMillis((3 + 2 * 60 + 1 * 60 * 60) * 1000 + 666));
     }
 
@@ -134,7 +158,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.TIME),
                 new VitessColumnValue("01:02:03.66".getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo(Duration.ofMillis(((3 + 2 * 60 + 1 * 60 * 60) * 100 + 66) * 10));
     }
 
@@ -145,8 +170,20 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.DATE),
                 new VitessColumnValue(date.getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo(expectedDate);
+    }
+
+    @Test
+    public void shouldResolveDateToString() {
+        String date = "2020-02-12";
+        Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
+                new VitessType(AnonymousValue.getString(), Types.DATE),
+                new VitessColumnValue(date.getBytes()),
+                false,
+                TemporalPrecisionMode.ISOSTRING);
+        assertThat(resolvedJavaValue).isEqualTo(date);
     }
 
     @Test
@@ -155,7 +192,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.INTEGER),
                 new VitessColumnValue(year.getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo(2020);
     }
 
@@ -164,7 +202,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.TIMESTAMP_WITH_TIMEZONE),
                 new VitessColumnValue("2020-02-12 01:02:03.1234".getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo("2020-02-12 01:02:03.1234");
     }
 
@@ -176,8 +215,21 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.TIMESTAMP),
                 new VitessColumnValue(timestampString.getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo(expectedTimestamp);
+    }
+
+    @Test
+    public void shouldResolveDatetimeToString() {
+        String datetimeString = "2020-02-12 01:02:03";
+        Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
+                // Datetime gets mapped to Types.TIMESTAMP by VitessType
+                new VitessType(AnonymousValue.getString(), Types.TIMESTAMP),
+                new VitessColumnValue(datetimeString.getBytes()),
+                false,
+                TemporalPrecisionMode.ISOSTRING);
+        assertThat(resolvedJavaValue).isEqualTo(datetimeString);
     }
 
     @Test
@@ -188,7 +240,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.TIMESTAMP),
                 new VitessColumnValue(timestampString.getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo(expectedTimestamp);
     }
 
@@ -200,7 +253,8 @@ public class ReplicationMessageColumnValueResolverTest {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.TIMESTAMP),
                 new VitessColumnValue(timestampString.getBytes()),
-                false);
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
         assertThat(resolvedJavaValue).isEqualTo(expectedTimestamp);
     }
 }

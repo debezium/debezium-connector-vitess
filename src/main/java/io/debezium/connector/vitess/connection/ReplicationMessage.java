@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.List;
 
 import io.debezium.connector.vitess.VitessType;
+import io.debezium.jdbc.TemporalPrecisionMode;
 
 /**
  * Logic representation of a replication message. It can be a transactional message (begin, commit),
@@ -38,7 +39,7 @@ public interface ReplicationMessage {
          * Converts the value (string representation) coming from VStream to a Java value based on the
          * type of the column from the message.
          */
-        Object getValue(boolean includeUnknownDatatypes);
+        Object getValue(boolean includeUnknownDatatypes, TemporalPrecisionMode temporalPrecisionMode);
 
         boolean isOptional();
     }

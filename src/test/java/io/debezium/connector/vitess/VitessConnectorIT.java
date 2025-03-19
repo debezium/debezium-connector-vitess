@@ -565,6 +565,21 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    public void shouldReceiveChangesForInsertsWithTimestampTypesPrecisionString() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(config -> config.with(
+                VitessConnectorConfig.TIME_PRECISION_MODE, TemporalPrecisionMode.ISOSTRING),
+                false);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_TIME_TYPES_ZERO_VALUE_STMT, schemasAndValuesForTimeTypeZeroDateString(), TestHelper.PK_FIELD);
+    }
+
+    @Test
     public void shouldConsumeEventsWithTruncatedColumn() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         final String truncateConfigValue = schemasAndValuesForStringTypesTruncated().stream().map(

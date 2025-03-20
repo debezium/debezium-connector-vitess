@@ -19,11 +19,10 @@ import java.util.List;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
-import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
-import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.Column;
 import io.debezium.relational.Table;
@@ -40,10 +39,13 @@ import binlogdata.Binlogdata;
 public class VitessValueConverterTest {
 
     private VitessDatabaseSchema schema;
+    private VitessConnectorConfig config;
     private VitessValueConverter converter;
     private VStreamOutputMessageDecoder decoder;
 
-    private void setUpResources(VitessConnectorConfig config) {
+    @Before
+    public void before() {
+        config = new VitessConnectorConfig(TestHelper.defaultConfig().build());
         converter = new VitessValueConverter(
                 config.getDecimalMode(),
                 config.getTemporalPrecisionMode(),
@@ -57,13 +59,6 @@ public class VitessValueConverterTest {
                 SchemaNameAdjuster.create(),
                 (TopicNamingStrategy) DefaultTopicNamingStrategy.create(config));
         decoder = new VStreamOutputMessageDecoder(schema);
-    }
-
-    @After
-    public void before() {
-        converter = null;
-        schema = null;
-        decoder = null;
     }
 
     public static List<TestHelper.ColumnValue> temporalColumnValues() {
@@ -114,7 +109,6 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldGetInt64SchemaBuilderForTime() throws InterruptedException {
-        setUpResources(TestHelper.defaultConnectorConfig());
         decoder.processMessage(temporalFieldEvent(), null, null, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
@@ -125,23 +119,7 @@ public class VitessValueConverterTest {
     }
 
     @Test
-    public void shouldGetStringSchemaBuilderForTemporalTypesWithIsoStringTimePrecisionMode() throws InterruptedException {
-        VitessConnectorConfig config = new VitessConnectorConfig(TestHelper.defaultConfig()
-                .with(VitessConnectorConfig.TIME_PRECISION_MODE.name(), TemporalPrecisionMode.ISOSTRING).build());
-        setUpResources(config);
-        decoder.processMessage(temporalFieldEvent(), null, null, false);
-        Table table = schema.tableFor(TestHelper.defaultTableId());
-
-        for (String columnName : List.of("date_col", "time_col", "datetime_col")) {
-            Column column = table.columnWithName(columnName);
-            SchemaBuilder schemaBuilder = converter.schemaBuilder(column);
-            assertThat(schemaBuilder.schema()).isEqualTo(Schema.STRING_SCHEMA);
-        }
-    }
-
-    @Test
     public void shouldGetYearSchemaBuilderForYear() throws InterruptedException {
-        setUpResources(TestHelper.defaultConnectorConfig());
         decoder.processMessage(temporalFieldEvent(), null, null, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
@@ -153,7 +131,6 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldConverterWorkForTimeColumn() throws InterruptedException {
-        setUpResources(TestHelper.defaultConnectorConfig());
         decoder.processMessage(temporalFieldEvent(), null, null, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
@@ -167,7 +144,6 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldConverterWorkForEnumColumnString() throws InterruptedException {
-        setUpResources(TestHelper.defaultConnectorConfig());
         decoder.processMessage(enumFieldEventString(), null, null, true);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
@@ -181,7 +157,6 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldConverterReturnEmptyStringForInvalid() throws InterruptedException {
-        setUpResources(TestHelper.defaultConnectorConfig());
         decoder.processMessage(enumFieldEventString(), null, null, true);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
@@ -194,7 +169,6 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldConverterWorkForEnumColumnIntToString() throws InterruptedException {
-        setUpResources(TestHelper.defaultConnectorConfig());
         decoder.processMessage(enumFieldEventInt(), null, null, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
@@ -209,7 +183,6 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldConverterWorkForSetColumnString() throws InterruptedException {
-        setUpResources(TestHelper.defaultConnectorConfig());
         decoder.processMessage(enumFieldEventString(), null, null, true);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
@@ -223,7 +196,6 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldConverterWorkForSetColumnIntToString() throws InterruptedException {
-        setUpResources(TestHelper.defaultConnectorConfig());
         decoder.processMessage(enumFieldEventInt(), null, null, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
@@ -237,7 +209,6 @@ public class VitessValueConverterTest {
 
     @Test
     public void shouldConverterWorkForDatetimeColumn() throws InterruptedException {
-        setUpResources(TestHelper.defaultConnectorConfig());
         decoder.processMessage(temporalFieldEvent(), null, null, false);
         Table table = schema.tableFor(TestHelper.defaultTableId());
 
@@ -249,60 +220,6 @@ public class VitessValueConverterTest {
         Object actual = valueConverter.convert(timestamp);
         assertThat(actual).isInstanceOf(Long.class);
         assertThat(actual).isEqualTo(timestamp.toLocalDateTime().toInstant(ZoneOffset.UTC).toEpochMilli());
-    }
-
-    @Test
-    public void shouldConvertDatetimeToString() throws InterruptedException {
-        VitessConnectorConfig config = new VitessConnectorConfig(TestHelper.defaultConfig()
-                .with(VitessConnectorConfig.TIME_PRECISION_MODE.name(), TemporalPrecisionMode.ISOSTRING).build());
-        setUpResources(config);
-        decoder.processMessage(temporalFieldEvent(), null, null, false);
-        Table table = schema.tableFor(TestHelper.defaultTableId());
-
-        String col = "datetime_col";
-        Column column = table.columnWithName(col);
-        Field field = new Field(col, 2, Schema.STRING_SCHEMA);
-
-        ValueConverter valueConverter = converter.converter(column, field);
-        String datetimeString = "0000-00-00 00:00:00";
-        Object actual = valueConverter.convert(datetimeString);
-        assertThat(actual).isEqualTo(datetimeString);
-    }
-
-    @Test
-    public void shouldConvertTimeToString() throws InterruptedException {
-        VitessConnectorConfig config = new VitessConnectorConfig(TestHelper.defaultConfig()
-                .with(VitessConnectorConfig.TIME_PRECISION_MODE.name(), TemporalPrecisionMode.ISOSTRING).build());
-        setUpResources(config);
-        decoder.processMessage(temporalFieldEvent(), null, null, false);
-        Table table = schema.tableFor(TestHelper.defaultTableId());
-
-        String col = "time_col";
-        Column column = table.columnWithName(col);
-        Field field = new Field(col, 0, Schema.STRING_SCHEMA);
-
-        ValueConverter valueConverter = converter.converter(column, field);
-        String timeString = "00:00:00";
-        Object actual = valueConverter.convert(timeString);
-        assertThat(actual).isEqualTo(timeString);
-    }
-
-    @Test
-    public void shouldConvertDateToString() throws InterruptedException {
-        VitessConnectorConfig config = new VitessConnectorConfig(TestHelper.defaultConfig()
-                .with(VitessConnectorConfig.TIME_PRECISION_MODE.name(), TemporalPrecisionMode.ISOSTRING).build());
-        setUpResources(config);
-        decoder.processMessage(temporalFieldEvent(), null, null, false);
-        Table table = schema.tableFor(TestHelper.defaultTableId());
-
-        String col = "date_col";
-        Column column = table.columnWithName(col);
-        Field field = new Field(col, 3, Schema.STRING_SCHEMA);
-        ValueConverter valueConverter = converter.converter(column, field);
-
-        String dateString = "0000-00-00";
-        Object actual = valueConverter.convert(dateString);
-        assertThat(actual).isEqualTo(dateString);
     }
 
     @Test

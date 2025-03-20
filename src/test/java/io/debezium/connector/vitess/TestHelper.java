@@ -116,10 +116,6 @@ public class TestHelper {
         return defaultConfig(false, false, 1, -1, -1, null, VitessConnectorConfig.SnapshotMode.NEVER, TEST_SHARD, null, null);
     }
 
-    public static VitessConnectorConfig defaultConnectorConfig() {
-        return new VitessConnectorConfig(defaultConfig().build());
-    }
-
     /**
      * Get the default configuration of the connector
      *

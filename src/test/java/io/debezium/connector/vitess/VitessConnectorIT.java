@@ -66,6 +66,7 @@ import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransaction
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionMetadataFactory;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessRankProvider;
 import io.debezium.connector.vitess.transforms.RemoveField;
+import io.debezium.connector.vitess.transforms.ReplaceFieldValue;
 import io.debezium.converters.CloudEventsConverterTest;
 import io.debezium.converters.spi.CloudEventsMaker;
 import io.debezium.data.Envelope;
@@ -1082,6 +1083,72 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
             Vgtid actualVgtid = Vgtid.of(vgtid);
             final Struct txn = ((Struct) record.value()).getStruct("transaction");
             assertThat(txn.schema().field("id")).isNull();
+            assertThat(txn.get("transaction_epoch")).isEqualTo(expectedEpoch);
+            BigDecimal expectedRank = VitessRankProvider.getRank(actualVgtid.getShardGtid(shard).getGtid());
+            assertThat(txn.get("transaction_rank")).isEqualTo(expectedRank);
+        }
+    }
+
+    @Test
+    public void shouldProvideReplaceFieldValue() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(config -> config
+                .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true)
+                .with("transforms", "filterTransactionTopicRecords,replaceFieldValue")
+                .with("transforms.filterTransactionTopicRecords.type",
+                        "io.debezium.connector.vitess.transforms.FilterTransactionTopicRecords")
+                .with("transforms.replaceFieldValue.type", "io.debezium.connector.vitess.transforms.ReplaceFieldValue")
+                .with("transforms.replaceFieldValue." + ReplaceFieldValue.FIELD_NAMES_CONF, "transaction.id")
+                .with(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
+                .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true),
+                true,
+                "-80,80-");
+        assertConnectorIsRunning();
+
+        Vgtid baseVgtid = TestHelper.getCurrentVgtid();
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        String rowValue = "(1, 1, 12, 12, 123, 123, 1234, 1234, 12345, 12345, 18446744073709551615, 1.5, 2.5, 12.34, true)";
+        String insertQuery = "INSERT INTO numeric_table ("
+                + "tinyint_col,"
+                + "tinyint_unsigned_col,"
+                + "smallint_col,"
+                + "smallint_unsigned_col,"
+                + "mediumint_col,"
+                + "mediumint_unsigned_col,"
+                + "int_col,"
+                + "int_unsigned_col,"
+                + "bigint_col,"
+                + "bigint_unsigned_col,"
+                + "bigint_unsigned_overflow_col,"
+                + "float_col,"
+                + "double_col,"
+                + "decimal_col,"
+                + "boolean_col)"
+                + " VALUES " + rowValue;
+        StringBuilder insertRows = new StringBuilder().append(insertQuery);
+        for (int i = 1; i < expectedRecordsCount; i++) {
+            insertRows.append(", ").append(rowValue);
+        }
+
+        String insertRowsStatement = insertRows.toString();
+
+        // exercise SUT
+        executeAndWait(insertRowsStatement, TEST_SHARDED_KEYSPACE);
+        // First transaction.
+        // A 0 epoch is only used by a connector that starts with a valid gtid in its config.
+        // For a connector that starts with current (default) or snapshot (empty), increment epoch (in this case from 0 -> 1
+        Long expectedEpoch = 1L;
+        for (int i = 1; i <= expectedRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
+            Struct source = (Struct) ((Struct) record.value()).get("source");
+            String shard = source.getString("shard");
+            String vgtid = source.getString("vgtid");
+            Vgtid actualVgtid = Vgtid.of(vgtid);
+            final Struct txn = ((Struct) record.value()).getStruct("transaction");
+            assertThat(txn.get("id")).isEqualTo("");
             assertThat(txn.get("transaction_epoch")).isEqualTo(expectedEpoch);
             BigDecimal expectedRank = VitessRankProvider.getRank(actualVgtid.getShardGtid(shard).getGtid());
             assertThat(txn.get("transaction_rank")).isEqualTo(expectedRank);

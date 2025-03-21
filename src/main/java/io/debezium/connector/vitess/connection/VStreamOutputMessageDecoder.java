@@ -195,16 +195,16 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             throws InterruptedException {
         Optional<Table> resolvedTable = resolveRelation(shard, schemaName, tableName);
 
-        TableId tableId;
+        Table table;
         List<Column> columns = null;
         if (!resolvedTable.isPresent()) {
             LOGGER.trace("Row insert for {}.{} is filtered out", schemaName, tableName);
-            tableId = VitessDatabaseSchema.buildTableId(shard, schemaName, tableName);
+            TableId tableId = VitessDatabaseSchema.buildTableId(shard, schemaName, tableName);
+            table = Table.editor().tableId(tableId).create();
             // no need for columns because the event will be filtered out
         }
         else {
-            Table table = resolvedTable.get();
-            tableId = table.id();
+            table = resolvedTable.get();
             columns = resolveColumns(row, table);
         }
 
@@ -214,7 +214,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                         commitTimestamp,
                         transactionId,
                         schemaName,
-                        tableId.toDoubleQuotedString(),
+                        table,
                         shard,
                         null,
                         columns),
@@ -232,17 +232,17 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             throws InterruptedException {
         Optional<Table> resolvedTable = resolveRelation(shard, schemaName, tableName);
 
-        TableId tableId;
+        Table table;
         List<Column> oldColumns = null;
         List<Column> newColumns = null;
         if (!resolvedTable.isPresent()) {
             LOGGER.trace("Row update for {}.{} is filtered out", schemaName, tableName);
-            tableId = VitessDatabaseSchema.buildTableId(shard, schemaName, tableName);
+            TableId tableId = VitessDatabaseSchema.buildTableId(shard, schemaName, tableName);
+            table = Table.editor().tableId(tableId).create();
             // no need for oldColumns and newColumns because the event will be filtered out
         }
         else {
-            Table table = resolvedTable.get();
-            tableId = table.id();
+            table = resolvedTable.get();
             oldColumns = resolveColumns(oldRow, table);
             newColumns = resolveColumns(newRow, table);
         }
@@ -253,7 +253,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                         commitTimestamp,
                         transactionId,
                         schemaName,
-                        tableId.toDoubleQuotedString(),
+                        table,
                         shard,
                         oldColumns,
                         newColumns),
@@ -270,17 +270,17 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             throws InterruptedException {
         Optional<Table> resolvedTable = resolveRelation(shard, schemaName, tableName);
 
-        TableId tableId;
+        Table table;
         List<Column> columns = null;
 
         if (!resolvedTable.isPresent()) {
             LOGGER.trace("Row delete for {}.{} is filtered out", schemaName, tableName);
-            tableId = VitessDatabaseSchema.buildTableId(shard, schemaName, tableName);
+            TableId tableId = VitessDatabaseSchema.buildTableId(shard, schemaName, tableName);
+            table = Table.editor().tableId(tableId).create();
             // no need for columns because the event will be filtered out
         }
         else {
-            Table table = resolvedTable.get();
-            tableId = table.id();
+            table = resolvedTable.get();
             columns = resolveColumns(row, table);
         }
 
@@ -290,7 +290,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                         commitTimestamp,
                         transactionId,
                         schemaName,
-                        tableId.toDoubleQuotedString(),
+                        table,
                         shard,
                         columns,
                         null),
@@ -385,7 +385,6 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                 LOGGER.debug("Number of columns in the resolved table: {}", table.columns().size());
 
                 schema.applySchemaChangesForTable(table);
-                return;
             }
         }
     }

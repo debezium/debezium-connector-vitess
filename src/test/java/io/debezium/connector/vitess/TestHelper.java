@@ -33,6 +33,7 @@ import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
 import io.debezium.embedded.EmbeddedEngineConfig;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.vitess.proto.Query;
 import io.vitess.proto.Query.Field;
@@ -444,6 +445,10 @@ public class TestHelper {
 
     public static TableId defaultTableId() {
         return new TableId(TestHelper.TEST_SHARD, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE);
+    }
+
+    public static Table defaultTable() {
+        return Table.editor().tableId(defaultTableId()).create();
     }
 
     public static List<byte[]> newRawValues(List<ColumnValue> columnValues) {

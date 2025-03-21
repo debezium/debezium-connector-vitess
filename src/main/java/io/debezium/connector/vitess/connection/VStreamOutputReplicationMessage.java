@@ -8,6 +8,9 @@ package io.debezium.connector.vitess.connection;
 import java.time.Instant;
 import java.util.List;
 
+import io.debezium.relational.Table;
+import io.debezium.relational.TableId;
+
 /**
  * A logical representation of row-insert, row-update, row-delete. It contains each columns' type
  * and value.
@@ -18,7 +21,7 @@ public class VStreamOutputReplicationMessage implements ReplicationMessage {
     private final Instant commitTimestamp;
     private final String transactionId;
     private final String keyspace;
-    private final String table;
+    private final Table table;
     private final String shard;
     private final List<Column> oldColumns;
     private final List<Column> newColumns;
@@ -28,7 +31,7 @@ public class VStreamOutputReplicationMessage implements ReplicationMessage {
                                            Instant commitTimestamp,
                                            String transactionId,
                                            String keyspace,
-                                           String table,
+                                           Table table,
                                            String shard,
                                            List<Column> oldColumns,
                                            List<Column> newColumns) {
@@ -63,7 +66,17 @@ public class VStreamOutputReplicationMessage implements ReplicationMessage {
     }
 
     @Override
-    public String getTable() {
+    public String getTableName() {
+        return table.id().toDoubleQuotedString();
+    }
+
+    @Override
+    public TableId getTableId() {
+        return table.id();
+    }
+
+    @Override
+    public Table getTable() {
         return table;
     }
 

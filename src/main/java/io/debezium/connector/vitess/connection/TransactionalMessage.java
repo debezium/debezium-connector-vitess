@@ -49,7 +49,7 @@ public class TransactionalMessage implements ReplicationMessage {
     }
 
     @Override
-    public String getTable() {
+    public String getTableName() {
         throw new UnsupportedOperationException();
     }
 

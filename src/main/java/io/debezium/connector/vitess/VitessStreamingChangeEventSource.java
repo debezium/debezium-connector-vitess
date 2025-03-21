@@ -157,7 +157,7 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
             }
             else {
                 // DML event
-                TableId tableId = VitessDatabaseSchema.parse(message.getTable());
+                TableId tableId = message.getTableId();
                 Objects.requireNonNull(tableId);
 
                 offsetContext.event(tableId, message.getCommitTime());

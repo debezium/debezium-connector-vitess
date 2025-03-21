@@ -10,6 +10,8 @@ import java.util.List;
 
 import io.debezium.connector.vitess.VitessType;
 import io.debezium.jdbc.TemporalPrecisionMode;
+import io.debezium.relational.Table;
+import io.debezium.relational.TableId;
 
 /**
  * Logic representation of a replication message. It can be a transactional message (begin, commit),
@@ -75,7 +77,15 @@ public interface ReplicationMessage {
 
     String getKeyspace();
 
-    String getTable();
+    String getTableName();
+
+    default TableId getTableId() {
+        throw new UnsupportedOperationException();
+    }
+
+    default Table getTable() {
+        throw new UnsupportedOperationException();
+    }
 
     String getShard();
 

@@ -34,7 +34,7 @@ public class RemoveFieldTest {
         RemoveField<SourceRecord> removeFields = new RemoveField();
         Map<String, ?> config = Map.of(RemoveField.FIELD_NAMES_FIELD.name(), "transaction.id");
         removeFields.configure(config);
-        SourceRecord record = removeFields.apply(TransformsTestHelper.SOURCE_RECORD);
+        SourceRecord record = removeFields.apply(TransformsTestHelper.SOURCE_RECORD_WITH_TRANSACTION);
 
         Schema expectedTransactionSchema = SchemaBuilder.struct().optional()
                 .name(TRANSACTION_BLOCK_SCHEMA_NAME)
@@ -69,7 +69,7 @@ public class RemoveFieldTest {
         RemoveField<SourceRecord> removeFields = new RemoveField();
         Map<String, ?> config = Map.of(RemoveField.FIELD_NAMES_FIELD.name(), "transaction.total_order");
         removeFields.configure(config);
-        SourceRecord record = removeFields.apply(TransformsTestHelper.SOURCE_RECORD);
+        SourceRecord record = removeFields.apply(TransformsTestHelper.SOURCE_RECORD_WITH_TRANSACTION);
 
         Schema expectedTransactionSchema = SchemaBuilder.struct().optional()
                 .name(TRANSACTION_BLOCK_SCHEMA_NAME)
@@ -105,7 +105,7 @@ public class RemoveFieldTest {
         RemoveField<SourceRecord> removeFields = new RemoveField();
         Map<String, ?> config = Map.of(RemoveField.FIELD_NAMES_FIELD.name(), "transaction.data_collection_order");
         removeFields.configure(config);
-        SourceRecord record = removeFields.apply(TransformsTestHelper.SOURCE_RECORD);
+        SourceRecord record = removeFields.apply(TransformsTestHelper.SOURCE_RECORD_WITH_TRANSACTION);
 
         Schema expectedTransactionSchema = SchemaBuilder.struct().optional()
                 .name(TRANSACTION_BLOCK_SCHEMA_NAME)

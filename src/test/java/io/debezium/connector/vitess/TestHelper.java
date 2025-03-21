@@ -447,10 +447,6 @@ public class TestHelper {
         return new TableId(TestHelper.TEST_SHARD, TestHelper.TEST_UNSHARDED_KEYSPACE, TestHelper.TEST_TABLE);
     }
 
-    public static Table defaultTable() {
-        return Table.editor().tableId(defaultTableId()).create();
-    }
-
     public static List<byte[]> newRawValues(List<ColumnValue> columnValues) {
         return columnValues.stream().map(x -> x.getRawValue()).collect(Collectors.toList());
     }

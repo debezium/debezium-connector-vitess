@@ -37,7 +37,7 @@ public class HeartbeatMessageTest {
     @Test
     public void getTable() {
         ReplicationMessage message = new HeartbeatMessage(Instant.EPOCH);
-        assertThatThrownBy(() -> message.getTable())
+        assertThatThrownBy(() -> message.getTableName())
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 

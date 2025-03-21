@@ -97,7 +97,7 @@ public class VitessBigIntUnsignedTest {
                 AnonymousValue.getInstant(),
                 AnonymousValue.getString(),
                 AnonymousValue.getString(),
-                TestHelper.defaultTableId().toDoubleQuotedString(),
+                schema.tableFor(TestHelper.defaultTableId()),
                 TestHelper.TEST_SHARD,
                 null,
                 defaultRelationMessageColumns(mode));

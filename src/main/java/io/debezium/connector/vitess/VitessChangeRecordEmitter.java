@@ -16,11 +16,11 @@ import org.slf4j.LoggerFactory;
 import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.data.Envelope;
+import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.relational.Column;
 import io.debezium.relational.RelationalChangeRecordEmitter;
 import io.debezium.relational.Table;
-import io.debezium.relational.TableId;
 import io.debezium.util.Clock;
 import io.debezium.util.Strings;
 
@@ -35,7 +35,9 @@ class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter<VitessPart
     private final ReplicationMessage message;
     private final VitessDatabaseSchema schema;
     private final VitessConnectorConfig connectorConfig;
-    private final TableId tableId;
+    private final Table table;
+    private final boolean includeUnknownDatatypes;
+    private final TemporalPrecisionMode temporalPrecisionMode;
 
     VitessChangeRecordEmitter(
                               VitessPartition partition,
@@ -49,8 +51,9 @@ class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter<VitessPart
         this.schema = schema;
         this.message = message;
         this.connectorConfig = connectorConfig;
-        this.tableId = VitessDatabaseSchema.parse(message.getTable());
-        Objects.requireNonNull(tableId);
+        this.table = message.getTable();
+        this.includeUnknownDatatypes = connectorConfig.includeUnknownDatatypes();
+        this.temporalPrecisionMode = connectorConfig.getTemporalPrecisionMode();
     }
 
     @Override
@@ -75,7 +78,7 @@ class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter<VitessPart
                 return null;
             default:
                 // UPDATE and DELETE have old values
-                return columnValues(message.getOldTupleList(), tableId);
+                return columnValues(message.getOldTupleList());
         }
     }
 
@@ -84,18 +87,17 @@ class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter<VitessPart
         switch (getOperation()) {
             case CREATE:
             case UPDATE:
-                return columnValues(message.getNewTupleList(), tableId);
+                return columnValues(message.getNewTupleList());
             default:
                 // DELETE does not have new values
                 return null;
         }
     }
 
-    private Object[] columnValues(List<ReplicationMessage.Column> columns, TableId tableId) {
+    private Object[] columnValues(List<ReplicationMessage.Column> columns) {
         if (columns == null || columns.isEmpty()) {
             return null;
         }
-        final Table table = schema.tableFor(tableId);
         Objects.requireNonNull(table);
 
         Object[] values = new Object[columns.size()];
@@ -103,7 +105,7 @@ class VitessChangeRecordEmitter extends RelationalChangeRecordEmitter<VitessPart
             final String columnName = Strings.unquoteIdentifierPart(column.getName());
             int position = getPosition(columnName, table, values.length);
             if (position != -1) {
-                Object value = column.getValue(connectorConfig.includeUnknownDatatypes(), connectorConfig.getTemporalPrecisionMode());
+                Object value = column.getValue(includeUnknownDatatypes, temporalPrecisionMode);
                 values[position] = value;
             }
             else {

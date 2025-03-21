@@ -6,8 +6,10 @@
 package io.debezium.connector.vitess;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -34,11 +36,15 @@ public class Vgtid {
 
     @JsonIgnore
     private final Binlogdata.VGtid rawVgtid;
-    private final List<ShardGtid> shardGtids = new ArrayList<>();
-    private final HashMap<String, ShardGtid> shardNameToShardGtid = new HashMap<>();
+    private final List<ShardGtid> shardGtids;
+    private final Map<String, ShardGtid> shardNameToShardGtid;
+    // Vgtid cannot be modified, so we store the string representation to improve performance
+    private final String vgtidString;
 
     private Vgtid(Binlogdata.VGtid rawVgtid) {
         this.rawVgtid = rawVgtid;
+        List<Vgtid.ShardGtid> shardGtids = new ArrayList<>();
+        HashMap<String, ShardGtid> shardNameToShardGtid = new HashMap<>();
         for (Binlogdata.ShardGtid shardGtid : rawVgtid.getShardGtidsList()) {
             TablePrimaryKeys tabletablePrimaryKeys = new TablePrimaryKeys(shardGtid.getTablePKsList());
             ShardGtid currentShardGtid = new ShardGtid(
@@ -46,13 +52,21 @@ public class Vgtid {
             shardGtids.add(currentShardGtid);
             shardNameToShardGtid.put(shardGtid.getShard(), currentShardGtid);
         }
+        // This stores a reference to the original, mutable map/list (does not copy contents which would be inefficient)
+        this.shardGtids = Collections.unmodifiableList(shardGtids);
+        this.shardNameToShardGtid = Collections.unmodifiableMap(shardNameToShardGtid);
+        this.vgtidString = shardGtidsToString(shardGtids);
     }
 
-    private Vgtid(List<ShardGtid> shardGtids) {
-        this.shardGtids.addAll(shardGtids);
+    private Vgtid(List<ShardGtid> shardGtids, String vgtidString) {
+        this.vgtidString = vgtidString;
+        this.shardGtids = Collections.unmodifiableList(shardGtids);
+
+        HashMap<String, ShardGtid> shardNameToShardGtid = new HashMap<>();
         for (ShardGtid shardGtid : shardGtids) {
-            this.shardNameToShardGtid.put(shardGtid.shard, shardGtid);
+            shardNameToShardGtid.put(shardGtid.shard, shardGtid);
         }
+        this.shardNameToShardGtid = Collections.unmodifiableMap(shardNameToShardGtid);
 
         Binlogdata.VGtid.Builder builder = Binlogdata.VGtid.newBuilder();
         for (ShardGtid shardGtid : shardGtids) {
@@ -72,7 +86,7 @@ public class Vgtid {
         try {
             List<ShardGtid> shardGtids = MAPPER.readValue(shardGtidsInJson, new TypeReference<List<ShardGtid>>() {
             });
-            return of(shardGtids);
+            return of(shardGtids, shardGtidsInJson);
         }
         catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
@@ -83,8 +97,12 @@ public class Vgtid {
         return new Vgtid(rawVgtid);
     }
 
+    public static Vgtid of(List<ShardGtid> shardGtids, String vgtidString) {
+        return new Vgtid(shardGtids, vgtidString);
+    }
+
     public static Vgtid of(List<ShardGtid> shardGtids) {
-        return new Vgtid(shardGtids);
+        return new Vgtid(shardGtids, shardGtidsToString(shardGtids));
     }
 
     public Binlogdata.VGtid getRawVgtid() {
@@ -119,6 +137,10 @@ public class Vgtid {
 
     @Override
     public String toString() {
+        return vgtidString;
+    }
+
+    private static String shardGtidsToString(List<Vgtid.ShardGtid> shardGtids) {
         try {
             return MAPPER.writeValueAsString(shardGtids);
         }

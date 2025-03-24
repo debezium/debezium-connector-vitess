@@ -33,7 +33,6 @@ import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
 import io.debezium.embedded.EmbeddedEngineConfig;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
-import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.vitess.proto.Query;
 import io.vitess.proto.Query.Field;

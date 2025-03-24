@@ -28,10 +28,10 @@ public class ReplaceFieldValueTest {
 
     @Test
     public void shouldReplaceTxIdWhenEnabled() {
-        ReplaceFieldValue<SourceRecord> removeFields = new ReplaceFieldValue<SourceRecord>();
+        ReplaceFieldValue<SourceRecord> replaceFields = new ReplaceFieldValue<SourceRecord>();
         Map<String, ?> config = Map.of(ReplaceFieldValue.FIELD_NAMES_FIELD.name(), "transaction.id");
-        removeFields.configure(config);
-        SourceRecord record = removeFields.apply(TransformsTestHelper.SOURCE_RECORD_WITH_TRANSACTION);
+        replaceFields.configure(config);
+        SourceRecord record = replaceFields.apply(TransformsTestHelper.SOURCE_RECORD_WITH_TRANSACTION);
 
         Schema expectedTransactionSchema = SchemaFactory.get().transactionBlockSchema();
         Envelope expectedEnvelope = SchemaFactory.get().datatypeEnvelopeSchema()
@@ -58,11 +58,44 @@ public class ReplaceFieldValueTest {
     }
 
     @Test
+    public void shouldReplaceTxIdWhenEnabledWithCustomValue() {
+        ReplaceFieldValue<SourceRecord> replaceFields = new ReplaceFieldValue<SourceRecord>();
+        String customValue = "<redacted>";
+        Map<String, ?> config = Map.of(ReplaceFieldValue.FIELD_NAMES_FIELD.name(), "transaction.id",
+                ReplaceFieldValue.FIELD_VALUE_FIELD.name(), customValue);
+        replaceFields.configure(config);
+        SourceRecord record = replaceFields.apply(TransformsTestHelper.SOURCE_RECORD_WITH_TRANSACTION);
+
+        Schema expectedTransactionSchema = SchemaFactory.get().transactionBlockSchema();
+        Envelope expectedEnvelope = SchemaFactory.get().datatypeEnvelopeSchema()
+                .withRecord(TransformsTestHelper.RECORD_SCHEMA)
+                .withSource(TransformsTestHelper.SOURCE_SCHEMA)
+                .withTransaction(expectedTransactionSchema)
+                .build();
+        Schema expectedValueSchema = expectedEnvelope.schema();
+        Struct expectedValueStruct = new Struct(expectedValueSchema)
+                .put("before", new Struct(TransformsTestHelper.RECORD_SCHEMA).put("id", "foo"))
+                .put("after", new Struct(TransformsTestHelper.RECORD_SCHEMA).put("id", "foo"))
+                .put("op", "c")
+                .put("source", new Struct(TransformsTestHelper.SOURCE_SCHEMA).put("db", "bar"))
+                .put("transaction", new Struct(expectedTransactionSchema)
+                        .put("id", customValue)
+                        .put("data_collection_order", 1L)
+                        .put("total_order", 2L));
+
+        Struct actualStruct = (Struct) record.value();
+        Schema actualValueSchema = record.valueSchema();
+
+        assertThat(actualStruct).isEqualTo(expectedValueStruct);
+        assertThat(actualValueSchema).isEqualTo(expectedValueSchema);
+    }
+
+    @Test
     public void shouldNotModifyRecordWithMissingFields() {
-        ReplaceFieldValue<SourceRecord> removeFields = new ReplaceFieldValue<SourceRecord>();
+        ReplaceFieldValue<SourceRecord> replaceFields = new ReplaceFieldValue<SourceRecord>();
         Map<String, ?> config = Map.of(ReplaceFieldValue.FIELD_NAMES_FIELD.name(), "transaction.id");
-        removeFields.configure(config);
-        SourceRecord record = removeFields.apply(TransformsTestHelper.SOURCE_RECORD);
+        replaceFields.configure(config);
+        SourceRecord record = replaceFields.apply(TransformsTestHelper.SOURCE_RECORD);
 
         Schema expectedValueSchema = TransformsTestHelper.ENVELOPE.schema();
 
@@ -75,10 +108,10 @@ public class ReplaceFieldValueTest {
 
     @Test
     public void shouldNotModifyRecordAlternateStructure() {
-        ReplaceFieldValue<SourceRecord> removeFields = new ReplaceFieldValue<SourceRecord>();
+        ReplaceFieldValue<SourceRecord> replaceFields = new ReplaceFieldValue<SourceRecord>();
         Map<String, ?> config = Map.of(ReplaceFieldValue.FIELD_NAMES_FIELD.name(), "transaction.id");
-        removeFields.configure(config);
-        SourceRecord record = removeFields.apply(TransformsTestHelper.TRANSACTION_SOURCE_RECORD);
+        replaceFields.configure(config);
+        SourceRecord record = replaceFields.apply(TransformsTestHelper.TRANSACTION_SOURCE_RECORD);
 
         Struct actualStruct = (Struct) record.value();
         Schema actualValueSchema = record.valueSchema();

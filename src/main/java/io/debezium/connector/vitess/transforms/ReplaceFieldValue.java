@@ -23,22 +23,38 @@ import io.debezium.config.Field;
 import io.debezium.transforms.SmtManager;
 
 /**
+ * A transform for replacing the value of a field with a constant value. Reads from configs the list
+ * of field names and the constant value to use to overwrite the original value.
+ *
+ * A possible use case is clearing a field that is very large and thus degrades throughput, e.g., vgtid.
+ *
  * @author Thomas Thornton
  */
 public class ReplaceFieldValue<R extends ConnectRecord<R>> implements Transformation<R>, Versioned {
     private static final String FIELD_DELIMITER = ",";
 
     public static final String FIELD_NAMES_CONF = "field_names";
+    public static final String FIELD_VALUE_CONF = "field_value";
 
     public static final Field FIELD_NAMES_FIELD = Field.create(FIELD_NAMES_CONF)
-            .withDisplayName("List of field names to remove, full path eg source.database or transaction.id")
+            .withDisplayName("List of field names to replace values, full path eg source.database or transaction.id")
             .withType(ConfigDef.Type.LIST)
             .withImportance(ConfigDef.Importance.LOW)
             .withValidation(ReplaceFieldValue::validateReplaceFieldValueNames)
             .withDescription(
-                    "The comma-separated list of fields to remove, e.g., 'source.id', 'transaction.data_collection_order'");
+                    "The comma-separated list of fields to replace, e.g., 'source.id', 'transaction.data_collection_order'");
+
+    public static final Field FIELD_VALUE_FIELD = Field.create(FIELD_VALUE_CONF)
+            .withDisplayName("List of field names to replace values, full path eg source.database or transaction.id")
+            .withType(ConfigDef.Type.LIST)
+            .withDefault("")
+            .withImportance(ConfigDef.Importance.LOW)
+            .withValidation(ReplaceFieldValue::validateReplaceFieldValueNames)
+            .withDescription(
+                    "The value that is used to overwrite the field, defaults to empty string");
 
     protected Set<String> fieldNames;
+    private String fieldValue;
 
     private static int validateReplaceFieldValueNames(Configuration configuration, Field field, Field.ValidationOutput problems) {
         // ensure not empty and doesn't start with periods and doesn't end with periods
@@ -61,7 +77,7 @@ public class ReplaceFieldValue<R extends ConnectRecord<R>> implements Transforma
         Struct value = (Struct) record.value();
         Schema schema = record.valueSchema();
         for (String field : fieldNames) {
-            updateStruct(field, "", value);
+            updateStruct(field, fieldValue, value);
         }
         return record.newRecord(record.topic(), record.kafkaPartition(), record.keySchema(), record.key(),
                 schema, value, record.timestamp());
@@ -89,7 +105,7 @@ public class ReplaceFieldValue<R extends ConnectRecord<R>> implements Transforma
             return struct;
         }
         else {
-            struct.put(pathToReplace, "");
+            struct.put(pathToReplace, fieldValue);
             return struct;
         }
     }
@@ -116,6 +132,7 @@ public class ReplaceFieldValue<R extends ConnectRecord<R>> implements Transforma
         SmtManager<R> smtManager = new SmtManager<>(config);
         smtManager.validate(config, Field.setOf(FIELD_NAMES_FIELD));
         fieldNames = determineReplaceFieldValues(config);
+        fieldValue = config.getString(FIELD_VALUE_FIELD);
     }
 
     private static Set<String> determineReplaceFieldValues(Configuration config) {

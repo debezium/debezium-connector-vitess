@@ -561,6 +561,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return CONFIG_DEFINITION.configDef();
     }
 
+    private static boolean includeUnknownDatatypes;
+
+    private TemporalPrecisionMode temporalPrecisionMode;
+
     public VitessConnectorConfig(Configuration config) {
         super(
                 config,
@@ -568,6 +572,8 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                 -1,
                 ColumnFilterMode.SCHEMA,
                 true);
+        includeUnknownDatatypes = getConfig().getBoolean(INCLUDE_UNKNOWN_DATATYPES);
+        temporalPrecisionMode = TemporalPrecisionMode.parse(getConfig().getString(TIME_PRECISION_MODE));
     }
 
     @Override
@@ -587,7 +593,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     @Override
     public TemporalPrecisionMode getTemporalPrecisionMode() {
-        return TemporalPrecisionMode.parse(getConfig().getString(TIME_PRECISION_MODE));
+        return temporalPrecisionMode;
     }
 
     @Override
@@ -736,7 +742,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     }
 
     public boolean includeUnknownDatatypes() {
-        return getConfig().getBoolean(INCLUDE_UNKNOWN_DATATYPES);
+        return includeUnknownDatatypes;
     }
 
     public boolean offsetStoragePerTask() {

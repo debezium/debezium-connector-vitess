@@ -40,7 +40,8 @@ public class VitessType {
     public VitessType(String name, int jdbcId, List<String> enumValues, Optional<Integer> precision) {
         this.name = name;
         this.jdbcId = jdbcId;
-        this.enumValues = enumValues;
+        // References the original list, does not create a copy
+        this.enumValues = Collections.unmodifiableList(enumValues);
         this.precision = precision;
     }
 

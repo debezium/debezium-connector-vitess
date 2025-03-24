@@ -42,7 +42,7 @@ public class OtherMessage implements ReplicationMessage {
     }
 
     @Override
-    public String getTableName() {
+    public String getTable() {
         throw new UnsupportedOperationException();
     }
 

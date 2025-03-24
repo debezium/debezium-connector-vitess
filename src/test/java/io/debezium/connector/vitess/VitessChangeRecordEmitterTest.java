@@ -49,7 +49,7 @@ public class VitessChangeRecordEmitterTest {
                 AnonymousValue.getInstant(),
                 AnonymousValue.getString(),
                 AnonymousValue.getString(),
-                schema.tableFor(TestHelper.defaultTableId()),
+                TestHelper.defaultTableId().toDoubleQuotedString(),
                 AnonymousValue.getString(),
                 null,
                 TestHelper.defaultRelationMessageColumns());
@@ -77,7 +77,7 @@ public class VitessChangeRecordEmitterTest {
                 AnonymousValue.getInstant(),
                 AnonymousValue.getString(),
                 AnonymousValue.getString(),
-                schema.tableFor(TestHelper.defaultTableId()),
+                TestHelper.defaultTableId().toDoubleQuotedString(),
                 AnonymousValue.getString(),
                 TestHelper.defaultRelationMessageColumns(),
                 null);
@@ -105,7 +105,7 @@ public class VitessChangeRecordEmitterTest {
                 AnonymousValue.getInstant(),
                 AnonymousValue.getString(),
                 AnonymousValue.getString(),
-                schema.tableFor(TestHelper.defaultTableId()),
+                TestHelper.defaultTableId().toDoubleQuotedString(),
                 AnonymousValue.getString(),
                 TestHelper.defaultRelationMessageColumns(),
                 TestHelper.defaultRelationMessageColumns());

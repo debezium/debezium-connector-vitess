@@ -44,7 +44,7 @@ public class Vgtid {
     private Vgtid(Binlogdata.VGtid rawVgtid) {
         this.rawVgtid = rawVgtid;
         List<Vgtid.ShardGtid> shardGtids = new ArrayList<>();
-        HashMap<String, ShardGtid> shardNameToShardGtid = new HashMap<>();
+        Map<String, ShardGtid> shardNameToShardGtid = new HashMap<>();
         for (Binlogdata.ShardGtid shardGtid : rawVgtid.getShardGtidsList()) {
             TablePrimaryKeys tabletablePrimaryKeys = new TablePrimaryKeys(shardGtid.getTablePKsList());
             ShardGtid currentShardGtid = new ShardGtid(

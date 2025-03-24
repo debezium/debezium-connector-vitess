@@ -62,7 +62,7 @@ public class Vgtid {
         this.vgtidString = vgtidString;
         this.shardGtids = Collections.unmodifiableList(shardGtids);
 
-        HashMap<String, ShardGtid> shardNameToShardGtid = new HashMap<>();
+        Map<String, ShardGtid> shardNameToShardGtid = new HashMap<>();
         for (ShardGtid shardGtid : shardGtids) {
             shardNameToShardGtid.put(shardGtid.shard, shardGtid);
         }

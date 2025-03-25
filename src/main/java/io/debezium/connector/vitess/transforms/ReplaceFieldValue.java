@@ -45,11 +45,10 @@ public class ReplaceFieldValue<R extends ConnectRecord<R>> implements Transforma
                     "The comma-separated list of fields to replace, e.g., 'source.id', 'transaction.data_collection_order'");
 
     public static final Field FIELD_VALUE_FIELD = Field.create(FIELD_VALUE_CONF)
-            .withDisplayName("List of field names to replace values, full path eg source.database or transaction.id")
+            .withDisplayName("The static value that will be used to set the replaced field")
             .withType(ConfigDef.Type.LIST)
             .withDefault("")
             .withImportance(ConfigDef.Importance.LOW)
-            .withValidation(ReplaceFieldValue::validateReplaceFieldValueNames)
             .withDescription(
                     "The value that is used to overwrite the field, defaults to empty string");
 

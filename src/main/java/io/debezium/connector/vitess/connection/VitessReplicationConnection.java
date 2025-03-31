@@ -485,14 +485,6 @@ public class VitessReplicationConnection implements ReplicationConnection {
         return shardEpochMap;
     }
 
-    public String connectionString() {
-        return String.format("vtgate gRPC connection %s:%s", config.getVtgateHost(), config.getVtgatePort());
-    }
-
-    public String username() {
-        return config.getVtgateUsername();
-    }
-
     private static Topodata.TabletType toTopodataTabletType(VitessTabletType tabletType) {
         switch (tabletType) {
             case MASTER:

@@ -733,6 +733,31 @@ public class VitessConnectorTest {
     }
 
     @Test
+    public void testValidatesConnection() {
+        Map<String, String> props = new HashMap<>() {
+            {
+                put("connector.class", "io.debezium.connector.vitess.VitessConnector");
+                put("database.hostname", "host1");
+                put("database.port", "15999");
+                put("database.user", "vitess");
+                put("database.password", "vitess-password");
+                put("vitess.keyspace", "byuser");
+                put("vitess.tablet.type", "MASTER");
+                put("database.server.name", "dummy");
+                put(VitessConnectorConfig.TASKS_MAX_CONFIG, "2");
+                put(VitessConnectorConfig.OFFSET_STORAGE_TASK_KEY_GEN.name(), "0");
+                put(VitessConnectorConfig.PREV_NUM_TASKS.name(), "1");
+            }
+        };
+        VitessConnector connector = new VitessConnector();
+        Map<String, ConfigValue> configs = connector.validateAllFields(Configuration.from(props));
+        connector.validateConnection(configs, Configuration.from(props));
+        assertThat(configs.get("database.hostname").errorMessages().size()).isEqualTo(1);
+        String expectedError = "Unable to connect: Unexpected error while running query: /*vt+ WORKLOAD_NAME=debezium */ SHOW DATABASES;";
+        assertThat(configs.get("database.hostname").errorMessages().get(0)).isEqualTo(expectedError);
+    }
+
+    @Test
     public void testTaskConfigsNegativeOffsetStorageTaskKeyGen() {
         Map<String, String> props = new HashMap<>() {
             {

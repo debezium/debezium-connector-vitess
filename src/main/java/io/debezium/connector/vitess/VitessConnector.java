@@ -24,11 +24,9 @@ import org.slf4j.LoggerFactory;
 
 import io.debezium.config.Configuration;
 import io.debezium.connector.common.RelationalBaseSourceConnector;
-import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
 import io.debezium.relational.Tables;
-import io.grpc.StatusRuntimeException;
 
 /** Vitess Connector entry point */
 public class VitessConnector extends RelationalBaseSourceConnector {
@@ -256,19 +254,14 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         ConfigValue hostnameValue = configValues.get(RelationalDatabaseConnectorConfig.HOSTNAME.name());
         // Try to connect to the database ...
         final VitessConnectorConfig connectionConfig = new VitessConnectorConfig(config);
-        try (VitessReplicationConnection connection = new VitessReplicationConnection(connectionConfig, null)) {
-            try {
-                connection.execute("SHOW DATABASES");
-                LOGGER.info("Successfully tested connection for {} with user '{}'", connection.connectionString(), connection.username());
-            }
-            catch (StatusRuntimeException e) {
-                LOGGER.info("Failed testing connection for {} with user '{}'", connection.connectionString(), connection.username());
-                hostnameValue.addErrorMessage("Unable to connect: " + e.getMessage());
-            }
+        VitessMetadata testVitessMetadata = new VitessMetadata(connectionConfig);
+        try {
+            testVitessMetadata.getDatabases();
+            LOGGER.info("Successfully tested connection for {}", testVitessMetadata.getConnectionString());
         }
-        catch (Exception e) {
-            LOGGER.error("Unexpected error validating the database connection", e);
-            hostnameValue.addErrorMessage("Unable to validate connection: " + e.getMessage());
+        catch (RuntimeException e) {
+            LOGGER.info("Failed testing connection for {} ", testVitessMetadata.getConnectionString());
+            hostnameValue.addErrorMessage("Unable to connect: " + e.getMessage());
         }
     }
 

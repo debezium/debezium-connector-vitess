@@ -10,6 +10,7 @@ import static io.debezium.connector.vitess.TestHelper.TEST_SHARD1_EPOCH;
 import static io.debezium.connector.vitess.TestHelper.TEST_SHARD_TO_EPOCH;
 import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_TEMPLATE;
 import static io.debezium.connector.vitess.TestHelper.VGTID_SINGLE_SHARD_JSON_TEMPLATE;
+import static io.debezium.connector.vitess.VgtidTest.TEST_SHARD2;
 import static io.debezium.connector.vitess.VgtidTest.VGTID_BOTH_CURRENT;
 import static io.debezium.connector.vitess.VgtidTest.VGTID_JSON;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -115,6 +116,8 @@ public class VitessEpochProviderTest {
                 Vgtid.EMPTY_GTID);
         Long epoch = provider.getEpoch(VgtidTest.TEST_SHARD, vgtidJsonEmpty, VGTID_JSON);
         assertThat(epoch).isEqualTo(1L);
+        // Both shards had their epoch incremented
+        assertThat(provider.getShardEpochMap().getMap()).isEqualTo(Map.of(TEST_SHARD1, 1L, TEST_SHARD2, 1L));
     }
 
     @Test

@@ -33,8 +33,17 @@ public class VitessMetadata {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessMetadata.class);
     private VitessConnectorConfig config;
 
+    private static String WORKLOAD_NAME = "/*vt+ WORKLOAD_NAME=debezium */ ";
+
     public VitessMetadata(VitessConnectorConfig config) {
         this.config = config;
+    }
+
+    @VisibleForTesting
+    protected static String formatQuery(String query, String... args) {
+        String queryWithWorkloadName = WORKLOAD_NAME + query;
+        String formattedQuery = String.format(queryWithWorkloadName, args);
+        return formattedQuery;
     }
 
     public List<String> getShards() {
@@ -54,7 +63,7 @@ public class VitessMetadata {
         Vtgate.ExecuteResponse response;
         String query;
         if (config.excludeEmptyShards()) {
-            query = "SHOW TABLES";
+            query = formatQuery("SHOW TABLES");
             List<String> shardsToQuery;
             if (config.getShard() != null && !config.getShard().isEmpty()) {
                 LOGGER.info("Getting tables from one of the configured shards");
@@ -69,7 +78,7 @@ public class VitessMetadata {
             response = executeQuery(query, randomShard);
         }
         else {
-            query = String.format("SHOW TABLES FROM %s", config.getKeyspace());
+            query = formatQuery("SHOW TABLES FROM %s", config.getKeyspace());
             response = executeQuery(query);
         }
         logResponse(response, query);
@@ -83,7 +92,7 @@ public class VitessMetadata {
     }
 
     private List<String> getVitessShards() {
-        String query = String.format("SHOW VITESS_SHARDS LIKE '%s/%%'", config.getKeyspace());
+        String query = formatQuery("SHOW VITESS_SHARDS LIKE '%s/%%'", config.getKeyspace());
         Vtgate.ExecuteResponse response = executeQuery(query);
         logResponse(response, query);
         List<String> rows = getFlattenedRowsFromResponse(response);
@@ -190,5 +199,17 @@ public class VitessMetadata {
         return nestedList.stream()
                 .map(innerList -> String.join("", innerList))
                 .collect(Collectors.toList());
+    }
+
+    public String getConnectionString() {
+        return String.format("%s@%s:%s", config.getVtgateUsername(), config.getVtgateHost(), config.getVtgatePort());
+    }
+
+    public List<String> getDatabases() {
+        String query = "SHOW DATABASES;";
+        String sqlStatement = formatQuery(query);
+        Vtgate.ExecuteResponse response = executeQuery(sqlStatement);
+        List<String> databases = getFlattenedRowsFromResponse(response);
+        return databases;
     }
 }

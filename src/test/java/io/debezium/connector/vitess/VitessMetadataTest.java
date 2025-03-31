@@ -19,6 +19,13 @@ import io.vitess.proto.Query;
 public class VitessMetadataTest {
 
     @Test
+    public void shouldInsertWorkloadNameInAllQueries() {
+        String expectedQuery = "/*vt+ WORKLOAD_NAME=debezium */ Select * keyspace.foo;";
+        String actualQuery = VitessMetadata.formatQuery("Select * %s.foo;", "keyspace");
+        assertThat(actualQuery).isEqualTo(expectedQuery);
+    }
+
+    @Test
     public void shouldGetNonEmptyShards() {
         List<List<String>> rowValues = List.of(
                 List.of("zone1", "keyspace", "-80", "PRIMARY", "SERVING", "zone1-001", "d55", "2024-07-11"),

@@ -72,7 +72,7 @@ import io.debezium.data.Envelope;
 import io.debezium.data.VerifyRecord;
 import io.debezium.doc.FixFor;
 import io.debezium.embedded.AbstractConnectorTest;
-import io.debezium.embedded.EmbeddedEngine;
+import io.debezium.embedded.async.AsyncEmbeddedEngine;
 import io.debezium.heartbeat.Heartbeat;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.junit.logging.LogInterceptor;
@@ -1737,7 +1737,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         final LogInterceptor logInterceptor = new LogInterceptor(VitessErrorHandler.class);
         TestHelper.executeDDL("vitess_create_tables.ddl");
 
-        EmbeddedEngine.CompletionCallback completionCallback = (success, message, error) -> {
+        AsyncEmbeddedEngine.CompletionCallback completionCallback = (success, message, error) -> {
             isConnectorRunning.set(false);
         };
         start(VitessConnector.class, TestHelper.defaultConfig().build(), completionCallback);

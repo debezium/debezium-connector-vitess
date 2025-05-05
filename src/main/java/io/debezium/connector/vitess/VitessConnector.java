@@ -260,7 +260,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
             LOGGER.info("Successfully tested connection for {}", testVitessMetadata.getConnectionString());
         }
         catch (RuntimeException e) {
-            LOGGER.info("Failed testing connection for {} ", testVitessMetadata.getConnectionString());
+            LOGGER.error("Failed testing connection for " + testVitessMetadata.getConnectionString(), e);
             hostnameValue.addErrorMessage("Unable to connect: " + e.getMessage());
         }
     }

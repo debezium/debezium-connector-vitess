@@ -42,6 +42,9 @@ import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
+import io.grpc.LoadBalancerProvider;
+import io.grpc.LoadBalancerRegistry;
+import io.grpc.internal.GrpcUtil;
 
 /**
  * Vitess connector configuration, including its specific configurations and the common
@@ -346,6 +349,15 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withValidation(Field::isInteger)
             .withDescription("Specify the maximum message size in bytes allowed to be received on the channel.");
 
+    public static final Field GRPC_DEFAULT_LOAD_BALANCING_POLICY = Field.create(VITESS_CONFIG_GROUP_PREFIX + "grpc.default_load_balancing_policy")
+            .withDisplayName("VStream gRPC default load balancing policy")
+            .withType(Type.STRING)
+            .withWidth(Width.MEDIUM)
+            .withDefault(GrpcUtil.DEFAULT_LB_POLICY)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withValidation(VitessConnectorConfig::validateLoadBalancingPolicy)
+            .withDescription("Specify the maximum message size in bytes allowed to be received on the channel.");
+
     public static final Field INCLUDE_UNKNOWN_DATATYPES = Field.create("include.unknown.datatypes")
             .withDisplayName("Include unknown datatypes")
             .withType(Type.BOOLEAN)
@@ -480,6 +492,18 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         }
 
         // Everything checks out ok.
+        return 0;
+    }
+
+    private static int validateLoadBalancingPolicy(Configuration config, Field field, ValidationOutput problems) {
+        if (config.hasKey(GRPC_DEFAULT_LOAD_BALANCING_POLICY)) {
+            final String policy = config.getString(GRPC_DEFAULT_LOAD_BALANCING_POLICY.name());
+            LoadBalancerProvider provider = LoadBalancerRegistry.getDefaultRegistry().getProvider(policy);
+            if (provider == null) {
+                problems.accept(GRPC_DEFAULT_LOAD_BALANCING_POLICY, policy, "No load balancer provider for policy: " + policy);
+                return 1;
+            }
+        }
         return 0;
     }
 
@@ -733,6 +757,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public int getGrpcMaxInboundMessageSize() {
         return getConfig().getInteger(GRPC_MAX_INBOUND_MESSAGE_SIZE);
+    }
+
+    public String getGrpcDefaultLoadBalancingPolicy() {
+        return getConfig().getString(GRPC_DEFAULT_LOAD_BALANCING_POLICY);
     }
 
     public boolean includeUnknownDatatypes() {

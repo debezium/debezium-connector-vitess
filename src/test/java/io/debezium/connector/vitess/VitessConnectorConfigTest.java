@@ -83,6 +83,54 @@ public class VitessConnectorConfigTest {
     }
 
     @Test
+    public void shouldInvalidLoadBalancerPolicyFailValidation() {
+        Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.GRPC_DEFAULT_LOAD_BALANCING_POLICY, "foo").build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.GRPC_DEFAULT_LOAD_BALANCING_POLICY), printConsumer);
+        assertThat(inputs.size()).isEqualTo(1);
+    }
+
+    @Test
+    public void shouldRoundRobinLoadBalancerPolicyPassValidation() {
+        Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.GRPC_DEFAULT_LOAD_BALANCING_POLICY, "round_robin").build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.GRPC_DEFAULT_LOAD_BALANCING_POLICY), printConsumer);
+        assertThat(inputs.size()).isEqualTo(0);
+    }
+
+    @Test
+    public void shouldPickFirstLoadBalancerPolicyPassValidation() {
+        Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.GRPC_DEFAULT_LOAD_BALANCING_POLICY, "pick_first").build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.GRPC_DEFAULT_LOAD_BALANCING_POLICY), printConsumer);
+        assertThat(inputs.size()).isEqualTo(0);
+    }
+
+    @Test
+    public void shouldDefaultLoadBalancerPolicyPassValidation() {
+        Configuration configuration = TestHelper.defaultConfig().build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.GRPC_DEFAULT_LOAD_BALANCING_POLICY), printConsumer);
+        assertThat(inputs.size()).isEqualTo(0);
+    }
+
+    @Test
     public void shouldImproperShardEpochMapFailValidation() {
         Configuration configuration = TestHelper.defaultConfig().with(VitessConnectorConfig.SHARD_EPOCH_MAP, "foo").build();
         VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);

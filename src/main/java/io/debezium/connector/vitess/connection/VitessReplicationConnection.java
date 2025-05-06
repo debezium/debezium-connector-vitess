@@ -68,7 +68,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
      */
     public Vtgate.ExecuteResponse execute(String sqlStatement) {
         LOGGER.debug("Executing sqlStament {}", sqlStatement);
-        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize());
+        ManagedChannel channel = newChannel();
         managedChannel.compareAndSet(null, channel);
 
         Vtgate.ExecuteRequest request = Vtgate.ExecuteRequest.newBuilder()
@@ -79,7 +79,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
 
     public Vtgate.ExecuteResponse execute(String sqlStatement, String shard) {
         LOGGER.info("Executing sqlStament {}", sqlStatement);
-        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize());
+        ManagedChannel channel = newChannel();
         managedChannel.compareAndSet(null, channel);
 
         String target = String.format("%s:%s@%s", config.getKeyspace(), shard, config.getTabletType());
@@ -97,7 +97,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                                Vgtid vgtid, ReplicationMessageProcessor processor, AtomicReference<Throwable> error) {
         Objects.requireNonNull(vgtid);
 
-        ManagedChannel channel = newChannel(config.getVtgateHost(), config.getVtgatePort(), config.getGrpcMaxInboundMessageSize());
+        ManagedChannel channel = newChannel();
         managedChannel.compareAndSet(null, channel);
 
         VitessGrpc.VitessStub stub = newStub(channel);
@@ -349,10 +349,11 @@ public class VitessReplicationConnection implements ReplicationConnection {
         return stub;
     }
 
-    private ManagedChannel newChannel(String vtgateHost, int vtgatePort, int maxInboundMessageSize) {
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(vtgateHost, vtgatePort)
+    private ManagedChannel newChannel() {
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(config.getVtgateHost(), config.getVtgatePort())
+                .defaultLoadBalancingPolicy(config.getGrpcDefaultLoadBalancingPolicy())
                 .usePlaintext()
-                .maxInboundMessageSize(maxInboundMessageSize)
+                .maxInboundMessageSize(config.getGrpcMaxInboundMessageSize())
                 .keepAliveTime(config.getKeepaliveInterval().toMillis(), TimeUnit.MILLISECONDS)
                 .build();
         return channel;

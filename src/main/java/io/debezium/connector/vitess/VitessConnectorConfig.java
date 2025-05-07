@@ -349,14 +349,14 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withValidation(Field::isInteger)
             .withDescription("Specify the maximum message size in bytes allowed to be received on the channel.");
 
-    public static final Field GRPC_DEFAULT_LOAD_BALANCING_POLICY = Field.create(VITESS_CONFIG_GROUP_PREFIX + "grpc.default_load_balancing_policy")
+    public static final Field GRPC_DEFAULT_LOAD_BALANCING_POLICY = Field.create(VITESS_CONFIG_GROUP_PREFIX + "grpc.default.load.balancing.policy")
             .withDisplayName("VStream gRPC default load balancing policy")
             .withType(Type.STRING)
             .withWidth(Width.MEDIUM)
             .withDefault(GrpcUtil.DEFAULT_LB_POLICY)
             .withImportance(ConfigDef.Importance.MEDIUM)
             .withValidation(VitessConnectorConfig::validateLoadBalancingPolicy)
-            .withDescription("Specify the maximum message size in bytes allowed to be received on the channel.");
+            .withDescription("Specify the default load balancing policy used to connect to Vitess, e.g., 'pick_first', 'round_robin'");
 
     public static final Field INCLUDE_UNKNOWN_DATATYPES = Field.create("include.unknown.datatypes")
             .withDisplayName("Include unknown datatypes")

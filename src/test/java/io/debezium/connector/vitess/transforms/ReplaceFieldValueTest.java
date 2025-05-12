@@ -31,20 +31,20 @@ public class ReplaceFieldValueTest {
         ReplaceFieldValue<SourceRecord> replaceFields = new ReplaceFieldValue<SourceRecord>();
         Map<String, ?> config = Map.of(ReplaceFieldValue.FIELD_NAMES_FIELD.name(), "transaction.id");
         replaceFields.configure(config);
-        SourceRecord record = replaceFields.apply(TransformsTestHelper.SOURCE_RECORD_WITH_TRANSACTION);
+        SourceRecord record = replaceFields.apply(TransformsTestHelper.sourceRecordWithTransaction());
 
         Schema expectedTransactionSchema = SchemaFactory.get().transactionBlockSchema();
         Envelope expectedEnvelope = SchemaFactory.get().datatypeEnvelopeSchema()
-                .withRecord(TransformsTestHelper.RECORD_SCHEMA)
-                .withSource(TransformsTestHelper.SOURCE_SCHEMA)
+                .withRecord(TransformsTestHelper.recordSchema())
+                .withSource(TransformsTestHelper.sourceSchema())
                 .withTransaction(expectedTransactionSchema)
                 .build();
         Schema expectedValueSchema = expectedEnvelope.schema();
         Struct expectedValueStruct = new Struct(expectedValueSchema)
-                .put("before", new Struct(TransformsTestHelper.RECORD_SCHEMA).put("id", "foo"))
-                .put("after", new Struct(TransformsTestHelper.RECORD_SCHEMA).put("id", "foo"))
+                .put("before", new Struct(TransformsTestHelper.recordSchema()).put("id", "foo"))
+                .put("after", new Struct(TransformsTestHelper.recordSchema()).put("id", "foo"))
                 .put("op", "c")
-                .put("source", new Struct(TransformsTestHelper.SOURCE_SCHEMA).put("db", "bar"))
+                .put("source", new Struct(TransformsTestHelper.sourceSchema()).put("db", "bar"))
                 .put("transaction", new Struct(expectedTransactionSchema)
                         .put("id", "")
                         .put("data_collection_order", 1L)
@@ -64,20 +64,20 @@ public class ReplaceFieldValueTest {
         Map<String, ?> config = Map.of(ReplaceFieldValue.FIELD_NAMES_FIELD.name(), "transaction.id",
                 ReplaceFieldValue.FIELD_VALUE_FIELD.name(), customValue);
         replaceFields.configure(config);
-        SourceRecord record = replaceFields.apply(TransformsTestHelper.SOURCE_RECORD_WITH_TRANSACTION);
+        SourceRecord record = replaceFields.apply(TransformsTestHelper.sourceRecordWithTransaction());
 
         Schema expectedTransactionSchema = SchemaFactory.get().transactionBlockSchema();
         Envelope expectedEnvelope = SchemaFactory.get().datatypeEnvelopeSchema()
-                .withRecord(TransformsTestHelper.RECORD_SCHEMA)
-                .withSource(TransformsTestHelper.SOURCE_SCHEMA)
+                .withRecord(TransformsTestHelper.recordSchema())
+                .withSource(TransformsTestHelper.sourceSchema())
                 .withTransaction(expectedTransactionSchema)
                 .build();
         Schema expectedValueSchema = expectedEnvelope.schema();
         Struct expectedValueStruct = new Struct(expectedValueSchema)
-                .put("before", new Struct(TransformsTestHelper.RECORD_SCHEMA).put("id", "foo"))
-                .put("after", new Struct(TransformsTestHelper.RECORD_SCHEMA).put("id", "foo"))
+                .put("before", new Struct(TransformsTestHelper.recordSchema()).put("id", "foo"))
+                .put("after", new Struct(TransformsTestHelper.recordSchema()).put("id", "foo"))
                 .put("op", "c")
-                .put("source", new Struct(TransformsTestHelper.SOURCE_SCHEMA).put("db", "bar"))
+                .put("source", new Struct(TransformsTestHelper.sourceSchema()).put("db", "bar"))
                 .put("transaction", new Struct(expectedTransactionSchema)
                         .put("id", customValue)
                         .put("data_collection_order", 1L)
@@ -95,14 +95,14 @@ public class ReplaceFieldValueTest {
         ReplaceFieldValue<SourceRecord> replaceFields = new ReplaceFieldValue<SourceRecord>();
         Map<String, ?> config = Map.of(ReplaceFieldValue.FIELD_NAMES_FIELD.name(), "transaction.id");
         replaceFields.configure(config);
-        SourceRecord record = replaceFields.apply(TransformsTestHelper.SOURCE_RECORD);
+        SourceRecord record = replaceFields.apply(TransformsTestHelper.sourceRecord());
 
-        Schema expectedValueSchema = TransformsTestHelper.ENVELOPE.schema();
+        Schema expectedValueSchema = TransformsTestHelper.envelope().schema();
 
         Struct actualStruct = (Struct) record.value();
         Schema actualValueSchema = record.valueSchema();
 
-        assertThat(actualStruct).isEqualToComparingFieldByField(TransformsTestHelper.VALUE_STRUCT);
+        assertThat(actualStruct).isEqualToComparingFieldByField(TransformsTestHelper.valueStruct());
         assertThat(actualValueSchema).isEqualToComparingFieldByField(expectedValueSchema);
     }
 
@@ -111,13 +111,13 @@ public class ReplaceFieldValueTest {
         ReplaceFieldValue<SourceRecord> replaceFields = new ReplaceFieldValue<SourceRecord>();
         Map<String, ?> config = Map.of(ReplaceFieldValue.FIELD_NAMES_FIELD.name(), "transaction.id");
         replaceFields.configure(config);
-        SourceRecord record = replaceFields.apply(TransformsTestHelper.TRANSACTION_SOURCE_RECORD);
+        SourceRecord record = replaceFields.apply(TransformsTestHelper.transactionSourceRecord());
 
         Struct actualStruct = (Struct) record.value();
         Schema actualValueSchema = record.valueSchema();
 
-        assertThat(actualStruct).isEqualToComparingFieldByField(TransformsTestHelper.TRANSACTION_VALUE_STRUCT);
-        assertThat(actualValueSchema).isEqualToComparingFieldByField(TransformsTestHelper.TRANSACTION_VALUE_SCHEMA);
+        assertThat(actualStruct).isEqualToComparingFieldByField(TransformsTestHelper.transactionValueStruct());
+        assertThat(actualValueSchema).isEqualToComparingFieldByField(TransformsTestHelper.transactionValueSchema());
     }
 
 }

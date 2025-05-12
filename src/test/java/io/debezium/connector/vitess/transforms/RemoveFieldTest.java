@@ -34,7 +34,7 @@ public class RemoveFieldTest {
         RemoveField<SourceRecord> removeFields = new RemoveField();
         Map<String, ?> config = Map.of(RemoveField.FIELD_NAMES_FIELD.name(), "transaction.id");
         removeFields.configure(config);
-        SourceRecord record = removeFields.apply(TransformsTestHelper.SOURCE_RECORD_WITH_TRANSACTION);
+        SourceRecord record = removeFields.apply(TransformsTestHelper.sourceRecordWithTransaction());
 
         Schema expectedTransactionSchema = SchemaBuilder.struct().optional()
                 .name(TRANSACTION_BLOCK_SCHEMA_NAME)
@@ -43,16 +43,16 @@ public class RemoveFieldTest {
                 .field(TransactionStructMaker.DEBEZIUM_TRANSACTION_DATA_COLLECTION_ORDER_KEY, SchemaBuilder.int64().build())
                 .build();
         Envelope expectedEnvelope = SchemaFactory.get().datatypeEnvelopeSchema()
-                .withRecord(TransformsTestHelper.RECORD_SCHEMA)
-                .withSource(TransformsTestHelper.SOURCE_SCHEMA)
+                .withRecord(TransformsTestHelper.recordSchema())
+                .withSource(TransformsTestHelper.sourceSchema())
                 .withTransaction(expectedTransactionSchema)
                 .build();
         Schema expectedValueSchema = expectedEnvelope.schema();
         Struct expectedValueStruct = new Struct(expectedValueSchema)
-                .put("before", new Struct(TransformsTestHelper.RECORD_SCHEMA).put("id", "foo"))
-                .put("after", new Struct(TransformsTestHelper.RECORD_SCHEMA).put("id", "foo"))
+                .put("before", new Struct(TransformsTestHelper.recordSchema()).put("id", "foo"))
+                .put("after", new Struct(TransformsTestHelper.recordSchema()).put("id", "foo"))
                 .put("op", "c")
-                .put("source", new Struct(TransformsTestHelper.SOURCE_SCHEMA).put("db", "bar"))
+                .put("source", new Struct(TransformsTestHelper.sourceSchema()).put("db", "bar"))
                 .put("transaction", new Struct(expectedTransactionSchema)
                         .put("data_collection_order", 1L)
                         .put("total_order", 2L));
@@ -69,7 +69,7 @@ public class RemoveFieldTest {
         RemoveField<SourceRecord> removeFields = new RemoveField();
         Map<String, ?> config = Map.of(RemoveField.FIELD_NAMES_FIELD.name(), "transaction.total_order");
         removeFields.configure(config);
-        SourceRecord record = removeFields.apply(TransformsTestHelper.SOURCE_RECORD_WITH_TRANSACTION);
+        SourceRecord record = removeFields.apply(TransformsTestHelper.sourceRecordWithTransaction());
 
         Schema expectedTransactionSchema = SchemaBuilder.struct().optional()
                 .name(TRANSACTION_BLOCK_SCHEMA_NAME)
@@ -78,16 +78,16 @@ public class RemoveFieldTest {
                 .field(TransactionStructMaker.DEBEZIUM_TRANSACTION_DATA_COLLECTION_ORDER_KEY, SchemaBuilder.int64().build())
                 .build();
         Envelope expectedEnvelope = SchemaFactory.get().datatypeEnvelopeSchema()
-                .withRecord(TransformsTestHelper.RECORD_SCHEMA)
-                .withSource(TransformsTestHelper.SOURCE_SCHEMA)
+                .withRecord(TransformsTestHelper.recordSchema())
+                .withSource(TransformsTestHelper.sourceSchema())
                 .withTransaction(expectedTransactionSchema)
                 .build();
         Schema expectedValueSchema = expectedEnvelope.schema();
         Struct expectedValueStruct = new Struct(expectedValueSchema)
-                .put("before", new Struct(TransformsTestHelper.RECORD_SCHEMA).put("id", "foo"))
-                .put("after", new Struct(TransformsTestHelper.RECORD_SCHEMA).put("id", "foo"))
+                .put("before", new Struct(TransformsTestHelper.recordSchema()).put("id", "foo"))
+                .put("after", new Struct(TransformsTestHelper.recordSchema()).put("id", "foo"))
                 .put("op", "c")
-                .put("source", new Struct(TransformsTestHelper.SOURCE_SCHEMA).put("db", "bar"))
+                .put("source", new Struct(TransformsTestHelper.sourceSchema()).put("db", "bar"))
                 .put("transaction", new Struct(expectedTransactionSchema)
                         .put("id", "foo")
                         .put("data_collection_order", 1L));
@@ -105,7 +105,7 @@ public class RemoveFieldTest {
         RemoveField<SourceRecord> removeFields = new RemoveField();
         Map<String, ?> config = Map.of(RemoveField.FIELD_NAMES_FIELD.name(), "transaction.data_collection_order");
         removeFields.configure(config);
-        SourceRecord record = removeFields.apply(TransformsTestHelper.SOURCE_RECORD_WITH_TRANSACTION);
+        SourceRecord record = removeFields.apply(TransformsTestHelper.sourceRecordWithTransaction());
 
         Schema expectedTransactionSchema = SchemaBuilder.struct().optional()
                 .name(TRANSACTION_BLOCK_SCHEMA_NAME)
@@ -114,16 +114,16 @@ public class RemoveFieldTest {
                 .field(TransactionStructMaker.DEBEZIUM_TRANSACTION_TOTAL_ORDER_KEY, SchemaBuilder.int64().build())
                 .build();
         Envelope expectedEnvelope = SchemaFactory.get().datatypeEnvelopeSchema()
-                .withRecord(TransformsTestHelper.RECORD_SCHEMA)
-                .withSource(TransformsTestHelper.SOURCE_SCHEMA)
+                .withRecord(TransformsTestHelper.recordSchema())
+                .withSource(TransformsTestHelper.sourceSchema())
                 .withTransaction(expectedTransactionSchema)
                 .build();
         Schema expectedValueSchema = expectedEnvelope.schema();
         Struct expectedValueStruct = new Struct(expectedValueSchema)
-                .put("before", new Struct(TransformsTestHelper.RECORD_SCHEMA).put("id", "foo"))
-                .put("after", new Struct(TransformsTestHelper.RECORD_SCHEMA).put("id", "foo"))
+                .put("before", new Struct(TransformsTestHelper.recordSchema()).put("id", "foo"))
+                .put("after", new Struct(TransformsTestHelper.recordSchema()).put("id", "foo"))
                 .put("op", "c")
-                .put("source", new Struct(TransformsTestHelper.SOURCE_SCHEMA).put("db", "bar"))
+                .put("source", new Struct(TransformsTestHelper.sourceSchema()).put("db", "bar"))
                 .put("transaction", new Struct(expectedTransactionSchema)
                         .put("id", "foo")
                         .put("total_order", 2L));

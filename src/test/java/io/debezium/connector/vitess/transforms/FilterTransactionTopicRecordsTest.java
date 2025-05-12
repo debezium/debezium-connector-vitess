@@ -46,8 +46,8 @@ public class FilterTransactionTopicRecordsTest {
     public void shouldNotExcludeNonTransactionTopicMessages() {
         FilterTransactionTopicRecords<SourceRecord> exclude = new FilterTransactionTopicRecords<>();
         exclude.configure(Collections.emptyMap());
-        SourceRecord resultRecord = exclude.apply(TransformsTestHelper.SOURCE_RECORD);
-        assertThat(resultRecord).isEqualTo(TransformsTestHelper.SOURCE_RECORD);
+        SourceRecord resultRecord = exclude.apply(TransformsTestHelper.sourceRecord());
+        assertThat(resultRecord).isEqualTo(TransformsTestHelper.sourceRecord());
     }
 
 }

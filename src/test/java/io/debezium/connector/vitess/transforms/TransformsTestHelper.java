@@ -18,92 +18,130 @@ import io.debezium.schema.SchemaNameAdjuster;
 
 public class TransformsTestHelper {
 
-    public static Schema RECORD_SCHEMA = SchemaBuilder.struct()
-            .field("id", Schema.STRING_SCHEMA)
-            .build();
+    public static Schema recordSchema() {
+        return SchemaBuilder.struct()
+                .field("id", Schema.STRING_SCHEMA)
+                .build();
+    }
 
-    public static Schema TRANSACTION_SCHEMA = SchemaFactory.get().transactionBlockSchema();
+    public static Schema transactionSchema() {
+        return SchemaFactory.get().transactionBlockSchema();
+    }
 
-    public static Schema SOURCE_SCHEMA = SchemaBuilder.struct()
-            .field("db", Schema.STRING_SCHEMA).build();
+    public static Schema sourceSchema() {
+        return SchemaBuilder.struct()
+                .field("db", Schema.STRING_SCHEMA)
+                .build();
+    }
 
-    public static Envelope ENVELOPE_TRANSACTION = SchemaFactory.get().datatypeEnvelopeSchema()
-            .withRecord(RECORD_SCHEMA)
-            .withSource(SOURCE_SCHEMA)
-            .withTransaction(TRANSACTION_SCHEMA)
-            .build();
+    public static Envelope envelopeTransaction() {
+        return SchemaFactory.get().datatypeEnvelopeSchema()
+                .withRecord(recordSchema())
+                .withSource(sourceSchema())
+                .withTransaction(transactionSchema())
+                .build();
+    }
 
-    public static Envelope ENVELOPE = SchemaFactory.get().datatypeEnvelopeSchema()
-            .withRecord(RECORD_SCHEMA)
-            .withSource(SOURCE_SCHEMA)
-            .build();
+    public static Envelope envelope() {
+        return SchemaFactory.get().datatypeEnvelopeSchema()
+                .withRecord(recordSchema())
+                .withSource(sourceSchema())
+                .build();
+    }
 
-    public static Schema KEY_SCHEMA = SchemaBuilder.struct().field("key", SchemaBuilder.STRING_SCHEMA).build();
+    public static Schema keySchema() {
+        return SchemaBuilder.struct().field("key", SchemaBuilder.STRING_SCHEMA).build();
+    }
 
-    public static Struct KEY_STRUCT = new Struct(KEY_SCHEMA).put("key", "k1");
+    public static Struct keyStruct() {
+        return new Struct(keySchema()).put("key", "k1");
+    }
 
-    public static Schema VALUE_SCHEMA_TRANSACTION = ENVELOPE_TRANSACTION.schema();
+    public static Schema valueSchemaTransaction() {
+        return envelopeTransaction().schema();
+    }
 
-    public static Schema VALUE_SCHEMA = ENVELOPE.schema();
+    public static Schema valueSchema() {
+        return envelope().schema();
+    }
 
-    public static Struct VALUE_STRUCT_WITH_TRANSACTION = new Struct(VALUE_SCHEMA_TRANSACTION)
-            .put("before", new Struct(RECORD_SCHEMA).put("id", "foo"))
-            .put("after", new Struct(RECORD_SCHEMA).put("id", "foo"))
-            .put("op", "c")
-            .put("source", new Struct(SOURCE_SCHEMA).put("db", "bar"))
-            .put("transaction", new Struct(TRANSACTION_SCHEMA)
-                    .put("id", "foo")
-                    .put("data_collection_order", 1L)
-                    .put("total_order", 2L));
+    public static Struct valueStructWithTransaction() {
+        return new Struct(valueSchemaTransaction())
+                .put("before", new Struct(recordSchema()).put("id", "foo"))
+                .put("after", new Struct(recordSchema()).put("id", "foo"))
+                .put("op", "c")
+                .put("source", new Struct(sourceSchema()).put("db", "bar"))
+                .put("transaction", new Struct(transactionSchema())
+                        .put("id", "foo")
+                        .put("data_collection_order", 1L)
+                        .put("total_order", 2L));
+    }
 
-    public static Struct VALUE_STRUCT = new Struct(VALUE_SCHEMA_TRANSACTION)
-            .put("before", new Struct(RECORD_SCHEMA).put("id", "foo"))
-            .put("after", new Struct(RECORD_SCHEMA).put("id", "foo"))
-            .put("op", "c")
-            .put("source", new Struct(SOURCE_SCHEMA).put("db", "bar"));
+    public static Struct valueStruct() {
+        return new Struct(valueSchemaTransaction())
+                .put("before", new Struct(recordSchema()).put("id", "foo"))
+                .put("after", new Struct(recordSchema()).put("id", "foo"))
+                .put("op", "c")
+                .put("source", new Struct(sourceSchema()).put("db", "bar"));
+    }
 
-    public static SourceRecord SOURCE_RECORD_WITH_TRANSACTION = new SourceRecord(
-            null,
-            null,
-            "topic",
-            0,
-            KEY_SCHEMA,
-            KEY_STRUCT,
-            VALUE_SCHEMA_TRANSACTION,
-            VALUE_STRUCT_WITH_TRANSACTION,
-            null);
+    public static SourceRecord sourceRecordWithTransaction() {
+        return new SourceRecord(
+                null,
+                null,
+                "topic",
+                0,
+                keySchema(),
+                keyStruct(),
+                valueSchemaTransaction(),
+                valueStructWithTransaction(),
+                null);
+    }
 
-    public static SourceRecord SOURCE_RECORD = new SourceRecord(
-            null,
-            null,
-            "topic",
-            0,
-            KEY_SCHEMA,
-            KEY_STRUCT,
-            VALUE_SCHEMA,
-            VALUE_STRUCT,
-            null);
+    public static SourceRecord sourceRecord() {
+        return new SourceRecord(
+                null,
+                null,
+                "topic",
+                0,
+                keySchema(),
+                keyStruct(),
+                valueSchema(),
+                valueStruct(),
+                null);
+    }
 
-    public static Schema TRANSACTION_KEY_SCHEMA = SchemaFactory.get().transactionKeySchema(SchemaNameAdjuster.NO_OP);
+    public static Schema transactionKeySchema() {
+        return SchemaFactory.get().transactionKeySchema(SchemaNameAdjuster.NO_OP);
+    }
 
-    public static Struct TRANSACTION_KEY_STRUCT = new Struct(TRANSACTION_KEY_SCHEMA).put("id", "gtid");
+    public static Struct transactionKeyStruct() {
+        return new Struct(transactionKeySchema()).put("id", "gtid");
+    }
 
-    public static Schema TRANSACTION_VALUE_SCHEMA = SchemaFactory.get().transactionValueSchema(SchemaNameAdjuster.NO_OP);
+    public static Schema transactionValueSchema() {
+        return SchemaFactory.get().transactionValueSchema(SchemaNameAdjuster.NO_OP);
+    }
 
-    public static Struct TRANSACTION_VALUE_STRUCT = new Struct(TRANSACTION_VALUE_SCHEMA)
-            .put(TransactionStructMaker.DEBEZIUM_TRANSACTION_STATUS_KEY, "status")
-            .put(TransactionStructMaker.DEBEZIUM_TRANSACTION_ID_KEY, "id")
-            .put(TransactionStructMaker.DEBEZIUM_TRANSACTION_EVENT_COUNT_KEY, 1L)
-            .put(TransactionStructMaker.DEBEZIUM_TRANSACTION_TS_MS, 123L);
+    public static Struct transactionValueStruct() {
+        return new Struct(transactionValueSchema())
+                .put(TransactionStructMaker.DEBEZIUM_TRANSACTION_STATUS_KEY, "status")
+                .put(TransactionStructMaker.DEBEZIUM_TRANSACTION_ID_KEY, "id")
+                .put(TransactionStructMaker.DEBEZIUM_TRANSACTION_EVENT_COUNT_KEY, 1L)
+                .put(TransactionStructMaker.DEBEZIUM_TRANSACTION_TS_MS, 123L);
+    }
 
-    public static SourceRecord TRANSACTION_SOURCE_RECORD = new SourceRecord(
-            null,
-            null,
-            "topic",
-            0,
-            TRANSACTION_KEY_SCHEMA,
-            TRANSACTION_KEY_STRUCT,
-            TRANSACTION_VALUE_SCHEMA,
-            TRANSACTION_VALUE_STRUCT,
-            null);
+    public static SourceRecord transactionSourceRecord() {
+        return new SourceRecord(
+                null,
+                null,
+                "topic",
+                0,
+                transactionKeySchema(),
+                transactionKeyStruct(),
+                transactionValueSchema(),
+                transactionValueStruct(),
+                null);
+    }
+
 }

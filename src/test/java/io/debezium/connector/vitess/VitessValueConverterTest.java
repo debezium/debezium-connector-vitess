@@ -22,8 +22,10 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 import org.junit.Before;
 import org.junit.Test;
 
+import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.junit.logging.LogInterceptor;
+import io.debezium.openlineage.DebeziumOpenLineageEmitter;
 import io.debezium.relational.Column;
 import io.debezium.relational.Table;
 import io.debezium.relational.ValueConverter;
@@ -45,6 +47,9 @@ public class VitessValueConverterTest {
 
     @Before
     public void before() {
+
+        DebeziumOpenLineageEmitter.init(Configuration.empty(), "vitess");
+
         config = new VitessConnectorConfig(TestHelper.defaultConfig().build());
         converter = new VitessValueConverter(
                 config.getDecimalMode(),

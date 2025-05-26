@@ -17,6 +17,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.AnonymousValue;
 import io.debezium.connector.vitess.TestHelper;
 import io.debezium.connector.vitess.Vgtid;
@@ -24,6 +25,7 @@ import io.debezium.connector.vitess.VgtidTest;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.debezium.doc.FixFor;
+import io.debezium.openlineage.DebeziumOpenLineageEmitter;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.schema.DefaultTopicNamingStrategy;
@@ -42,6 +44,9 @@ public class VStreamOutputMessageDecoderTest {
 
     @Before
     public void before() {
+
+        DebeziumOpenLineageEmitter.init(Configuration.empty(), "vitess");
+
         connectorConfig = new VitessConnectorConfig(TestHelper.defaultConfig().build());
         schema = new VitessDatabaseSchema(
                 connectorConfig,

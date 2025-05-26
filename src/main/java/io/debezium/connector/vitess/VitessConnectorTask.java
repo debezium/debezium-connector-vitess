@@ -7,6 +7,7 @@ package io.debezium.connector.vitess;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -144,6 +145,11 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
         }
     }
 
+    @Override
+    protected String connectorName() {
+        return Module.name();
+    }
+
     @VisibleForTesting
     public Configuration getConfigWithOffsets(Configuration config) {
         VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
@@ -207,6 +213,11 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
         final List<DataChangeEvent> records = queue.poll();
         final List<SourceRecord> sourceRecords = records.stream().map(DataChangeEvent::getRecord).collect(Collectors.toList());
         return sourceRecords;
+    }
+
+    @Override
+    protected Optional<ErrorHandler> getErrorHandler() {
+        return Optional.of(errorHandler);
     }
 
     @Override

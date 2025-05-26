@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.connect.data.Struct;
+import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +24,7 @@ import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.connector.vitess.connection.VStreamOutputReplicationMessage;
 import io.debezium.data.Envelope;
+import io.debezium.openlineage.DebeziumOpenLineageEmitter;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableSchema;
 import io.debezium.schema.DefaultTopicNamingStrategy;
@@ -33,6 +35,11 @@ import io.vitess.proto.Query;
 
 public class VitessBigIntUnsignedTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessChangeRecordEmitterTest.class);
+
+    @Before
+    public void setUp() {
+        DebeziumOpenLineageEmitter.init(Configuration.empty(), "vitess");
+    }
 
     protected static Object getJavaValue(VitessConnectorConfig.BigIntUnsignedHandlingMode mode) {
         if (mode == null) {

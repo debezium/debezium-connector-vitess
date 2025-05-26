@@ -7,16 +7,19 @@ package io.debezium.connector.vitess;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
 import io.debezium.connector.vitess.connection.TransactionalMessage;
 import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.connector.vitess.connection.VStreamOutputReplicationMessage;
 import io.debezium.data.Envelope;
+import io.debezium.openlineage.DebeziumOpenLineageEmitter;
 import io.debezium.schema.DefaultTopicNamingStrategy;
 import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
@@ -24,6 +27,11 @@ import io.debezium.util.Clock;
 
 public class VitessChangeRecordEmitterTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessChangeRecordEmitterTest.class);
+
+    @Before
+    public void setUp() {
+        DebeziumOpenLineageEmitter.init(Configuration.empty(), "vitess");
+    }
 
     private static VitessConnectorConfig connectorConfig;
     private static VitessDatabaseSchema schema;

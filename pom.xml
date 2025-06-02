@@ -114,31 +114,37 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-handler</artifactId>
+                <version>${version.netty}</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-common</artifactId>
+                <version>${version.netty}</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-resolver</artifactId>
+                <version>${version.netty}</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-buffer</artifactId>
+                <version>${version.netty}</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-transport</artifactId>
+                <version>${version.netty}</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-codec</artifactId>
+                <version>${version.netty}</version>
                 <scope>provided</scope>
             </dependency>
 

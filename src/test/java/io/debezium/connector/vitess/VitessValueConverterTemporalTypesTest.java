@@ -18,7 +18,6 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 import org.junit.Before;
 import org.junit.Test;
 
-import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.openlineage.DebeziumOpenLineageEmitter;
@@ -45,7 +44,7 @@ public class VitessValueConverterTemporalTypesTest {
     @Before
     public void before() {
 
-        DebeziumOpenLineageEmitter.init(Configuration.empty(), "vitess");
+        DebeziumOpenLineageEmitter.init(TestHelper.defaultConfig().build(), "test_server");
 
         VitessConnectorConfig config = new VitessConnectorConfig(
                 TestHelper.defaultConfig().with(

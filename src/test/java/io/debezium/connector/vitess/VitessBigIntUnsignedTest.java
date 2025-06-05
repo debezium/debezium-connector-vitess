@@ -38,7 +38,7 @@ public class VitessBigIntUnsignedTest {
 
     @Before
     public void setUp() {
-        DebeziumOpenLineageEmitter.init(Configuration.empty(), "vitess");
+        DebeziumOpenLineageEmitter.init(TestHelper.defaultConfig().build(), "test_server");
     }
 
     protected static Object getJavaValue(VitessConnectorConfig.BigIntUnsignedHandlingMode mode) {

@@ -22,7 +22,6 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 import org.junit.Before;
 import org.junit.Test;
 
-import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.openlineage.DebeziumOpenLineageEmitter;
@@ -48,7 +47,7 @@ public class VitessValueConverterTest {
     @Before
     public void before() {
 
-        DebeziumOpenLineageEmitter.init(Configuration.empty(), "vitess");
+        DebeziumOpenLineageEmitter.init(TestHelper.defaultConfig().build(), "test_server");
 
         config = new VitessConnectorConfig(TestHelper.defaultConfig().build());
         converter = new VitessValueConverter(

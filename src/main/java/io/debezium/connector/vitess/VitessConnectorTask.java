@@ -22,6 +22,8 @@ import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.connector.common.BaseSourceTask;
+import io.debezium.connector.common.DebeziumHeaderProducer;
+import io.debezium.connector.common.DebeziumHeaderProducerProvider;
 import io.debezium.connector.vitess.connection.ReplicationConnection;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.connector.vitess.metrics.VitessChangeEventSourceMetricsFactory;
@@ -80,6 +82,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
         connectorConfig.getBeanRegistry().add(StandardBeanNames.CONFIGURATION, config);
         connectorConfig.getBeanRegistry().add(StandardBeanNames.CONNECTOR_CONFIG, connectorConfig);
         connectorConfig.getBeanRegistry().add(StandardBeanNames.DATABASE_SCHEMA, schema);
+        connectorConfig.getBeanRegistry().add(StandardBeanNames.CDC_SOURCE_TASK_CONTEXT, taskContext);
 
         // Service providers
         registerServiceProviders(connectorConfig.getServiceRegistry());
@@ -117,7 +120,8 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
                     new Filters(connectorConfig).tableFilter(),
                     DataChangeEvent::new,
                     metadataProvider,
-                    schemaNameAdjuster);
+                    schemaNameAdjuster,
+                    connectorConfig.getServiceRegistry().tryGetService(DebeziumHeaderProducer.class));
 
             NotificationService<VitessPartition, VitessOffsetContext> notificationService = new NotificationService<>(getNotificationChannels(),
                     connectorConfig, SchemaFactory.get(), dispatcher::enqueueNotification);
@@ -237,5 +241,6 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
     protected void registerServiceProviders(ServiceRegistry serviceRegistry) {
 
         serviceRegistry.registerServiceProvider(new PostProcessorRegistryServiceProvider());
+        serviceRegistry.registerServiceProvider(new DebeziumHeaderProducerProvider());
     }
 }

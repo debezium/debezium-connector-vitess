@@ -137,6 +137,7 @@ public class VitessConnector extends RelationalBaseSourceConnector {
                 taskProps.put(VitessConnectorConfig.VITESS_TASK_KEY_CONFIG, getTaskKeyName(tid, tasks, gen));
                 taskProps.put(VitessConnectorConfig.VITESS_TASK_SHARDS_CONFIG, String.join(VitessConnectorConfig.CSV_DELIMITER, taskShards));
                 taskProps.put(VitessConnectorConfig.VITESS_TOTAL_TASKS_CONFIG, Integer.toString(tasks));
+                // taskProps.put(TASK_ID, getTaskKeyName(tid, tasks, gen));
                 allTaskProps.add(taskProps);
             }
             LOGGER.info("taskConfigs are: {}", allTaskProps);

@@ -35,6 +35,7 @@ import io.debezium.doc.FixFor;
 import io.debezium.heartbeat.Heartbeat;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.junit.logging.LogInterceptor;
+import io.debezium.openlineage.DebeziumOpenLineageEmitter;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.schema.DefaultTopicNamingStrategy;
 import io.debezium.schema.SchemaNameAdjuster;
@@ -50,6 +51,9 @@ public class VitessReplicationConnectionIT {
 
     @Before
     public void beforeEach() {
+        DebeziumOpenLineageEmitter.init(TestHelper.defaultConfig(false, false, 1, -1, -1,
+                null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,
+                "1", "skip").build(), "vitess");
         TestHelper.execute(TestHelper.SETUP_TABLES_STMT);
         TestHelper.execute(TestHelper.INSERT_STMT);
     }

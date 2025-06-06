@@ -22,6 +22,6 @@ public class VitessSnapshotChangeEventSourceMetrics extends DefaultSnapshotChang
     public <T extends CdcSourceTaskContext> VitessSnapshotChangeEventSourceMetrics(T taskContext, ChangeEventQueueMetrics changeEventQueueMetrics,
                                                                                    EventMetadataProvider metadataProvider) {
         super(taskContext, changeEventQueueMetrics, metadataProvider,
-                Collect.linkMapOf("context", "snapshot", "server", taskContext.getConnectorName(), "task", taskContext.getTaskId()));
+                Collect.linkMapOf("context", "snapshot", "server", taskContext.getConnectorLogicalName(), "task", taskContext.getTaskId()));
     }
 }

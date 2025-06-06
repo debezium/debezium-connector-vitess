@@ -22,6 +22,6 @@ public class VitessStreamingChangeEventSourceMetrics extends DefaultStreamingCha
     public <T extends CdcSourceTaskContext> VitessStreamingChangeEventSourceMetrics(T taskContext, ChangeEventQueueMetrics changeEventQueueMetrics,
                                                                                     EventMetadataProvider eventMetadataProvider) {
         super(taskContext, changeEventQueueMetrics, eventMetadataProvider,
-                Collect.linkMapOf("context", "streaming", "server", taskContext.getConnectorName(), "task", taskContext.getTaskId()));
+                Collect.linkMapOf("context", "streaming", "server", taskContext.getConnectorLogicalName(), "task", taskContext.getTaskId()));
     }
 }

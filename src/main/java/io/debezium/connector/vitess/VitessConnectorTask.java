@@ -15,10 +15,11 @@ import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.debezium.annotation.VisibleForTesting;
 import io.debezium.bean.StandardBeanNames;
+import io.debezium.common.annotation.VisibleForTesting;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
+import io.debezium.config.ConfigurationDefinition;
 import io.debezium.config.Field;
 import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.connector.common.BaseSourceTask;
@@ -94,7 +95,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
                 LOGGER.info("No previous offset found");
             }
             else {
-                LOGGER.info("Found task {} previous offset {}", config.getString(VitessConnectorConfig.TASK_ID), previousOffset);
+                LOGGER.info("Found task {} previous offset {}", config.getString(ConfigurationDefinition.TASK_ID_PROPERTY_NAME), previousOffset);
             }
 
             replicationConnection = new VitessReplicationConnection(connectorConfig, schema);

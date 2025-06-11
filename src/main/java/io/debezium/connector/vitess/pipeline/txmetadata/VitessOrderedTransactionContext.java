@@ -8,7 +8,7 @@ package io.debezium.connector.vitess.pipeline.txmetadata;
 import java.math.BigDecimal;
 import java.util.Map;
 
-import io.debezium.annotation.VisibleForTesting;
+import io.debezium.common.annotation.VisibleForTesting;
 import io.debezium.connector.vitess.SourceInfo;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VitessConnectorConfig;

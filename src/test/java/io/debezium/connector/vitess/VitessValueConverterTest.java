@@ -47,7 +47,7 @@ public class VitessValueConverterTest {
     @Before
     public void before() {
 
-        DebeziumOpenLineageEmitter.init(TestHelper.defaultConfig().build(), "test_server");
+        DebeziumOpenLineageEmitter.init(TestHelper.defaultConfig().build().asMap(), "test_server");
 
         config = new VitessConnectorConfig(TestHelper.defaultConfig().build());
         converter = new VitessValueConverter(

@@ -19,6 +19,7 @@ import io.debezium.annotation.VisibleForTesting;
 import io.debezium.bean.StandardBeanNames;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
+import io.debezium.config.ConfigurationNames;
 import io.debezium.config.Field;
 import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.connector.common.BaseSourceTask;
@@ -94,7 +95,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
                 LOGGER.info("No previous offset found");
             }
             else {
-                LOGGER.info("Found task {} previous offset {}", config.getString(VitessConnectorConfig.TASK_ID), previousOffset);
+                LOGGER.info("Found task {} previous offset {}", config.getString(ConfigurationNames.TASK_ID_PROPERTY_NAME), previousOffset);
             }
 
             replicationConnection = new VitessReplicationConnection(connectorConfig, schema);

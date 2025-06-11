@@ -53,7 +53,7 @@ public class VitessReplicationConnectionIT {
     public void beforeEach() {
         DebeziumOpenLineageEmitter.init(TestHelper.defaultConfig(false, false, 1, -1, -1,
                 null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,
-                "1", "skip").build(), "vitess");
+                "1", "skip").build().asMap(), "vitess");
         TestHelper.execute(TestHelper.SETUP_TABLES_STMT);
         TestHelper.execute(TestHelper.INSERT_STMT);
     }

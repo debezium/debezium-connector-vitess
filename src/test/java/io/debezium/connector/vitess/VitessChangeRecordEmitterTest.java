@@ -39,7 +39,7 @@ public class VitessChangeRecordEmitterTest {
     @BeforeClass
     public static void beforeClass() throws Exception {
         Configuration configuration = TestHelper.defaultConfig().build();
-        DebeziumOpenLineageEmitter.init(configuration, "test_server");
+        DebeziumOpenLineageEmitter.init(configuration.asMap(), "test_server");
         connectorConfig = new VitessConnectorConfig(configuration);
         schema = new VitessDatabaseSchema(
                 connectorConfig,

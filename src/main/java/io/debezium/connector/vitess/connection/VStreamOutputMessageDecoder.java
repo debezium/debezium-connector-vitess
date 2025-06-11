@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.protobuf.ByteString;
 
-import io.debezium.annotation.VisibleForTesting;
+import io.debezium.common.annotation.VisibleForTesting;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.debezium.connector.vitess.VitessType;

@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.protobuf.ByteString;
 
-import io.debezium.annotation.VisibleForTesting;
+import io.debezium.common.annotation.VisibleForTesting;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.vitess.proto.Query;
 import io.vitess.proto.Vtgate;

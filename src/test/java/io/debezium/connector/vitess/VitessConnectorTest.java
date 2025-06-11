@@ -62,7 +62,7 @@ public class VitessConnectorTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessConnectorTest.class);
 
     @Test
-    public void shouldReturnConfigurationDefinition() {
+    public void shouldReturnConfigurationNames() {
         ConfigDef configDef = new VitessConnector().config();
         assertThat(configDef).isNotNull();
     }

@@ -47,7 +47,7 @@ public class VStreamOutputMessageDecoderTest {
 
         Configuration configuration = TestHelper.defaultConfig().build();
         connectorConfig = new VitessConnectorConfig(configuration);
-        DebeziumOpenLineageEmitter.init(configuration, "test_server");
+        DebeziumOpenLineageEmitter.init(configuration.asMap(), "test_server");
 
         schema = new VitessDatabaseSchema(
                 connectorConfig,

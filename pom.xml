@@ -147,6 +147,10 @@
             <groupId>io.debezium</groupId>
             <artifactId>debezium-core</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.debezium</groupId>
+            <artifactId>debezium-common</artifactId>
+        </dependency>
         <!-- Vitess gRPC -->
         <dependency>
             <groupId>io.vitess</groupId>

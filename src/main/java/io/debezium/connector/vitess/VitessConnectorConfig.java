@@ -5,6 +5,8 @@
  */
 package io.debezium.connector.vitess;
 
+import static io.debezium.config.ConfigurationNames.DATABASE_CONFIG_PREFIX;
+
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;

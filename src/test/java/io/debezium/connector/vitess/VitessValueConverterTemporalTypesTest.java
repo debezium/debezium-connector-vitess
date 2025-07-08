@@ -10,6 +10,7 @@ import static io.debezium.connector.vitess.VitessValueConverterTest.temporalFiel
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.ZoneOffset;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.kafka.connect.data.Field;
@@ -22,6 +23,7 @@ import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.openlineage.DebeziumOpenLineageEmitter;
 import io.debezium.relational.Column;
+import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.relational.Table;
 import io.debezium.relational.ValueConverter;
 import io.debezium.schema.DefaultTopicNamingStrategy;
@@ -60,7 +62,7 @@ public class VitessValueConverterTemporalTypesTest {
         schema = new VitessDatabaseSchema(
                 config,
                 SchemaNameAdjuster.create(),
-                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(config));
+                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(config), new CustomConverterRegistry(Collections.emptyList()));
         decoder = new VStreamOutputMessageDecoder(schema);
     }
 

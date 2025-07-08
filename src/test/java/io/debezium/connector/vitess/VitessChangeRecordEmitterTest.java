@@ -7,6 +7,8 @@ package io.debezium.connector.vitess;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Collections;
+
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -20,6 +22,7 @@ import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.connector.vitess.connection.VStreamOutputReplicationMessage;
 import io.debezium.data.Envelope;
 import io.debezium.openlineage.DebeziumOpenLineageEmitter;
+import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.schema.DefaultTopicNamingStrategy;
 import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
@@ -44,7 +47,7 @@ public class VitessChangeRecordEmitterTest {
         schema = new VitessDatabaseSchema(
                 connectorConfig,
                 SchemaNameAdjuster.create(),
-                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig));
+                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig), new CustomConverterRegistry(Collections.emptyList()));
         decoder = new VStreamOutputMessageDecoder(schema);
         // initialize schema by FIELD event
         decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);

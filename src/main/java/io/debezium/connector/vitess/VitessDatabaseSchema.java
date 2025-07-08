@@ -11,6 +11,7 @@ import org.apache.kafka.connect.data.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.relational.RelationalDatabaseSchema;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
@@ -28,7 +29,7 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
     public VitessDatabaseSchema(
                                 VitessConnectorConfig config,
                                 SchemaNameAdjuster schemaNameAdjuster,
-                                TopicNamingStrategy<TableId> topicNamingStrategy) {
+                                TopicNamingStrategy<TableId> topicNamingStrategy, CustomConverterRegistry customConverterRegistry) {
         super(
                 config,
                 topicNamingStrategy,
@@ -44,7 +45,7 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
                                 config.getBigIntUnsgnedHandlingMode(),
                                 config.overrideDatetimeToNullable()),
                         schemaNameAdjuster,
-                        config.customConverterRegistry(),
+                        customConverterRegistry,
                         config.getSourceInfoStructMaker().schema(),
                         config.getTransactionMetadataFactory().getTransactionStructMaker().getTransactionBlockSchema(),
                         config.getFieldNamer(),

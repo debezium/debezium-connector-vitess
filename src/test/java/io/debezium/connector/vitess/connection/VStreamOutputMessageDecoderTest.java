@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.Types;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.Before;
@@ -26,6 +27,7 @@ import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.debezium.doc.FixFor;
 import io.debezium.openlineage.DebeziumOpenLineageEmitter;
+import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.schema.DefaultTopicNamingStrategy;
@@ -52,7 +54,7 @@ public class VStreamOutputMessageDecoderTest {
         schema = new VitessDatabaseSchema(
                 connectorConfig,
                 SchemaNameAdjuster.create(),
-                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig));
+                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig), new CustomConverterRegistry(Collections.emptyList()));
         decoder = new VStreamOutputMessageDecoder(schema);
     }
 

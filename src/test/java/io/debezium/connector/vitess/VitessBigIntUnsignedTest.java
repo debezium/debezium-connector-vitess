@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import java.sql.Types;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,6 +26,7 @@ import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.connector.vitess.connection.VStreamOutputReplicationMessage;
 import io.debezium.data.Envelope;
 import io.debezium.openlineage.DebeziumOpenLineageEmitter;
+import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableSchema;
 import io.debezium.schema.DefaultTopicNamingStrategy;
@@ -91,7 +93,7 @@ public class VitessBigIntUnsignedTest {
         schema = new VitessDatabaseSchema(
                 connectorConfig,
                 SchemaNameAdjuster.create(),
-                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig));
+                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig), new CustomConverterRegistry(Collections.emptyList()));
         decoder = new VStreamOutputMessageDecoder(schema);
         // initialize schema by FIELD event
         decoder.processMessage(TestHelper.newFieldEvent(defaultColumnValues(mode)), null, null, false);

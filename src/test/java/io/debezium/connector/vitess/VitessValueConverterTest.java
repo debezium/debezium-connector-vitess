@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.kafka.connect.data.Field;
@@ -26,6 +27,7 @@ import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.openlineage.DebeziumOpenLineageEmitter;
 import io.debezium.relational.Column;
+import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.relational.Table;
 import io.debezium.relational.ValueConverter;
 import io.debezium.schema.DefaultTopicNamingStrategy;
@@ -61,7 +63,7 @@ public class VitessValueConverterTest {
         schema = new VitessDatabaseSchema(
                 config,
                 SchemaNameAdjuster.create(),
-                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(config));
+                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(config), new CustomConverterRegistry(Collections.emptyList()));
         decoder = new VStreamOutputMessageDecoder(schema);
     }
 

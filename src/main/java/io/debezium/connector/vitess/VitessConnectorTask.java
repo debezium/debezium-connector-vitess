@@ -28,6 +28,7 @@ import io.debezium.connector.common.DebeziumHeaderProducerProvider;
 import io.debezium.connector.vitess.connection.ReplicationConnection;
 import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.connector.vitess.metrics.VitessChangeEventSourceMetricsFactory;
+import io.debezium.converters.custom.CustomConverterServiceProvider;
 import io.debezium.pipeline.ChangeEventSourceCoordinator;
 import io.debezium.pipeline.DataChangeEvent;
 import io.debezium.pipeline.ErrorHandler;
@@ -36,6 +37,7 @@ import io.debezium.pipeline.metrics.DefaultChangeEventSourceMetricsFactory;
 import io.debezium.pipeline.notification.NotificationService;
 import io.debezium.pipeline.spi.Offsets;
 import io.debezium.processors.PostProcessorRegistryServiceProvider;
+import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.relational.TableId;
 import io.debezium.schema.SchemaFactory;
 import io.debezium.schema.SchemaNameAdjuster;
@@ -68,8 +70,12 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
 
         final TopicNamingStrategy<TableId> topicNamingStrategy = connectorConfig.getTopicNamingStrategy(CommonConnectorConfig.TOPIC_NAMING_STRATEGY);
         final SchemaNameAdjuster schemaNameAdjuster = connectorConfig.schemaNameAdjuster();
+        // Service providers
+        registerServiceProviders(connectorConfig.getServiceRegistry());
 
-        schema = new VitessDatabaseSchema(connectorConfig, schemaNameAdjuster, topicNamingStrategy);
+        CustomConverterRegistry customConverterRegistry = connectorConfig.getServiceRegistry().tryGetService(CustomConverterRegistry.class);
+
+        schema = new VitessDatabaseSchema(connectorConfig, schemaNameAdjuster, topicNamingStrategy, customConverterRegistry);
         VitessTaskContext taskContext = new VitessTaskContext(connectorConfig, schema);
         Offsets<VitessPartition, VitessOffsetContext> previousOffsets = getPreviousOffsets(new VitessPartition.Provider(connectorConfig),
                 new VitessOffsetContext.Loader(connectorConfig));
@@ -84,9 +90,6 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
         connectorConfig.getBeanRegistry().add(StandardBeanNames.CONNECTOR_CONFIG, connectorConfig);
         connectorConfig.getBeanRegistry().add(StandardBeanNames.DATABASE_SCHEMA, schema);
         connectorConfig.getBeanRegistry().add(StandardBeanNames.CDC_SOURCE_TASK_CONTEXT, taskContext);
-
-        // Service providers
-        registerServiceProviders(connectorConfig.getServiceRegistry());
 
         final SnapshotterService snapshotterService = connectorConfig.getServiceRegistry().tryGetService(SnapshotterService.class);
 
@@ -243,5 +246,6 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
 
         serviceRegistry.registerServiceProvider(new PostProcessorRegistryServiceProvider());
         serviceRegistry.registerServiceProvider(new DebeziumHeaderProducerProvider());
+        serviceRegistry.registerServiceProvider(new CustomConverterServiceProvider());
     }
 }

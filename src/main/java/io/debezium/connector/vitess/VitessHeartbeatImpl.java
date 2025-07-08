@@ -17,9 +17,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.debezium.connector.AbstractSourceInfo;
-import io.debezium.function.BlockingConsumer;
+import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.heartbeat.Heartbeat;
 import io.debezium.heartbeat.HeartbeatImpl;
+import io.debezium.pipeline.DataChangeEvent;
+import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.schema.SchemaNameAdjuster;
 
 public class VitessHeartbeatImpl extends HeartbeatImpl implements Heartbeat {
@@ -30,24 +32,26 @@ public class VitessHeartbeatImpl extends HeartbeatImpl implements Heartbeat {
 
     private final Schema keySchema;
     private final Schema valueSchema;
+    private final ChangeEventQueue<DataChangeEvent> queue;
 
-    public VitessHeartbeatImpl(Duration heartbeatInterval, String topicName, String key, SchemaNameAdjuster schemaNameAdjuster) {
+    public VitessHeartbeatImpl(Duration heartbeatInterval, String topicName, String key, SchemaNameAdjuster schemaNameAdjuster, ChangeEventQueue<DataChangeEvent> queue) {
         super(heartbeatInterval, topicName, key, schemaNameAdjuster);
         this.topicName = topicName;
         this.key = key;
         keySchema = VitessSchemaFactory.get().heartbeatKeySchema(schemaNameAdjuster);
         valueSchema = VitessSchemaFactory.get().heartbeatValueSchema(schemaNameAdjuster);
+        this.queue = queue;
     }
 
     @Override
-    public void forcedBeat(Map<String, ?> partition, Map<String, ?> offset, BlockingConsumer<SourceRecord> consumer)
-            throws InterruptedException {
+    public void emit(Map<String, ?> partition, OffsetContext offset) throws InterruptedException {
         LOGGER.debug("Generating heartbeat event");
-        if (offset == null || offset.isEmpty()) {
+        if (offset == null || offset.getOffset().isEmpty()) {
             // Do not send heartbeat message if no offset is available yet
             return;
         }
-        consumer.accept(heartbeatRecord(partition, offset));
+
+        queue.enqueue(new DataChangeEvent(heartbeatRecord(partition, offset.getOffset())));
     }
 
     private SourceRecord heartbeatRecord(Map<String, ?> sourcePartition, Map<String, ?> sourceOffset) {

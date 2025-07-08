@@ -5,8 +5,6 @@
  */
 package io.debezium.connector.vitess;
 
-import static io.debezium.config.ConfigurationNames.DATABASE_CONFIG_PREFIX;
-
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -35,15 +33,10 @@ import io.debezium.connector.SourceInfoStructMaker;
 import io.debezium.connector.vitess.connection.VitessTabletType;
 import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionMetadataFactory;
-import io.debezium.heartbeat.Heartbeat;
-import io.debezium.heartbeat.HeartbeatConnectionProvider;
-import io.debezium.heartbeat.HeartbeatErrorHandler;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
-import io.debezium.schema.SchemaNameAdjuster;
-import io.debezium.spi.topic.TopicNamingStrategy;
 import io.grpc.LoadBalancerProvider;
 import io.grpc.LoadBalancerRegistry;
 import io.grpc.internal.GrpcUtil;
@@ -813,15 +806,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     @Override
     public Optional<EnumeratedValue> getSnapshotLockingMode() {
         return Optional.empty();
-    }
-
-    @Override
-    public Heartbeat createHeartbeat(TopicNamingStrategy topicNamingStrategy, SchemaNameAdjuster schemaNameAdjuster,
-                                     HeartbeatConnectionProvider connectionProvider, HeartbeatErrorHandler errorHandler) {
-        if (getHeartbeatInterval().isZero()) {
-            return Heartbeat.DEFAULT_NOOP_HEARTBEAT;
-        }
-        return new VitessHeartbeatImpl(getHeartbeatInterval(), topicNamingStrategy.heartbeatTopic(), getLogicalName(), schemaNameAdjuster);
     }
 
     public BigIntUnsignedHandlingMode getBigIntUnsgnedHandlingMode() {

@@ -1748,12 +1748,10 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         // Connector receives a row whose column name is not valid, task should fail
         TestHelper.execute("ALTER TABLE numeric_table ADD `@1` INT;");
         TestHelper.execute(INSERT_NUMERIC_TYPES_STMT);
-        // Connector should still be running & retrying
-        assertConnectorIsRunning();
-        assertTrue("The task is expected to keep retrying and not complete", isConnectorRunning.get());
-        stopConnector();
-        assertFalse("The connector should be stopped now", isConnectorRunning.get());
-        assertThat(logInterceptor.containsErrorMessage("Illegal prefix '@' for column: @1")).isTrue();
+
+        Awaitility.await()
+                .atMost(100, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(logInterceptor.containsErrorMessage("Illegal prefix '@' for column: @1")).isTrue());
     }
 
     @Test

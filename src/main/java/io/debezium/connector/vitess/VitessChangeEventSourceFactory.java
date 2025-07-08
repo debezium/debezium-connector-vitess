@@ -16,6 +16,7 @@ import io.debezium.pipeline.source.spi.SnapshotProgressListener;
 import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
 import io.debezium.relational.TableId;
 import io.debezium.snapshot.SnapshotterService;
+import io.debezium.spi.schema.DataCollectionId;
 import io.debezium.util.Clock;
 
 /**
@@ -58,7 +59,7 @@ public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<
                 dispatcher,
                 schema,
                 clock,
-                null,
+                NO_LISTENER,
                 notificationService,
                 snapshotterService);
     }
@@ -73,4 +74,61 @@ public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<
                 connectorConfig,
                 replicationConnection);
     }
+
+    public static final SnapshotProgressListener<VitessPartition> NO_LISTENER = new SnapshotProgressListener<>() {
+        @Override
+        public void snapshotStarted(VitessPartition partition) {
+
+        }
+
+        @Override
+        public void snapshotPaused(VitessPartition partition) {
+
+        }
+
+        @Override
+        public void snapshotResumed(VitessPartition partition) {
+
+        }
+
+        @Override
+        public void monitoredDataCollectionsDetermined(VitessPartition partition, Iterable<? extends DataCollectionId> dataCollectionIds) {
+
+        }
+
+        @Override
+        public void snapshotCompleted(VitessPartition partition) {
+
+        }
+
+        @Override
+        public void snapshotAborted(VitessPartition partition) {
+
+        }
+
+        @Override
+        public void snapshotSkipped(VitessPartition partition) {
+
+        }
+
+        @Override
+        public void dataCollectionSnapshotCompleted(VitessPartition partition, DataCollectionId dataCollectionId, long numRows) {
+
+        }
+
+        @Override
+        public void rowsScanned(VitessPartition partition, TableId tableId, long numRows) {
+
+        }
+
+        @Override
+        public void currentChunk(VitessPartition partition, String chunkId, Object[] chunkFrom, Object[] chunkTo) {
+
+        }
+
+        @Override
+        public void currentChunk(VitessPartition partition, String chunkId, Object[] chunkFrom, Object[] chunkTo, Object[] tableTo) {
+
+        }
+    };
 }

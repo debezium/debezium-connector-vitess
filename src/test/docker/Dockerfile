@@ -1,6 +1,3 @@
-# Use a temporary layer for the build stage.
-FROM quay.io/debezium/vitess-base:v19.0.4 AS base
-
 FROM quay.io/debezium/vitess-lite:v21.0.3
 
 USER root
@@ -11,10 +8,6 @@ RUN apt-get install -y sudo curl vim jq
 # Install etcd
 COPY install_local_dependencies.sh /vt/dist/install_local_dependencies.sh
 RUN /vt/dist/install_local_dependencies.sh
-
-# Copy binaries used by vitess components start-up scripts
-COPY --from=base /vt/bin/vtctl /vt/bin/
-COPY --from=base /vt/bin/mysqlctl /vt/bin/
 
 # Copy vitess components start-up scripts
 COPY local /vt/local

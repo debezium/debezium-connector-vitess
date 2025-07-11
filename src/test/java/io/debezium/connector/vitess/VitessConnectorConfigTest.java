@@ -19,8 +19,7 @@ import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionMetadataFactory;
 import io.debezium.heartbeat.Heartbeat;
-import io.debezium.schema.DefaultTopicNamingStrategy;
-import io.debezium.schema.SchemaNameAdjuster;
+import io.debezium.heartbeat.Heartbeat.ScheduledHeartbeat;
 
 public class VitessConnectorConfigTest {
 
@@ -28,27 +27,31 @@ public class VitessConnectorConfigTest {
     public void shouldGetVitessHeartbeatImplWhenIntervalSet() {
         Configuration configuration = TestHelper.defaultConfig().with(
                 Heartbeat.HEARTBEAT_INTERVAL, 1000).build();
-        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
-        Heartbeat heartbeat = connectorConfig.createHeartbeat(
-                DefaultTopicNamingStrategy.create(connectorConfig),
-                SchemaNameAdjuster.NO_OP,
+
+        ScheduledHeartbeat heartbeat = new VitessHeartbeatFactory().getScheduledHeartbeat(
+                new VitessConnectorConfig(configuration),
+                null,
                 null,
                 null);
+
         assertThat(heartbeat).isNotNull();
         assertThat(heartbeat instanceof VitessHeartbeatImpl).isTrue();
     }
 
     @Test
     public void shouldGetVitessHeartbeatNoOp() {
-        Configuration configuration = TestHelper.defaultConfig().build();
-        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
-        Heartbeat heartbeat = connectorConfig.createHeartbeat(
-                DefaultTopicNamingStrategy.create(connectorConfig),
-                SchemaNameAdjuster.NO_OP,
+        Configuration configuration = TestHelper
+                .defaultConfig()
+                .build();
+
+        ScheduledHeartbeat heartbeat = new VitessHeartbeatFactory().getScheduledHeartbeat(
+                new VitessConnectorConfig(configuration),
+                null,
                 null,
                 null);
+
         assertThat(heartbeat).isNotNull();
-        assertThat(heartbeat).isEqualTo(Heartbeat.DEFAULT_NOOP_HEARTBEAT);
+        assertThat(heartbeat).isEqualTo(ScheduledHeartbeat.NOOP_HEARTBEAT);
     }
 
     @Test

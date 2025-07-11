@@ -124,6 +124,8 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
                     new Filters(connectorConfig).tableFilter(),
                     DataChangeEvent::new,
                     metadataProvider,
+                    new VitessHeartbeatFactory()
+                            .getScheduledHeartbeat(connectorConfig, null, null, queue),
                     schemaNameAdjuster,
                     connectorConfig.getServiceRegistry().tryGetService(DebeziumHeaderProducer.class));
 

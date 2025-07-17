@@ -22,6 +22,7 @@ import io.debezium.config.Configuration;
 import io.debezium.config.ConfigurationNames;
 import io.debezium.config.Field;
 import io.debezium.connector.base.ChangeEventQueue;
+import io.debezium.connector.base.DefaultQueueProvider;
 import io.debezium.connector.common.BaseSourceTask;
 import io.debezium.connector.common.DebeziumHeaderProducer;
 import io.debezium.connector.common.DebeziumHeaderProducerProvider;
@@ -107,6 +108,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
                     .pollInterval(connectorConfig.getPollInterval())
                     .maxBatchSize(connectorConfig.getMaxBatchSize())
                     .maxQueueSize(connectorConfig.getMaxQueueSize())
+                    .queueProvider(new DefaultQueueProvider<>(connectorConfig.getMaxQueueSize()))
                     .loggingContextSupplier(() -> taskContext.configureLoggingContext(CONTEXT_NAME))
                     .build();
 

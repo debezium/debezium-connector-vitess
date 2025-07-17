@@ -18,6 +18,8 @@ import org.junit.Test;
 
 import io.debezium.connector.SnapshotRecord;
 import io.debezium.connector.base.ChangeEventQueue;
+import io.debezium.connector.base.ChangeEventQueueConfig;
+import io.debezium.connector.base.DefaultChangeEventQueue;
 import io.debezium.heartbeat.Heartbeat;
 import io.debezium.pipeline.DataChangeEvent;
 import io.debezium.pipeline.spi.OffsetContext;
@@ -28,12 +30,12 @@ import io.debezium.util.LoggingContext;
 
 public class VitessHeartbeatImplTest {
 
-    private final ChangeEventQueue<DataChangeEvent> eventQueue = new ChangeEventQueue.Builder<DataChangeEvent>()
+    private final ChangeEventQueue<DataChangeEvent> eventQueue = new DefaultChangeEventQueue<>(ChangeEventQueueConfig.builder()
             .maxBatchSize(10)
             .maxQueueSize(20)
             .loggingContextSupplier(() -> LoggingContext.forConnector("a", "b", "c"))
             .pollInterval(Duration.ofMillis(500))
-            .build();
+            .build());
 
     private final VitessHeartbeatImpl underTest = new VitessHeartbeatImpl(Duration.ofMillis(1), "topicName", "key", SchemaNameAdjuster.NO_OP, eventQueue);
 
@@ -53,12 +55,13 @@ public class VitessHeartbeatImplTest {
 
     @Test
     public void shouldSendRecordWithVgtid() throws InterruptedException {
-        ChangeEventQueue<DataChangeEvent> eventQueue = new ChangeEventQueue.Builder<DataChangeEvent>()
+        ChangeEventQueueConfig changeEventQueueConfig = ChangeEventQueueConfig.builder()
                 .maxBatchSize(10)
                 .maxQueueSize(20)
                 .loggingContextSupplier(() -> LoggingContext.forConnector("a", "b", "c"))
                 .pollInterval(Duration.ofMillis(500))
                 .build();
+        ChangeEventQueue<DataChangeEvent> eventQueue = new DefaultChangeEventQueue<>(changeEventQueueConfig)
 
         Heartbeat heartbeat = new VitessHeartbeatImpl(Duration.ofMillis(1), "topicName", "key", SchemaNameAdjuster.NO_OP, eventQueue);
 

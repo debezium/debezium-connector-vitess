@@ -22,6 +22,8 @@ import io.debezium.config.Configuration;
 import io.debezium.config.ConfigurationNames;
 import io.debezium.config.Field;
 import io.debezium.connector.base.ChangeEventQueue;
+import io.debezium.connector.base.ChangeEventQueueConfig;
+import io.debezium.connector.base.DefaultChangeEventQueue;
 import io.debezium.connector.common.BaseSourceTask;
 import io.debezium.connector.common.DebeziumHeaderProducer;
 import io.debezium.connector.common.DebeziumHeaderProducerProvider;
@@ -103,12 +105,13 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
 
             replicationConnection = new VitessReplicationConnection(connectorConfig, schema);
 
-            queue = new ChangeEventQueue.Builder<DataChangeEvent>()
+            ChangeEventQueueConfig changeEventQueueConfig = ChangeEventQueueConfig.builder()
                     .pollInterval(connectorConfig.getPollInterval())
                     .maxBatchSize(connectorConfig.getMaxBatchSize())
                     .maxQueueSize(connectorConfig.getMaxQueueSize())
                     .loggingContextSupplier(() -> taskContext.configureLoggingContext(CONTEXT_NAME))
                     .build();
+            queue = new DefaultChangeEventQueue<>(changeEventQueueConfig);
 
             // saves the exception in the ChangeEventQueue, later task poll() would throw the exception
             errorHandler = new VitessErrorHandler(connectorConfig, queue, errorHandler);

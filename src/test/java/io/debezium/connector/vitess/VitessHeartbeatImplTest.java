@@ -18,8 +18,7 @@ import org.junit.Test;
 
 import io.debezium.connector.SnapshotRecord;
 import io.debezium.connector.base.ChangeEventQueue;
-import io.debezium.connector.base.ChangeEventQueueConfig;
-import io.debezium.connector.base.DefaultChangeEventQueue;
+import io.debezium.connector.base.DefaultQueueProvider;
 import io.debezium.heartbeat.Heartbeat;
 import io.debezium.pipeline.DataChangeEvent;
 import io.debezium.pipeline.spi.OffsetContext;
@@ -30,12 +29,13 @@ import io.debezium.util.LoggingContext;
 
 public class VitessHeartbeatImplTest {
 
-    private final ChangeEventQueue<DataChangeEvent> eventQueue = new DefaultChangeEventQueue<>(ChangeEventQueueConfig.builder()
+    private final ChangeEventQueue<DataChangeEvent> eventQueue = new ChangeEventQueue.Builder<DataChangeEvent>()
             .maxBatchSize(10)
             .maxQueueSize(20)
             .loggingContextSupplier(() -> LoggingContext.forConnector("a", "b", "c"))
             .pollInterval(Duration.ofMillis(500))
-            .build());
+            .queueProvider(new DefaultQueueProvider<>(20))
+            .build();
 
     private final VitessHeartbeatImpl underTest = new VitessHeartbeatImpl(Duration.ofMillis(1), "topicName", "key", SchemaNameAdjuster.NO_OP, eventQueue);
 
@@ -55,13 +55,13 @@ public class VitessHeartbeatImplTest {
 
     @Test
     public void shouldSendRecordWithVgtid() throws InterruptedException {
-        ChangeEventQueueConfig changeEventQueueConfig = ChangeEventQueueConfig.builder()
+        ChangeEventQueue<DataChangeEvent> eventQueue = new ChangeEventQueue.Builder<DataChangeEvent>()
                 .maxBatchSize(10)
                 .maxQueueSize(20)
                 .loggingContextSupplier(() -> LoggingContext.forConnector("a", "b", "c"))
                 .pollInterval(Duration.ofMillis(500))
+                .queueProvider(new DefaultQueueProvider<>(20))
                 .build();
-        ChangeEventQueue<DataChangeEvent> eventQueue = new DefaultChangeEventQueue<>(changeEventQueueConfig)
 
         Heartbeat heartbeat = new VitessHeartbeatImpl(Duration.ofMillis(1), "topicName", "key", SchemaNameAdjuster.NO_OP, eventQueue);
 

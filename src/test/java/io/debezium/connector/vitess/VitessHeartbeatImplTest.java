@@ -18,6 +18,7 @@ import org.junit.Test;
 
 import io.debezium.connector.SnapshotRecord;
 import io.debezium.connector.base.ChangeEventQueue;
+import io.debezium.connector.base.DefaultQueueProvider;
 import io.debezium.heartbeat.Heartbeat;
 import io.debezium.pipeline.DataChangeEvent;
 import io.debezium.pipeline.spi.OffsetContext;
@@ -33,6 +34,7 @@ public class VitessHeartbeatImplTest {
             .maxQueueSize(20)
             .loggingContextSupplier(() -> LoggingContext.forConnector("a", "b", "c"))
             .pollInterval(Duration.ofMillis(500))
+            .queueProvider(new DefaultQueueProvider<>(20))
             .build();
 
     private final VitessHeartbeatImpl underTest = new VitessHeartbeatImpl(Duration.ofMillis(1), "topicName", "key", SchemaNameAdjuster.NO_OP, eventQueue);
@@ -58,6 +60,7 @@ public class VitessHeartbeatImplTest {
                 .maxQueueSize(20)
                 .loggingContextSupplier(() -> LoggingContext.forConnector("a", "b", "c"))
                 .pollInterval(Duration.ofMillis(500))
+                .queueProvider(new DefaultQueueProvider<>(20))
                 .build();
 
         Heartbeat heartbeat = new VitessHeartbeatImpl(Duration.ofMillis(1), "topicName", "key", SchemaNameAdjuster.NO_OP, eventQueue);

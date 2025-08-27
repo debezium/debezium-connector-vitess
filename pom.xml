@@ -23,8 +23,6 @@
           work on all platforms. We'll set some of these as system properties during integration testing.
         -->
         <vitess.image>vitess/test-database</vitess.image>
-        <!-- Prevent data corruption with 4.1.111.Final -->
-        <version.netty>4.1.110.Final</version.netty>
         <!--suppress UnresolvedMavenProperty -->
         <vitess.vtgate.host>${docker.host.address}</vitess.vtgate.host>
         <vitess.vtgate.grpc.port>15991</vitess.vtgate.grpc.port>
@@ -75,18 +73,6 @@
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-embedded</artifactId>
                 <version>${version.debezium}</version>
-            </dependency>
-
-            <!-- Netty artifacts -->
-            <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-codec-http2</artifactId>
-                <version>${version.netty}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-handler-proxy</artifactId>
-                <version>${version.netty}</version>
             </dependency>
 
             <!-- Building -->

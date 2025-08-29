@@ -85,7 +85,7 @@
             </dependency>
             <dependency>
                 <groupId>io.grpc</groupId>
-                <artifactId>grpc-netty</artifactId>
+                <artifactId>grpc-netty-shaded</artifactId>
                 <version>${version.grpc}</version>
             </dependency>
             <dependency>
@@ -216,9 +216,17 @@
         </dependency>
         <!-- Vitess gRPC -->
         <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.vitess</groupId>
             <artifactId>vitess-grpc-client</artifactId>
             <exclusions>
+                <exclusion>
+                    <groupId>io.grpc</groupId>
+                    <artifactId>grpc-netty</artifactId>
+                </exclusion>
                 <exclusion>
                     <groupId>com.google.code.findbugs</groupId>
                     <artifactId>jsr305</artifactId>

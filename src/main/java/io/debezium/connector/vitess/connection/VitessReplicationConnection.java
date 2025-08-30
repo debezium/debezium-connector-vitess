@@ -26,6 +26,7 @@ import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.debezium.connector.vitess.VitessMetadata;
 import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
 import io.debezium.util.Strings;
+import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Metadata;
@@ -109,7 +110,8 @@ public class VitessReplicationConnection implements ReplicationConnection {
             for (Map.Entry<String, String> entry : grpcHeaders.entrySet()) {
                 metadata.put(Metadata.Key.of(entry.getKey(), Metadata.ASCII_STRING_MARSHALLER), entry.getValue());
             }
-            stub = MetadataUtils.attachHeaders(stub, metadata);
+            ClientInterceptor attachHeadersInterceptor = MetadataUtils.newAttachHeadersInterceptor(metadata);
+            stub = stub.withInterceptors(attachHeadersInterceptor);
         }
 
         StreamObserver<Vtgate.VStreamResponse> responseObserver = new StreamObserver<Vtgate.VStreamResponse>() {

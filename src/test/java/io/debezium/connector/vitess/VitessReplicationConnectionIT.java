@@ -86,23 +86,29 @@ public class VitessReplicationConnectionIT {
 
         BlockingQueue<MessageAndVgtid> consumedMessages = new ArrayBlockingQueue<>(100);
         AtomicBoolean started = new AtomicBoolean(false);
-        connection.startStreaming(
-                startingVgtid,
-                (message, vgtid) -> {
-                    if (!started.get()) {
-                        started.set(true);
-                    }
-                    consumedMessages.add(new MessageAndVgtid(message, vgtid));
-                },
-                error);
-        // Since we are using the "current" as the starting position, there is a race here
-        // if we execute INSERT_STMT before the vstream starts we will never receive the update
-        // therefore, we wait until the stream is setup and then do the insertion
-        Awaitility
-                .await()
-                .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
-                .until(() -> error.get() != null);
-        assertThat(error.get()).isNotNull();
+
+        try {
+            connection.startStreaming(
+                    startingVgtid,
+                    (message, vgtid) -> {
+                        if (!started.get()) {
+                            started.set(true);
+                        }
+                        consumedMessages.add(new MessageAndVgtid(message, vgtid));
+                    },
+                    error);
+            // Since we are using the "current" as the starting position, there is a race here
+            // if we execute INSERT_STMT before the vstream starts we will never receive the update
+            // therefore, we wait until the stream is setup and then do the insertion
+            Awaitility
+                    .await()
+                    .atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))
+                    .until(() -> error.get() != null);
+            assertThat(error.get()).isNotNull();
+        }
+        finally {
+            connection.close();
+        }
     }
 
     @Test

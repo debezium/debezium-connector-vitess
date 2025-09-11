@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.common.metrics.PluginMetrics;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.source.SourceTaskContext;
 import org.apache.kafka.connect.storage.Converter;
@@ -238,6 +239,10 @@ public class VitessConnectorTaskTest {
                     return offsetReader;
                 }
 
+                @Override
+                public PluginMetrics pluginMetrics() {
+                    return null;
+                }
             };
             return sourceTaskContext;
         }

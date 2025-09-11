@@ -33,6 +33,7 @@ import java.util.function.Function;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigValue;
+import org.apache.kafka.common.metrics.PluginMetrics;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.source.SourceConnectorContext;
 import org.apache.kafka.connect.source.SourceTaskContext;
@@ -1816,6 +1817,11 @@ public class VitessConnectorTest {
                 LOGGER.error("Unexpected exception", e);
                 fail(e.getMessage());
             }
+
+            @Override
+            public PluginMetrics pluginMetrics() {
+                return null;
+            }
         };
         connector.initialize(connectorContext);
         connector.start(config.asMap());
@@ -1828,6 +1834,11 @@ public class VitessConnectorTest {
 
             public Map<String, String> configs() {
                 return config.asMap();
+            }
+
+            @Override
+            public PluginMetrics pluginMetrics() {
+                return null;
             }
         };
 
@@ -1935,6 +1946,10 @@ public class VitessConnectorTest {
                     return offsetReader;
                 }
 
+                @Override
+                public PluginMetrics pluginMetrics() {
+                    return null;
+                }
             };
             return sourceConnectorContext;
         }

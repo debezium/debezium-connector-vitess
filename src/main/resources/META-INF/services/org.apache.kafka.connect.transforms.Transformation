@@ -1,0 +1,4 @@
+io.debezium.connector.vitess.transforms.FilterTransactionTopicRecords
+io.debezium.connector.vitess.transforms.RemoveField
+io.debezium.connector.vitess.transforms.ReplaceFieldValue
+io.debezium.connector.vitess.transforms.UseLocalVgtid

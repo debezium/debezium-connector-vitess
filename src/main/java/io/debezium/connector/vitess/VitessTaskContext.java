@@ -10,8 +10,8 @@ import io.debezium.connector.common.CdcSourceTaskContext;
 /** A state (context) associated with a Vitess task. Used mostly by metrics collection. */
 public class VitessTaskContext extends CdcSourceTaskContext {
 
-    public VitessTaskContext(VitessConnectorConfig config, VitessDatabaseSchema schema) {
-        super(config, getTaskId(config), config.getCustomMetricTags(), schema::tableIds);
+    public VitessTaskContext(VitessConnectorConfig config) {
+        super(config, getTaskId(config), config.getCustomMetricTags());
     }
 
     public static String getTaskId(VitessConnectorConfig config) {

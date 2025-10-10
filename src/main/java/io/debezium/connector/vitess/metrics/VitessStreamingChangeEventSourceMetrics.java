@@ -10,6 +10,7 @@ import io.debezium.connector.base.ChangeEventQueueMetrics;
 import io.debezium.connector.common.CdcSourceTaskContext;
 import io.debezium.connector.vitess.VitessPartition;
 import io.debezium.pipeline.metrics.DefaultStreamingChangeEventSourceMetrics;
+import io.debezium.pipeline.metrics.spi.CapturedTablesSupplier;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
 import io.debezium.util.Collect;
 
@@ -20,8 +21,9 @@ import io.debezium.util.Collect;
 public class VitessStreamingChangeEventSourceMetrics extends DefaultStreamingChangeEventSourceMetrics<VitessPartition> {
 
     public <T extends CdcSourceTaskContext> VitessStreamingChangeEventSourceMetrics(T taskContext, ChangeEventQueueMetrics changeEventQueueMetrics,
-                                                                                    EventMetadataProvider eventMetadataProvider) {
+                                                                                    EventMetadataProvider eventMetadataProvider,
+                                                                                    CapturedTablesSupplier capturedTablesSupplier) {
         super(taskContext, changeEventQueueMetrics, eventMetadataProvider,
-                Collect.linkMapOf("context", "streaming", "server", taskContext.getConnectorLogicalName(), "task", taskContext.getTaskId()));
+                Collect.linkMapOf("context", "streaming", "server", taskContext.getConnectorLogicalName(), "task", taskContext.getTaskId()), capturedTablesSupplier);
     }
 }

@@ -11,6 +11,7 @@ import io.debezium.connector.vitess.VitessPartition;
 import io.debezium.pipeline.metrics.DefaultChangeEventSourceMetricsFactory;
 import io.debezium.pipeline.metrics.SnapshotChangeEventSourceMetrics;
 import io.debezium.pipeline.metrics.StreamingChangeEventSourceMetrics;
+import io.debezium.pipeline.metrics.spi.CapturedTablesSupplier;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
 
 /**
@@ -28,7 +29,8 @@ public class VitessChangeEventSourceMetricsFactory extends DefaultChangeEventSou
     @Override
     public <T extends CdcSourceTaskContext> StreamingChangeEventSourceMetrics<VitessPartition> getStreamingMetrics(T taskContext,
                                                                                                                    ChangeEventQueueMetrics changeEventQueueMetrics,
-                                                                                                                   EventMetadataProvider eventMetadataProvider) {
-        return new VitessStreamingChangeEventSourceMetrics(taskContext, changeEventQueueMetrics, eventMetadataProvider);
+                                                                                                                   EventMetadataProvider eventMetadataProvider,
+                                                                                                                   CapturedTablesSupplier capturedTablesSupplier) {
+        return new VitessStreamingChangeEventSourceMetrics(taskContext, changeEventQueueMetrics, eventMetadataProvider, capturedTablesSupplier);
     }
 }

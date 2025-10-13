@@ -9,8 +9,8 @@ import io.debezium.annotation.ThreadSafe;
 import io.debezium.connector.base.ChangeEventQueueMetrics;
 import io.debezium.connector.common.CdcSourceTaskContext;
 import io.debezium.connector.vitess.VitessPartition;
+import io.debezium.pipeline.metrics.CapturedTablesSupplier;
 import io.debezium.pipeline.metrics.DefaultStreamingChangeEventSourceMetrics;
-import io.debezium.pipeline.metrics.spi.CapturedTablesSupplier;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
 import io.debezium.util.Collect;
 

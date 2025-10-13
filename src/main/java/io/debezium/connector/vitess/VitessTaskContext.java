@@ -5,13 +5,14 @@
  */
 package io.debezium.connector.vitess;
 
+import io.debezium.config.Configuration;
 import io.debezium.connector.common.CdcSourceTaskContext;
 
 /** A state (context) associated with a Vitess task. Used mostly by metrics collection. */
-public class VitessTaskContext extends CdcSourceTaskContext {
+public class VitessTaskContext extends CdcSourceTaskContext<VitessConnectorConfig> {
 
-    public VitessTaskContext(VitessConnectorConfig config) {
-        super(config, getTaskId(config), config.getCustomMetricTags());
+    public VitessTaskContext(Configuration rawConfig, VitessConnectorConfig config) {
+        super(rawConfig, config, getTaskId(config), config.getCustomMetricTags());
     }
 
     public static String getTaskId(VitessConnectorConfig config) {

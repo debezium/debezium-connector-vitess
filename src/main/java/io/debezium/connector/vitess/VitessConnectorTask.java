@@ -77,7 +77,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
         CustomConverterRegistry customConverterRegistry = connectorConfig.getServiceRegistry().tryGetService(CustomConverterRegistry.class);
 
         schema = new VitessDatabaseSchema(connectorConfig, schemaNameAdjuster, topicNamingStrategy, customConverterRegistry);
-        VitessTaskContext taskContext = new VitessTaskContext(connectorConfig);
+        VitessTaskContext taskContext = new VitessTaskContext(config, connectorConfig);
         Offsets<VitessPartition, VitessOffsetContext> previousOffsets = getPreviousOffsets(new VitessPartition.Provider(connectorConfig),
                 new VitessOffsetContext.Loader(connectorConfig));
         final VitessOffsetContext previousOffset = previousOffsets.getTheOnlyOffset();

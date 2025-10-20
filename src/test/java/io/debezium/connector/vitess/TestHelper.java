@@ -319,22 +319,43 @@ public class TestHelper {
         return newFieldEvent(defaultColumnValues());
     }
 
+    public static Binlogdata.VEvent defaultFieldEventExcludeKeyspaceFromTableName() {
+        return newFieldEvent(defaultColumnValues(), true);
+    }
+
     public static Binlogdata.VEvent defaultFieldEvent(String shard, String keyspace) {
         return newFieldEvent(defaultColumnValues(), shard, keyspace, false);
     }
 
     public static Binlogdata.VEvent newFieldEvent(List<ColumnValue> columnValues) {
-        return newFieldEvent(columnValues, TEST_SHARD, TEST_UNSHARDED_KEYSPACE, false);
+        return newFieldEvent(columnValues, false);
+    }
+
+    public static Binlogdata.VEvent newFieldEvent(List<ColumnValue> columnValues, boolean excludeKeyspaceFromTableName) {
+        return newFieldEvent(columnValues, TEST_SHARD, TEST_UNSHARDED_KEYSPACE, false, excludeKeyspaceFromTableName);
     }
 
     public static Binlogdata.VEvent newFieldEvent(List<ColumnValue> columnValues, String shard, String keyspace) {
         return newFieldEvent(columnValues, shard, keyspace, false);
     }
 
-    public static Binlogdata.VEvent newFieldEvent(List<ColumnValue> columnValues, String shard, String keyspace, boolean enumSetStringsValues) {
+    public static Binlogdata.VEvent newFieldEvent(List<ColumnValue> columnValues, String shard, String keyspace,
+                                                  boolean enumSetStringsValues) {
+        return newFieldEvent(columnValues, shard, keyspace, enumSetStringsValues, false);
+    }
+
+    public static Binlogdata.VEvent newFieldEvent(List<ColumnValue> columnValues, String shard, String keyspace,
+                                                  boolean enumSetStringsValues, boolean excludeKeyspaceFromTableName) {
+        String tableName;
+        if (excludeKeyspaceFromTableName) {
+            tableName = TEST_TABLE;
+        }
+        else {
+            tableName = getFullTableName(keyspace, TEST_TABLE);
+        }
         Binlogdata.FieldEvent.Builder fieldEventBuilder = Binlogdata.FieldEvent.newBuilder()
                 .setEnumSetStringValues(enumSetStringsValues)
-                .setTableName(getFullTableName(keyspace, TEST_TABLE));
+                .setTableName(tableName);
         for (Field field : newFields(columnValues)) {
             fieldEventBuilder.addFields(field);
         }

@@ -11,6 +11,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +37,8 @@ public class VtctldConnection implements AutoCloseable {
     private static final int SHARD_GTID_INDEX = 8;
     // Flag used by ApplyVSchema command
     private static final String VSCHEMA_FLAG = "vschema";
+
+    private static final Pattern DDL_COMPLETE_PATTERN = Pattern.compile("\\| *complete *\\|");
 
     private final String vtctldHost;
     private final int vtctldPort;
@@ -99,7 +103,8 @@ public class VtctldConnection implements AutoCloseable {
     }
 
     protected String applySchema(String sql, String strategy, String keyspace) {
-        List<String> args = Arrays.asList("ApplySchema", "--ddl_strategy=" + strategy, "--sql=" + sql, keyspace);
+        List<String> args = Arrays.asList("ApplySchema", "--ddl-strategy=" + strategy, "--sql=" + sql, keyspace);
+        LOGGER.info("Apply Schema Args: {}", args);
         List<String> results = execVtctl(args, vtctldHost, vtctldPort);
         LOGGER.info("Schema {} is applied. Result: {}", sql, results);
         return results.get(0).trim();
@@ -107,10 +112,14 @@ public class VtctldConnection implements AutoCloseable {
 
     protected boolean checkOnlineDdlCompleted(String keyspace, String id) {
         List<String> args = Arrays.asList("OnlineDDL", keyspace, "show", id);
+        LOGGER.info("Checking if OnlineDDL has completed with args: {}", args);
         List<String> results = execVtctl(args, vtctldHost, vtctldPort);
         AtomicBoolean isCompleted = new AtomicBoolean(false);
+        LOGGER.info("OnlineDDL status returned results: {}", results);
         results.forEach(s -> {
-            if (s.trim().equals("complete")) {
+            Matcher matcher = DDL_COMPLETE_PATTERN.matcher(s);
+            if (matcher.find()) {
+                LOGGER.info("Found complete status for DDL migration");
                 isCompleted.set(true);
             }
         });

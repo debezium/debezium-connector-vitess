@@ -1,4 +1,4 @@
-FROM quay.io/debezium/vitess-lite:v21.0.3
+FROM quay.io/debezium/vitess-lite:v23.0.0-rc1
 
 USER root
 

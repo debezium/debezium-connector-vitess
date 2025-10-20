@@ -189,6 +189,23 @@ public class VitessConnectorConfigTest {
     }
 
     @Test
+    public void shouldEnableExcludeKeyspaceFromTableNameConfig() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.EXCLUDE_KEYSPACE_FROM_TABLE_NAME, true)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getExcludeKeyspaceFromTableName()).isTrue();
+    }
+
+    @Test
+    public void shouldExcludeKeyspaceFromTableNameConfigDefaultToFalse() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getExcludeKeyspaceFromTableName()).isFalse();
+    }
+
+    @Test
     public void shouldDefaultDisableStreamKeyspaceHeartbeatsConfig() {
         Configuration configuration = TestHelper.defaultConfig().build();
         VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);

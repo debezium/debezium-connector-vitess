@@ -26,6 +26,9 @@ import io.debezium.spi.topic.TopicNamingStrategy;
 public class VitessDatabaseSchema extends RelationalDatabaseSchema {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessDatabaseSchema.class);
 
+    private final String keyspace;
+    private final boolean excludeKeyspaceFromTableName;
+
     public VitessDatabaseSchema(
                                 VitessConnectorConfig config,
                                 SchemaNameAdjuster schemaNameAdjuster,
@@ -52,6 +55,8 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
                         false),
                 false,
                 config.getKeyMapper());
+        this.keyspace = config.getKeyspace();
+        this.excludeKeyspaceFromTableName = config.getExcludeKeyspaceFromTableName();
     }
 
     /** Applies schema changes for the specified table. */
@@ -63,6 +68,14 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
         }
 
         refresh(table);
+    }
+
+    public String getKeyspace() {
+        return this.keyspace;
+    }
+
+    public boolean getExcludeKeyspaceFromTableName() {
+        return this.excludeKeyspaceFromTableName;
     }
 
     private boolean isFilteredOut(TableId id) {

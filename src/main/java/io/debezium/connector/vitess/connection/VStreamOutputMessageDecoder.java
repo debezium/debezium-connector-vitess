@@ -152,22 +152,14 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     private void decodeRows(Binlogdata.VEvent vEvent, ReplicationMessageProcessor processor, Vgtid newVgtid)
             throws InterruptedException {
         Binlogdata.RowEvent rowEvent = vEvent.getRowEvent();
-        String[] schemaTableTuple = rowEvent.getTableName().split("\\.");
-        if (schemaTableTuple.length != 2) {
-            LOGGER.error(
-                    "Handling ROW VEvent. schemaTableTuple should have schema name and table name but has size {}. {} is skipped.",
-                    schemaTableTuple.length,
-                    rowEvent);
-        }
-        else {
+        String[] schemaTableTuple = getSchemaTableTuple(vEvent, rowEvent.getTableName());
+        if (isFullTableNamePresent(vEvent, schemaTableTuple)) {
             String schemaName = schemaTableTuple[0];
             String tableName = schemaTableTuple[1];
             String shard = rowEvent.getShard();
             int numOfRowChanges = rowEvent.getRowChangesCount();
-            int numOfRowChangesEventSeen = 0;
             for (int i = 0; i < numOfRowChanges; i++) {
                 Binlogdata.RowChange rowChange = rowEvent.getRowChanges(i);
-                numOfRowChangesEventSeen++;
                 if (rowChange.hasAfter() && !rowChange.hasBefore()) {
                     decodeInsert(rowChange.getAfter(), schemaName, tableName, shard, processor, newVgtid);
                 }
@@ -346,14 +338,8 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             LOGGER.error("fieldEvent is expected from {}", vEvent);
         }
         else {
-            String[] schemaTableTuple = fieldEvent.getTableName().split("\\.");
-            if (schemaTableTuple.length != 2) {
-                LOGGER.error(
-                        "Handling FIELD VEvent. schemaTableTuple should have schema name and table name but has size {}. {} is skipped",
-                        schemaTableTuple.length,
-                        vEvent);
-            }
-            else {
+            String[] schemaTableTuple = getSchemaTableTuple(vEvent, fieldEvent.getTableName());
+            if (isFullTableNamePresent(vEvent, schemaTableTuple)) {
                 LOGGER.debug("Handling FIELD VEvent: {}", fieldEvent);
                 String schemaName = schemaTableTuple[0];
                 String tableName = schemaTableTuple[1];
@@ -388,6 +374,29 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                 return;
             }
         }
+    }
+
+    private String[] getSchemaTableTuple(Binlogdata.VEvent vEvent, String tableName) {
+        String[] schemaTableTuple;
+        if (schema.getExcludeKeyspaceFromTableName()) {
+            schemaTableTuple = new String[]{ schema.getKeyspace(), tableName };
+        }
+        else {
+            schemaTableTuple = tableName.split("\\.");
+        }
+        return schemaTableTuple;
+    }
+
+    private boolean isFullTableNamePresent(Binlogdata.VEvent vEvent, String[] schemaTableTuple) {
+        if (schemaTableTuple.length != 2) {
+            LOGGER.error(
+                    "Handling {} VEvent. schemaTableTuple should have schema name and table name but has size {}. {} is skipped",
+                    vEvent.getType(),
+                    schemaTableTuple.length,
+                    vEvent);
+            return false;
+        }
+        return true;
     }
 
     private Table resolveTable(String shard, String schemaName, String tableName, List<ColumnMetaData> columns) {

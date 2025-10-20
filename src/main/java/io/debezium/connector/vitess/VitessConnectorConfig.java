@@ -233,6 +233,16 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDescription("Streams the events for the vitess heartbeat tables. Heartbeats must also be enabled on the Vitess tablets. " +
                     "If a Debezium table include list is configured, the heartbeat table should be specified there, the format is `<keyspace>.heartbeat)`");
 
+    public static final Field EXCLUDE_KEYSPACE_FROM_TABLE_NAME = Field.create(VITESS_CONFIG_GROUP_PREFIX + "exclude.keyspace.from.table.name")
+            .withDisplayName("exclude.keyspace.from.table.name")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.SHORT)
+            .withDefault(false)
+            .withImportance(ConfigDef.Importance.LOW)
+            .withDescription("Excludes the keyspace from the table name which boosts the VTGate performance significantly" +
+                    "(avoids unnecessarily copying each event before sending to Debezium)." +
+                    "Only safe to do for Debezium clients streaming from one keyspace (currently the only supported mode of operation).");
+
     public static final Field SHARD = Field.create(VITESS_CONFIG_GROUP_PREFIX + "shard")
             .withDisplayName("Shard")
             .withType(Type.STRING)
@@ -529,6 +539,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     OFFSET_STORAGE_TASK_KEY_GEN,
                     PREV_NUM_TASKS,
                     STREAM_KEYSPACE_HEARTBEATS,
+                    EXCLUDE_KEYSPACE_FROM_TABLE_NAME,
                     EXCLUDE_EMPTY_SHARDS)
             .events(
                     INCLUDE_UNKNOWN_DATATYPES,
@@ -641,6 +652,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public boolean getStreamKeyspaceHeartbeats() {
         return getConfig().getBoolean(STREAM_KEYSPACE_HEARTBEATS);
+    }
+
+    public boolean getExcludeKeyspaceFromTableName() {
+        return getConfig().getBoolean(EXCLUDE_KEYSPACE_FROM_TABLE_NAME);
     }
 
     private static int validateVgtids(Configuration config, Field field, ValidationOutput problems) {

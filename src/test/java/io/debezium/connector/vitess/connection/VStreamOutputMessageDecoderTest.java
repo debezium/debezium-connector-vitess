@@ -246,6 +246,35 @@ public class VStreamOutputMessageDecoderTest {
     }
 
     @Test
+    public void shouldProcessFieldEventExcludeKeyspaceFromTableName() throws Exception {
+        // exercise SUT
+        Configuration configuration = TestHelper.defaultConfig().with(
+                VitessConnectorConfig.EXCLUDE_KEYSPACE_FROM_TABLE_NAME, true)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        DebeziumOpenLineageEmitter.init(configuration.asMap(), "test_server");
+
+        VitessDatabaseSchema schema = new VitessDatabaseSchema(
+                connectorConfig,
+                SchemaNameAdjuster.create(),
+                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig),
+                new CustomConverterRegistry(Collections.emptyList()));
+        VStreamOutputMessageDecoder decoder = new VStreamOutputMessageDecoder(schema);
+        decoder.processMessage(TestHelper.defaultFieldEventExcludeKeyspaceFromTableName(),
+                null, null, false);
+        Table table = schema.tableFor(TestHelper.defaultTableId());
+
+        // verify outcome
+        assertThat(table).isNotNull();
+        assertThat(table.id().schema()).isEqualTo(TestHelper.TEST_UNSHARDED_KEYSPACE);
+        assertThat(table.id().table()).isEqualTo(TestHelper.TEST_TABLE);
+        assertThat(table.columns().size()).isEqualTo(TestHelper.defaultNumOfColumns());
+        for (Query.Field field : TestHelper.defaultFields()) {
+            assertThat(table.columnWithName(field.getName())).isNotNull();
+        }
+    }
+
+    @Test
     public void shouldProcessFieldEvent() throws Exception {
         // exercise SUT
         decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);

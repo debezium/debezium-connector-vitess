@@ -35,7 +35,7 @@ for binary in vttablet vtgate vtctld mysqlctl vtorc vtctl; do
 done;
 
 ETCD_SERVER="localhost:2379"
-TOPOLOGY_FLAGS="--topo_implementation etcd2 --topo_global_server_address $ETCD_SERVER --topo_global_root /vitess/global"
+TOPOLOGY_FLAGS="--topo-implementation etcd2 --topo-global-server-address $ETCD_SERVER --topo-global-root /vitess/global"
 mkdir -p "${VTDATAROOT}/etcd"
 
 mkdir -p "${VTDATAROOT}/tmp"
@@ -45,8 +45,8 @@ mkdir -p "${VTDATAROOT}/tmp"
 # such as ~/.my.cnf
 
 alias mysql="command mysql --no-defaults -h 127.0.0.1 -P 15306"
-alias vtctlclient="command vtctlclient --server localhost:15999 --log_dir ${VTDATAROOT}/tmp --alsologtostderr --config-file-not-found-handling=ignore --grpc_auth_static_client_creds grpc_static_client_auth.json "
-alias vtctldclient="command vtctldclient --server localhost:15999 --grpc_auth_static_client_creds grpc_static_client_auth.json "
+alias vtctlclient="command vtctlclient --server localhost:15999 --log_dir ${VTDATAROOT}/tmp --alsologtostderr --config-file-not-found-handling=ignore --grpc-auth-static-client-creds grpc_static_client_auth.json "
+alias vtctldclient="command vtctldclient --server localhost:15999 --grpc-auth-static-client-creds grpc_static_client_auth.json "
 
 # Make sure aliases are expanded in non-interactive shell
 shopt -s expand_aliases

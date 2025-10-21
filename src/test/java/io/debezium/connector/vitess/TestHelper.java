@@ -267,7 +267,7 @@ public class TestHelper {
     }
 
     protected static void applyVSchema(String vschemaFile) throws Exception {
-        try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
+        try (VtctldConnectionTestHelper vtctldConnection = VtctldConnectionTestHelper.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
             vtctldConnection.applyVSchema(readStringFromFile(vschemaFile), TEST_SHARDED_KEYSPACE);
         }
         catch (Exception e) {
@@ -276,7 +276,7 @@ public class TestHelper {
     }
 
     protected static String applyOnlineDdl(String ddl, String keyspace) {
-        try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
+        try (VtctldConnectionTestHelper vtctldConnection = VtctldConnectionTestHelper.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
             return vtctldConnection.applySchema(ddl, "vitess", keyspace);
         }
         catch (Exception e) {
@@ -285,7 +285,7 @@ public class TestHelper {
     }
 
     protected static boolean checkOnlineDDL(String keyspace, String id) {
-        try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
+        try (VtctldConnectionTestHelper vtctldConnection = VtctldConnectionTestHelper.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
             return vtctldConnection.checkOnlineDdlCompleted(keyspace, id);
         }
         catch (Exception e) {
@@ -294,7 +294,7 @@ public class TestHelper {
     }
 
     protected static Vgtid getCurrentVgtid() throws Exception {
-        try (VtctldConnection vtctldConnection = VtctldConnection.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
+        try (VtctldConnectionTestHelper vtctldConnection = VtctldConnectionTestHelper.of(VTCTLD_HOST, VTCTLD_PORT, USERNAME, PASSWORD)) {
             return vtctldConnection.latestVgtid(TEST_UNSHARDED_KEYSPACE, TEST_SHARD, VitessTabletType.MASTER);
         }
         catch (Exception e) {

@@ -30,8 +30,8 @@ import vtctlservice.VtctlGrpc;
 /**
  * Use VTCtld to do Vitess admin operations
  */
-public class VtctldConnection implements AutoCloseable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(VtctldConnection.class);
+public class VtctldConnectionTestHelper implements AutoCloseable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(VtctldConnectionTestHelper.class);
 
     // Used to retrieve the shard gtid from Vtctld response
     private static final int SHARD_GTID_INDEX = 8;
@@ -46,7 +46,7 @@ public class VtctldConnection implements AutoCloseable {
     private final String vtctldPassword;
     private final ManagedChannel managedChannel;
 
-    private VtctldConnection(String vtctldHost, int vtctldPort, String vtctldUsername, String vtctldPassword) {
+    private VtctldConnectionTestHelper(String vtctldHost, int vtctldPort, String vtctldUsername, String vtctldPassword) {
         this.vtctldHost = vtctldHost;
         this.vtctldPort = vtctldPort;
         this.vtctldUsername = vtctldUsername;
@@ -54,8 +54,8 @@ public class VtctldConnection implements AutoCloseable {
         this.managedChannel = ManagedChannelBuilder.forAddress(vtctldHost, vtctldPort).usePlaintext().build();
     }
 
-    public static VtctldConnection of(String vtctldHost, int vtctldPort, String vtctldUsername, String vtctldPassword) {
-        return new VtctldConnection(vtctldHost, vtctldPort, vtctldUsername, vtctldPassword);
+    public static VtctldConnectionTestHelper of(String vtctldHost, int vtctldPort, String vtctldUsername, String vtctldPassword) {
+        return new VtctldConnectionTestHelper(vtctldHost, vtctldPort, vtctldUsername, vtctldPassword);
     }
 
     /**

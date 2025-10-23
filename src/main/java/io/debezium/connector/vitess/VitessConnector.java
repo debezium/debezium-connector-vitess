@@ -5,6 +5,8 @@
  */
 package io.debezium.connector.vitess;
 
+import static io.debezium.util.LoggingContext.TASK_ID;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -23,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.debezium.config.Configuration;
+import io.debezium.config.ConfigurationNames;
 import io.debezium.connector.common.RelationalBaseSourceConnector;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
@@ -134,10 +137,12 @@ public class VitessConnector extends RelationalBaseSourceConnector {
             for (int tid : shardsPerTask.keySet()) {
                 List<String> taskShards = shardsPerTask.get(tid);
                 Map<String, String> taskProps = new HashMap<>(properties);
-                taskProps.put(VitessConnectorConfig.VITESS_TASK_KEY_CONFIG, getTaskKeyName(tid, tasks, gen));
+                String taskKeyName = getTaskKeyName(tid, tasks, gen);
+                taskProps.put(VitessConnectorConfig.VITESS_TASK_KEY_CONFIG, taskKeyName);
                 taskProps.put(VitessConnectorConfig.VITESS_TASK_SHARDS_CONFIG, String.join(VitessConnectorConfig.CSV_DELIMITER, taskShards));
                 taskProps.put(VitessConnectorConfig.VITESS_TOTAL_TASKS_CONFIG, Integer.toString(tasks));
-                // taskProps.put(TASK_ID, getTaskKeyName(tid, tasks, gen));
+                taskProps.put(ConfigurationNames.TASK_ID_PROPERTY_NAME, taskKeyName);
+                taskProps.put(TASK_ID, taskKeyName);
                 allTaskProps.add(taskProps);
             }
             LOGGER.info("taskConfigs are: {}", allTaskProps);

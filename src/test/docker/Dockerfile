@@ -3,6 +3,7 @@ FROM quay.io/debezium/vitess-lite:v21.0.3
 USER root
 
 # Remove MySQL/Percona repos with expired GPG keys, not needed for itests
+# This can be removed once we upgrade to an image with the fix here https://github.com/vitessio/vitess/pull/18795
 RUN rm -f /etc/apt/sources.list.d/mysql.list /etc/apt/sources.list.d/percona.list
 
 RUN apt-get update

@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
@@ -76,6 +77,7 @@ import io.debezium.embedded.async.AsyncEmbeddedEngine;
 import io.debezium.heartbeat.Heartbeat;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.junit.logging.LogInterceptor;
+import io.debezium.openlineage.DebeziumOpenLineageEmitter;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
 import io.debezium.util.Collect;
@@ -1465,13 +1467,25 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
         TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
         TestHelper.applyVSchema("vitess_vschema.json");
-        startConnector(Function.identity(), hasMultipleShards, true, 2, 0, 1, null, null, null);
+        int numTasks = 2;
+        startConnector(Function.identity(), hasMultipleShards, true, numTasks, 0, 1, null, null, null);
         assertConnectorIsRunning();
 
         int expectedRecordsCount = 1;
         consumer = testConsumer(expectedRecordsCount);
         // Since there are two tasks and each gets one shard this is expected to only have one shard
         assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TEST_SHARDED_KEYSPACE, TestHelper.PK_FIELD, false);
+
+        // There should be an open lineage emitter for each tasks
+        assertThat(getOpenLineageEmitterCount()).isEqualTo(numTasks);
+    }
+
+    private int getOpenLineageEmitterCount() throws Exception {
+        java.lang.reflect.Field emittersField = DebeziumOpenLineageEmitter.class.getDeclaredField("emitters");
+        emittersField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        ConcurrentHashMap<String, ?> emitters = (ConcurrentHashMap<String, ?>) emittersField.get(null);
+        return emitters.size();
     }
 
     @Test

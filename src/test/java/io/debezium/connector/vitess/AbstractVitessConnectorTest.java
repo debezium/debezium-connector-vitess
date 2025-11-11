@@ -62,6 +62,7 @@ import io.debezium.data.Json;
 import io.debezium.data.SchemaUtil;
 import io.debezium.data.VerifyRecord;
 import io.debezium.embedded.async.AbstractAsyncEngineConnectorTest;
+import io.debezium.embedded.util.MetricsHelper;
 import io.debezium.relational.TableId;
 import io.debezium.time.MicroTime;
 import io.debezium.time.MicroTimestamp;
@@ -666,7 +667,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
         try {
             waitForStreamingRunning(taskId != null
                     ? getStreamingMetricsObjectName(connector, server, taskId)
-                    : getStreamingMetricsObjectName(connector, server));
+                    : MetricsHelper.getStreamingMetricsObjectName(connector, server));
         }
         catch (MalformedObjectNameException e) {
             throw new RuntimeException(e);

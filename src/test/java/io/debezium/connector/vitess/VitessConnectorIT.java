@@ -2197,6 +2197,62 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    public void testTablesToCopyFlag() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+
+        // Insert records into multiple tables before starting the connector
+        TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        TestHelper.execute(INSERT_STRING_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        TestHelper.execute(INSERT_ENUM_TYPE_STMT, TEST_UNSHARDED_KEYSPACE);
+
+        // Configure connector with table include list for all three tables
+        // but only specify numeric_table in tables_to_copy
+        String tableInclude = TEST_UNSHARDED_KEYSPACE + ".numeric_table," +
+                TEST_UNSHARDED_KEYSPACE + ".string_table," +
+                TEST_UNSHARDED_KEYSPACE + ".enum_table";
+
+        startConnector(config -> config
+                .with(VitessConnectorConfig.TABLES_TO_COPY, "numeric_table")
+                .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude),
+                false);
+        assertConnectorIsRunning();
+
+        // We should only receive 1 record from numeric_table during the copy phase
+        // (string_table and enum_table should not be copied)
+        int expectedCopyPhaseRecords = 1;
+        consumer = testConsumer(expectedCopyPhaseRecords);
+        consumer.awaitDefault();
+
+        // Verify we got the numeric_table record
+        SourceRecord record = consumer.remove();
+        assertThat(record.topic()).isEqualTo(TEST_SERVER + "." + TEST_UNSHARDED_KEYSPACE + ".numeric_table");
+        Struct value = (Struct) record.value();
+        Struct source = (Struct) value.get("source");
+        assertThat(source.getString("table")).isEqualTo("numeric_table");
+        assertThat(consumer.isEmpty());
+
+        // Now insert new records into all three tables after connector has started
+        // All tables should stream these new records
+        consumer.expects(3);
+        TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        TestHelper.execute(INSERT_STRING_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        TestHelper.execute(INSERT_ENUM_TYPE_STMT, TEST_UNSHARDED_KEYSPACE);
+        consumer.awaitDefault();
+
+        // Verify we received records from all three tables during streaming phase
+        Set<String> streamedTables = new HashSet<>();
+        for (int i = 0; i < 3; i++) {
+            SourceRecord streamRecord = consumer.remove();
+            Struct streamValue = (Struct) streamRecord.value();
+            Struct streamSource = (Struct) streamValue.get("source");
+            streamedTables.add(streamSource.getString("table"));
+        }
+
+        assertThat(streamedTables).containsExactlyInAnyOrder("numeric_table", "string_table", "enum_table");
+        assertThat(consumer.isEmpty());
+    }
+
+    @Test
     public void testInitialSnapshotModeHaveMultiShard() throws Exception {
         final boolean hasMultipleShards = true;
 

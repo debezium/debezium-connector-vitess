@@ -287,12 +287,16 @@ public class VitessReplicationConnection implements ReplicationConnection {
             }
         };
 
-        Vtgate.VStreamFlags vStreamFlags = Vtgate.VStreamFlags.newBuilder()
+        Vtgate.VStreamFlags.Builder vStreamFlagsBuilder = Vtgate.VStreamFlags.newBuilder()
                 .setStopOnReshard(config.getStopOnReshard())
                 .setExcludeKeyspaceFromTableName(config.getExcludeKeyspaceFromTableName())
                 .setHeartbeatInterval(getHeartbeatSeconds())
-                .setStreamKeyspaceHeartbeats(config.getStreamKeyspaceHeartbeats())
-                .build();
+                .setStreamKeyspaceHeartbeats(config.getStreamKeyspaceHeartbeats());
+        List<String> tablesToCopy = config.getTablesToCopy();
+        if (tablesToCopy != null && !tablesToCopy.isEmpty()) {
+            vStreamFlagsBuilder.addAllTablesToCopy(tablesToCopy);
+        }
+        Vtgate.VStreamFlags vStreamFlags = vStreamFlagsBuilder.build();
         // Add filtering for whitelist tables
         Binlogdata.Filter.Builder filterBuilder = Binlogdata.Filter.newBuilder();
         if (!Strings.isNullOrEmpty(config.tableIncludeList())) {

@@ -212,4 +212,24 @@ public class VitessConnectorConfigTest {
         assertThat(connectorConfig.getStreamKeyspaceHeartbeats()).isFalse();
     }
 
+    @Test
+    public void shouldSetTablesToCopyConfig() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.TABLES_TO_COPY, "table1,table2,table3")
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> tablesToCopy = connectorConfig.getTablesToCopy();
+        assertThat(tablesToCopy).isNotNull();
+        assertThat(tablesToCopy.size()).isEqualTo(3);
+        assertThat(tablesToCopy).containsExactly("table1", "table2", "table3");
+    }
+
+    @Test
+    public void shouldReturnNullWhenTablesToCopyNotSet() {
+        Configuration configuration = TestHelper.defaultConfig().build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> tablesToCopy = connectorConfig.getTablesToCopy();
+        assertThat(tablesToCopy).isNull();
+    }
+
 }

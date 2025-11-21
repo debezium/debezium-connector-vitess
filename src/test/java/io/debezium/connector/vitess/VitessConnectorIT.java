@@ -1468,7 +1468,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
         TestHelper.applyVSchema("vitess_vschema.json");
         int numTasks = 2;
-        startConnector(Function.identity(), hasMultipleShards, true, numTasks, 0, 1, null, null, null);
+        startConnector(config -> config.with("openlineage.integration.enabled", "true"), hasMultipleShards, true, numTasks, 0, 1, null, null, null);
         assertConnectorIsRunning();
 
         int expectedRecordsCount = 1;

@@ -22,13 +22,13 @@ jobs:
 
     steps:
       - name: Checkout core repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: debezium/debezium
           ref: ${{ github.ref }}
           path: core
       - name: Checkout Vitess connector
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           path: vitess
       - name: Set up JDK

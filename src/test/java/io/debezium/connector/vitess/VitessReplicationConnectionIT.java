@@ -36,7 +36,6 @@ import io.debezium.doc.FixFor;
 import io.debezium.heartbeat.Heartbeat;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.junit.logging.LogInterceptor;
-import io.debezium.openlineage.DebeziumOpenLineageEmitter;
 import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.schema.DefaultTopicNamingStrategy;
@@ -53,9 +52,6 @@ public class VitessReplicationConnectionIT {
 
     @Before
     public void beforeEach() {
-        DebeziumOpenLineageEmitter.init(TestHelper.defaultConfig(false, false, 1, -1, -1,
-                null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,
-                "1", "skip").build().asMap(), "vitess");
         TestHelper.execute(TestHelper.SETUP_TABLES_STMT);
         TestHelper.execute(TestHelper.INSERT_STMT);
     }
@@ -69,8 +65,10 @@ public class VitessReplicationConnectionIT {
                 TestHelper.defaultConfig(false, false, 1, -1, -1,
                         null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,
                         "1", "skip").build());
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), conf);
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
-                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()));
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()),
+                taskContext);
 
         AtomicReference<Throwable> error = new AtomicReference<>();
         VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema);
@@ -119,8 +117,10 @@ public class VitessReplicationConnectionIT {
                 TestHelper.defaultConfig(false, false, 1, -1, -1,
                         null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,
                         "1", "warn").build());
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), conf);
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
-                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()));
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()),
+                taskContext);
 
         AtomicReference<Throwable> error = new AtomicReference<>();
         VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema);
@@ -162,8 +162,10 @@ public class VitessReplicationConnectionIT {
                 TestHelper.defaultConfig(false, false, 1, -1, -1,
                         null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,
                         "1", "fail").build());
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), conf);
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
-                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()));
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()),
+                taskContext);
 
         AtomicReference<Throwable> error = new AtomicReference<>();
         VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema);
@@ -206,8 +208,10 @@ public class VitessReplicationConnectionIT {
                         null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,
                         "1", null).build());
         conf.getEventProcessingFailureHandlingMode();
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), conf);
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
-                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()));
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()),
+                taskContext);
 
         AtomicReference<Throwable> error = new AtomicReference<>();
         VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema);
@@ -246,8 +250,10 @@ public class VitessReplicationConnectionIT {
     public void shouldHaveVgtidInResponse() throws Exception {
         // setup fixture
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), conf);
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
-                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()));
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()),
+                taskContext);
 
         AtomicReference<Throwable> error = new AtomicReference<>();
         try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
@@ -314,8 +320,10 @@ public class VitessReplicationConnectionIT {
         final VitessConnectorConfig conf = new VitessConnectorConfig(
                 TestHelper.defaultConfig().with(VitessConnectorConfig.EXCLUDE_KEYSPACE_FROM_TABLE_NAME, true)
                         .build());
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), conf);
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
-                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()));
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()),
+                taskContext);
 
         AtomicReference<Throwable> error = new AtomicReference<>();
         try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
@@ -387,8 +395,10 @@ public class VitessReplicationConnectionIT {
         // setup fixture
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().with(
                 Heartbeat.HEARTBEAT_INTERVAL, 1000).build());
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), conf);
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
-                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()));
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()),
+                taskContext);
 
         AtomicReference<Throwable> error = new AtomicReference<>();
         try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
@@ -449,8 +459,10 @@ public class VitessReplicationConnectionIT {
     public void shouldSendCommitTimestamp() throws Exception {
         // setup fixture
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), conf);
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
-                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()));
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()),
+                taskContext);
 
         AtomicReference<Throwable> error = new AtomicReference<>();
         try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
@@ -559,8 +571,10 @@ public class VitessReplicationConnectionIT {
 
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig()
                 .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude).build());
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), conf);
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
-                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()));
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()),
+                taskContext);
 
         AtomicReference<Throwable> error = new AtomicReference<>();
         try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
@@ -635,8 +649,10 @@ public class VitessReplicationConnectionIT {
     @FixFor("DBZ-4353")
     public void shouldReturnUpdatedSchemaWithOnlineDdl() throws Exception {
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig().build());
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), conf);
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
-                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()));
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()),
+                taskContext);
         AtomicReference<Throwable> error = new AtomicReference<>();
         try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {
             Vgtid startingVgtid = Vgtid.of(
@@ -718,8 +734,10 @@ public class VitessReplicationConnectionIT {
 
         final VitessConnectorConfig conf = new VitessConnectorConfig(TestHelper.defaultConfig()
                 .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude).build());
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), conf);
         final VitessDatabaseSchema vitessDatabaseSchema = new VitessDatabaseSchema(
-                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()));
+                conf, SchemaNameAdjuster.create(), (TopicNamingStrategy) DefaultTopicNamingStrategy.create(conf), new CustomConverterRegistry(Collections.emptyList()),
+                taskContext);
 
         AtomicReference<Throwable> error = new AtomicReference<>();
         try (VitessReplicationConnection connection = new VitessReplicationConnection(conf, vitessDatabaseSchema)) {

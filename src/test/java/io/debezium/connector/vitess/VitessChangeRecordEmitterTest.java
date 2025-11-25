@@ -21,7 +21,6 @@ import io.debezium.connector.vitess.connection.TransactionalMessage;
 import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.connector.vitess.connection.VStreamOutputReplicationMessage;
 import io.debezium.data.Envelope;
-import io.debezium.openlineage.DebeziumOpenLineageEmitter;
 import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.schema.DefaultTopicNamingStrategy;
 import io.debezium.schema.SchemaNameAdjuster;
@@ -42,12 +41,12 @@ public class VitessChangeRecordEmitterTest {
     @BeforeClass
     public static void beforeClass() throws Exception {
         Configuration configuration = TestHelper.defaultConfig().build();
-        DebeziumOpenLineageEmitter.init(configuration.asMap(), "test_server");
         connectorConfig = new VitessConnectorConfig(configuration);
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), connectorConfig);
         schema = new VitessDatabaseSchema(
                 connectorConfig,
                 SchemaNameAdjuster.create(),
-                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig), new CustomConverterRegistry(Collections.emptyList()));
+                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig), new CustomConverterRegistry(Collections.emptyList()), taskContext);
         decoder = new VStreamOutputMessageDecoder(schema);
         // initialize schema by FIELD event
         decoder.processMessage(TestHelper.defaultFieldEvent(), null, null, false);

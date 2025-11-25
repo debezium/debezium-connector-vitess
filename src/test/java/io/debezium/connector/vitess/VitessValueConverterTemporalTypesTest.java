@@ -21,7 +21,6 @@ import org.junit.Test;
 
 import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.jdbc.TemporalPrecisionMode;
-import io.debezium.openlineage.DebeziumOpenLineageEmitter;
 import io.debezium.relational.Column;
 import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.relational.Table;
@@ -46,8 +45,6 @@ public class VitessValueConverterTemporalTypesTest {
     @Before
     public void before() {
 
-        DebeziumOpenLineageEmitter.init(TestHelper.defaultConfig().build().asMap(), "test_server");
-
         VitessConnectorConfig config = new VitessConnectorConfig(
                 TestHelper.defaultConfig().with(
                         VitessConnectorConfig.TIME_PRECISION_MODE.name(), TemporalPrecisionMode.ISOSTRING).build());
@@ -59,10 +56,11 @@ public class VitessValueConverterTemporalTypesTest {
                 config.includeUnknownDatatypes(),
                 config.getBigIntUnsgnedHandlingMode(),
                 false);
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), config);
         schema = new VitessDatabaseSchema(
                 config,
                 SchemaNameAdjuster.create(),
-                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(config), new CustomConverterRegistry(Collections.emptyList()));
+                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(config), new CustomConverterRegistry(Collections.emptyList()), taskContext);
         decoder = new VStreamOutputMessageDecoder(schema);
     }
 

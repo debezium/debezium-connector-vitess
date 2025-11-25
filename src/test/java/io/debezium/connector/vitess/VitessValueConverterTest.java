@@ -25,7 +25,6 @@ import org.junit.Test;
 
 import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.junit.logging.LogInterceptor;
-import io.debezium.openlineage.DebeziumOpenLineageEmitter;
 import io.debezium.relational.Column;
 import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.relational.Table;
@@ -49,9 +48,8 @@ public class VitessValueConverterTest {
     @Before
     public void before() {
 
-        DebeziumOpenLineageEmitter.init(TestHelper.defaultConfig().build().asMap(), "test_server");
-
         config = new VitessConnectorConfig(TestHelper.defaultConfig().build());
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), config);
         converter = new VitessValueConverter(
                 config.getDecimalMode(),
                 config.getTemporalPrecisionMode(),
@@ -63,7 +61,7 @@ public class VitessValueConverterTest {
         schema = new VitessDatabaseSchema(
                 config,
                 SchemaNameAdjuster.create(),
-                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(config), new CustomConverterRegistry(Collections.emptyList()));
+                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(config), new CustomConverterRegistry(Collections.emptyList()), taskContext);
         decoder = new VStreamOutputMessageDecoder(schema);
     }
 

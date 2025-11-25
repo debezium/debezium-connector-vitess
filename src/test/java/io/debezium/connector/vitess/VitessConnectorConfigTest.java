@@ -10,6 +10,7 @@ import static io.debezium.connector.vitess.TestHelper.TEST_SHARD_TO_EPOCH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -213,23 +214,56 @@ public class VitessConnectorConfigTest {
     }
 
     @Test
-    public void shouldSetTablesToCopyConfig() {
+    public void shouldFilterTablesToCopyWithSingleRegexPattern() {
         Configuration configuration = TestHelper.defaultConfig()
-                .with(VitessConnectorConfig.TABLES_TO_COPY, "table1,table2,table3")
+                .with(CommonConnectorConfig.SNAPSHOT_MODE_TABLES, TestHelper.TEST_UNSHARDED_KEYSPACE + ".numeric_.*")
                 .build();
         VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
-        List<String> tablesToCopy = connectorConfig.getTablesToCopy();
-        assertThat(tablesToCopy).isNotNull();
-        assertThat(tablesToCopy.size()).isEqualTo(3);
-        assertThat(tablesToCopy).containsExactly("table1", "table2", "table3");
+        List<String> allTables = Arrays.asList("numeric_table", "numeric_table2", "string_table", "enum_table");
+        List<String> tablesToCopy = VitessConnector.getTablesToCopyByPrefix(connectorConfig, allTables);
+        assertThat(tablesToCopy).containsExactlyInAnyOrder("numeric_table", "numeric_table2");
     }
 
     @Test
-    public void shouldReturnNullWhenTablesToCopyNotSet() {
+    public void shouldFilterTablesToCopyWithMultipleRegexPatterns() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(CommonConnectorConfig.SNAPSHOT_MODE_TABLES, TestHelper.TEST_UNSHARDED_KEYSPACE + ".numeric_.*," + TestHelper.TEST_UNSHARDED_KEYSPACE + ".string_.*")
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> allTables = Arrays.asList("numeric_table", "numeric_table2", "string_table", "string_table2", "enum_table");
+        List<String> tablesToCopy = VitessConnector.getTablesToCopyByPrefix(connectorConfig, allTables);
+        assertThat(tablesToCopy).containsExactlyInAnyOrder("numeric_table", "numeric_table2", "string_table", "string_table2");
+    }
+
+    @Test
+    public void shouldReturnEmptyListWhenSnapshotModeTablesNotSet() {
         Configuration configuration = TestHelper.defaultConfig().build();
         VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
-        List<String> tablesToCopy = connectorConfig.getTablesToCopy();
-        assertThat(tablesToCopy).isNull();
+        List<String> allTables = Arrays.asList("numeric_table", "string_table");
+        List<String> tablesToCopy = VitessConnector.getTablesToCopyByPrefix(connectorConfig, allTables);
+        assertThat(tablesToCopy).isEmpty();
+    }
+
+    @Test
+    public void shouldReturnEmptyListWhenSnapshotModeTablesIsEmptyString() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(CommonConnectorConfig.SNAPSHOT_MODE_TABLES, "")
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> allTables = Arrays.asList("numeric_table", "string_table", "enum_table");
+        List<String> tablesToCopy = VitessConnector.getTablesToCopyByPrefix(connectorConfig, allTables);
+        assertThat(tablesToCopy).isEmpty();
+    }
+
+    @Test
+    public void shouldFilterTablesToCopyWithExactTableName() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(CommonConnectorConfig.SNAPSHOT_MODE_TABLES, TestHelper.TEST_UNSHARDED_KEYSPACE + ".numeric_table")
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> allTables = Arrays.asList("numeric_table", "numeric_table2", "string_table");
+        List<String> tablesToCopy = VitessConnector.getTablesToCopyByPrefix(connectorConfig, allTables);
+        assertThat(tablesToCopy).containsExactly("numeric_table");
     }
 
 }

@@ -272,17 +272,24 @@ public class VitessConnector extends RelationalBaseSourceConnector {
     }
 
     public static List<String> getIncludedTables(VitessConnectorConfig connectorConfig, List<String> allTables) {
-        // table.include.list are list of patterns, filter all the tables in the keyspace through those patterns
-        // to get the list of table names.
-        List<String> includedTables = new ArrayList<>();
-        String keyspace = connectorConfig.getKeyspace();
         Tables.TableFilter filter = new Filters(connectorConfig).tableFilter();
+        return filterTablesByFilter(connectorConfig, allTables, filter);
+    }
+
+    public static List<String> getTablesToCopyByPrefix(VitessConnectorConfig connectorConfig, List<String> allTables) {
+        Tables.TableFilter filter = new Filters(connectorConfig).snapshotTableFilter();
+        return filterTablesByFilter(connectorConfig, allTables, filter);
+    }
+
+    private static List<String> filterTablesByFilter(VitessConnectorConfig connectorConfig, List<String> allTables, Tables.TableFilter filter) {
+        List<String> filteredTables = new ArrayList<>();
+        String keyspace = connectorConfig.getKeyspace();
         for (String table : allTables) {
             if (filter.isIncluded(new TableId("", keyspace, table))) {
-                includedTables.add(table);
+                filteredTables.add(table);
             }
         }
-        return includedTables;
+        return filteredTables;
     }
 
     @Override

@@ -52,6 +52,7 @@ public class VitessConnectorTaskTest {
         VitessConnectorTask task = new VitessConnectorTask();
         ContextHelper helper = new ContextHelper();
         task.initialize(helper.getSourceTaskContext());
+        task.preStart(config);
         ChangeEventSourceCoordinator coordinator = task.start(config);
         assertThat(vitessLogInterceptor.containsMessage("Using offsets from config")).isTrue();
     }
@@ -65,6 +66,7 @@ public class VitessConnectorTaskTest {
         VitessConnectorTask task = new VitessConnectorTask();
         ContextHelper helper = new ContextHelper();
         task.initialize(helper.getSourceTaskContext());
+        task.preStart(config);
         ChangeEventSourceCoordinator coordinator = task.start(config);
         assertThat(vitessLogInterceptor.containsMessage("No previous offset found")).isTrue();
     }
@@ -79,6 +81,7 @@ public class VitessConnectorTaskTest {
         ContextHelper helper = new ContextHelper();
         helper.storeOffsets(VGTID_JSON, null);
         task.initialize(helper.getSourceTaskContext());
+        task.preStart(config);
         ChangeEventSourceCoordinator coordinator = task.start(config);
         String expectedMessage = String.format(
                 "Found previous partition offset VitessPartition [sourcePartition={server=test_server}]: {vgtid=%s}",
@@ -106,6 +109,7 @@ public class VitessConnectorTaskTest {
         ContextHelper helper = new ContextHelper();
         helper.storeOffsets(null, Map.of(taskKey, VGTID_JSON));
         task.initialize(helper.getSourceTaskContext());
+        task.preStart(config);
         ChangeEventSourceCoordinator coordinator = task.start(config);
         String expectedMessage = "Using offsets from current gen";
         assertThat(vitessLogInterceptor.containsMessage(expectedMessage)).isTrue();
@@ -134,6 +138,7 @@ public class VitessConnectorTaskTest {
                 .build();
         VitessConnectorTask task = new VitessConnectorTask();
         task.initialize(helper.getSourceTaskContext());
+        task.preStart(config);
         task.start(config);
         String expectedMessage = "Using offsets from previous gen";
         assertThat(vitessLogInterceptor.containsMessage(expectedMessage)).isTrue();
@@ -169,6 +174,8 @@ public class VitessConnectorTaskTest {
                 .build();
         VitessConnectorTask task = new VitessConnectorTask();
         task.initialize(helper.getSourceTaskContext());
+        task.preStart(config);
+        task.preStart(config);
         task.start(config);
         Configuration configWithOffsets = task.getConfigWithOffsets(config);
         Vgtid loadedVgtid = Vgtid.of(configWithOffsets.getString(VitessConnectorConfig.VITESS_TASK_VGTID_CONFIG));
@@ -198,6 +205,7 @@ public class VitessConnectorTaskTest {
         VitessConnectorTask task = new VitessConnectorTask();
         ContextHelper helper = new ContextHelper();
         task.initialize(helper.getSourceTaskContext());
+        task.preStart(config);
         task.start(config);
         String expectedMessage = "Using offsets from config";
         assertThat(vitessLogInterceptor.containsMessage(expectedMessage)).isTrue();

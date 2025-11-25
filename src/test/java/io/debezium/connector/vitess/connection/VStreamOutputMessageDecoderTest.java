@@ -25,8 +25,8 @@ import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VgtidTest;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
+import io.debezium.connector.vitess.VitessTaskContext;
 import io.debezium.doc.FixFor;
-import io.debezium.openlineage.DebeziumOpenLineageEmitter;
 import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
@@ -49,12 +49,11 @@ public class VStreamOutputMessageDecoderTest {
 
         Configuration configuration = TestHelper.defaultConfig().build();
         connectorConfig = new VitessConnectorConfig(configuration);
-        DebeziumOpenLineageEmitter.init(configuration.asMap(), "test_server");
-
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), connectorConfig);
         schema = new VitessDatabaseSchema(
                 connectorConfig,
                 SchemaNameAdjuster.create(),
-                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig), new CustomConverterRegistry(Collections.emptyList()));
+                (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig), new CustomConverterRegistry(Collections.emptyList()), taskContext);
         decoder = new VStreamOutputMessageDecoder(schema);
     }
 
@@ -252,13 +251,12 @@ public class VStreamOutputMessageDecoderTest {
                 VitessConnectorConfig.EXCLUDE_KEYSPACE_FROM_TABLE_NAME, true)
                 .build();
         VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
-        DebeziumOpenLineageEmitter.init(configuration.asMap(), "test_server");
-
+        VitessTaskContext taskContext = new VitessTaskContext(TestHelper.defaultConfig().build(), connectorConfig);
         VitessDatabaseSchema schema = new VitessDatabaseSchema(
                 connectorConfig,
                 SchemaNameAdjuster.create(),
                 (TopicNamingStrategy) DefaultTopicNamingStrategy.create(connectorConfig),
-                new CustomConverterRegistry(Collections.emptyList()));
+                new CustomConverterRegistry(Collections.emptyList()), taskContext);
         VStreamOutputMessageDecoder decoder = new VStreamOutputMessageDecoder(schema);
         decoder.processMessage(TestHelper.defaultFieldEventExcludeKeyspaceFromTableName(),
                 null, null, false);

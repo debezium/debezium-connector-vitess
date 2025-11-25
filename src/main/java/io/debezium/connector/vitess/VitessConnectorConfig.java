@@ -363,15 +363,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withValidation(VitessConnectorConfig::validateLoadBalancingPolicy)
             .withDescription("Specify the default load balancing policy used to connect to Vitess, e.g., 'pick_first', 'round_robin'");
 
-    public static final Field TABLES_TO_COPY = Field.create(VITESS_CONFIG_GROUP_PREFIX + "tables.to.copy")
-            .withDisplayName("VStream flag tables_to_copy")
-            .withType(Type.STRING)
-            .withWidth(Width.LONG)
-            .withImportance(ConfigDef.Importance.MEDIUM)
-            .withDescription("Comma-separated list of tables to copy during the VStream copy phase. " +
-                    "If not provided, all tables in the filter will be copied. " +
-                    "This allows selective copying of specific tables while still streaming changes from all tables.");
-
     public static final Field INCLUDE_UNKNOWN_DATATYPES = Field.create("include.unknown.datatypes")
             .withDisplayName("Include unknown datatypes")
             .withType(Type.BOOLEAN)
@@ -549,8 +540,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     PREV_NUM_TASKS,
                     STREAM_KEYSPACE_HEARTBEATS,
                     EXCLUDE_KEYSPACE_FROM_TABLE_NAME,
-                    EXCLUDE_EMPTY_SHARDS,
-                    TABLES_TO_COPY)
+                    EXCLUDE_EMPTY_SHARDS)
             .events(
                     INCLUDE_UNKNOWN_DATATYPES,
                     SOURCE_INFO_STRUCT_MAKER)
@@ -836,9 +826,5 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     public BigIntUnsignedHandlingMode getBigIntUnsgnedHandlingMode() {
         return BigIntUnsignedHandlingMode.parse(getConfig().getString(BIGINT_UNSIGNED_HANDLING_MODE),
                 BIGINT_UNSIGNED_HANDLING_MODE.defaultValueAsString());
-    }
-
-    public List<String> getTablesToCopy() {
-        return getConfig().getStrings(TABLES_TO_COPY, CSV_DELIMITER);
     }
 }

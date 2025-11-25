@@ -2197,7 +2197,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
-    public void testTablesToCopyFlagWithEmptyGtid() throws Exception {
+    public void testTablesToCopyFlagUsedWithEmptyGtid() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
 
         // Insert records into multiple tables before starting the connector
@@ -2206,14 +2206,14 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.execute(INSERT_ENUM_TYPE_STMT, TEST_UNSHARDED_KEYSPACE);
 
         // Configure connector with table include list for all three tables
-        // but only specify numeric_table in tables_to_copy
+        // but only specify numeric_table in snapshot.mode.tables
         String tableInclude = TEST_UNSHARDED_KEYSPACE + ".numeric_table," +
                 TEST_UNSHARDED_KEYSPACE + ".string_table," +
                 TEST_UNSHARDED_KEYSPACE + ".enum_table";
 
         startConnector(config -> config
                 .with(VitessConnectorConfig.VGTID, Vgtid.EMPTY_GTID)
-                .with(VitessConnectorConfig.TABLES_TO_COPY, "numeric_table")
+                .with(CommonConnectorConfig.SNAPSHOT_MODE_TABLES, TEST_UNSHARDED_KEYSPACE + ".numeric_table")
                 .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude),
                 false);
         assertConnectorIsRunning();
@@ -2265,14 +2265,14 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.execute(INSERT_STRING_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
         TestHelper.execute(INSERT_ENUM_TYPE_STMT, TEST_UNSHARDED_KEYSPACE);
 
-        // Configure connector with current GTID (tables to copy list should be ignored)
+        // Configure connector with current GTID (snapshot.mode.tables should be ignored)
         String tableInclude = TEST_UNSHARDED_KEYSPACE + ".numeric_table," +
                 TEST_UNSHARDED_KEYSPACE + ".string_table," +
                 TEST_UNSHARDED_KEYSPACE + ".enum_table";
 
         startConnector(config -> config
                 .with(VitessConnectorConfig.VGTID, Vgtid.CURRENT_GTID)
-                .with(VitessConnectorConfig.TABLES_TO_COPY, "numeric_table")
+                .with(CommonConnectorConfig.SNAPSHOT_MODE_TABLES, TEST_UNSHARDED_KEYSPACE + ".numeric_table")
                 .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude),
                 false);
         assertConnectorIsRunning();
@@ -2303,7 +2303,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     public void testTablesToCopyIgnoredAfterStreamingStarted() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
 
-        // Configure connector without tables_to_copy initially
+        // Configure connector without snapshot.mode.tables initially
         String tableInclude = TEST_UNSHARDED_KEYSPACE + ".numeric_table," +
                 TEST_UNSHARDED_KEYSPACE + ".string_table," +
                 TEST_UNSHARDED_KEYSPACE + ".enum_table";
@@ -2341,15 +2341,15 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.execute(INSERT_STRING_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
         TestHelper.execute(INSERT_ENUM_TYPE_STMT, TEST_UNSHARDED_KEYSPACE);
 
-        // Restart connector with tables_to_copy configured (should be ignored)
+        // Restart connector with snapshot.mode.tables configured (should be ignored)
         startConnector(config -> config
-                .with(VitessConnectorConfig.TABLES_TO_COPY, "numeric_table")
+                .with(CommonConnectorConfig.SNAPSHOT_MODE_TABLES, TEST_UNSHARDED_KEYSPACE + ".numeric_table")
                 .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude),
                 false);
         assertConnectorIsRunning();
 
         // We should receive all 3 records that were inserted while stopped
-        // (tables_to_copy should be ignored since we're resuming from a saved offset)
+        // (snapshot.mode.tables should be ignored since we're resuming from a saved offset)
         // We will also receive one additional record since the last transaction
         // is resubmitted. For streaming records source ts_ms will not be zero
         // (ts_ms=0 means it is a VStream copy record)

@@ -292,15 +292,16 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 .setExcludeKeyspaceFromTableName(config.getExcludeKeyspaceFromTableName())
                 .setHeartbeatInterval(getHeartbeatSeconds())
                 .setStreamKeyspaceHeartbeats(config.getStreamKeyspaceHeartbeats());
-        List<String> tablesToCopy = config.getTablesToCopy();
-        if (tablesToCopy != null && !tablesToCopy.isEmpty()) {
+        final List<String> allTables = new VitessMetadata(config).getTables();
+        List<String> tablesToCopy = VitessConnector.getTablesToCopyByPrefix(config, allTables);
+        if (!tablesToCopy.isEmpty()) {
             vStreamFlagsBuilder.addAllTablesToCopy(tablesToCopy);
         }
         Vtgate.VStreamFlags vStreamFlags = vStreamFlagsBuilder.build();
+
         // Add filtering for whitelist tables
         Binlogdata.Filter.Builder filterBuilder = Binlogdata.Filter.newBuilder();
         if (!Strings.isNullOrEmpty(config.tableIncludeList())) {
-            final List<String> allTables = new VitessMetadata(config).getTables();
             List<String> includedTables = VitessConnector.getIncludedTables(config, allTables);
             for (String table : includedTables) {
                 String sql = "select * from `" + table + "`";

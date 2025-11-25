@@ -2197,7 +2197,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
-    public void testTablesToCopyFlag() throws Exception {
+    public void testTablesToCopyFlagWithEmptyGtid() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
 
         // Insert records into multiple tables before starting the connector
@@ -2212,6 +2212,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 TEST_UNSHARDED_KEYSPACE + ".enum_table";
 
         startConnector(config -> config
+                .with(VitessConnectorConfig.VGTID, Vgtid.EMPTY_GTID)
                 .with(VitessConnectorConfig.TABLES_TO_COPY, "numeric_table")
                 .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude),
                 false);
@@ -2229,6 +2230,8 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         Struct value = (Struct) record.value();
         Struct source = (Struct) value.get("source");
         assertThat(source.getString("table")).isEqualTo("numeric_table");
+        // Copy records have source.ts_ms equal to zero
+        assertThat((Long) source.get("ts_ms")).isEqualTo(0);
         assertThat(consumer.isEmpty());
 
         // Now insert new records into all three tables after connector has started
@@ -2246,8 +2249,123 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
             Struct streamValue = (Struct) streamRecord.value();
             Struct streamSource = (Struct) streamValue.get("source");
             streamedTables.add(streamSource.getString("table"));
+            assertThat((Long) streamSource.get("ts_ms")).isGreaterThan(0);
         }
 
+        assertThat(streamedTables).containsExactlyInAnyOrder("numeric_table", "string_table", "enum_table");
+        assertThat(consumer.isEmpty());
+    }
+
+    @Test
+    public void testTablesToCopyIgnoredWithCurrentGtid() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+
+        // Insert records into multiple tables before starting the connector
+        TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        TestHelper.execute(INSERT_STRING_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        TestHelper.execute(INSERT_ENUM_TYPE_STMT, TEST_UNSHARDED_KEYSPACE);
+
+        // Configure connector with current GTID (tables to copy list should be ignored)
+        String tableInclude = TEST_UNSHARDED_KEYSPACE + ".numeric_table," +
+                TEST_UNSHARDED_KEYSPACE + ".string_table," +
+                TEST_UNSHARDED_KEYSPACE + ".enum_table";
+
+        startConnector(config -> config
+                .with(VitessConnectorConfig.VGTID, Vgtid.CURRENT_GTID)
+                .with(VitessConnectorConfig.TABLES_TO_COPY, "numeric_table")
+                .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude),
+                false);
+        assertConnectorIsRunning();
+
+        // Now insert new records into all three tables after connector has started
+        // All tables should stream these new records
+        consumer = testConsumer(3);
+        TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        TestHelper.execute(INSERT_STRING_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        TestHelper.execute(INSERT_ENUM_TYPE_STMT, TEST_UNSHARDED_KEYSPACE);
+        consumer.awaitDefault();
+
+        // Verify we received records from all three tables during streaming phase
+        Set<String> streamedTables = new HashSet<>();
+        for (int i = 0; i < 3; i++) {
+            SourceRecord streamRecord = consumer.remove();
+            Struct streamValue = (Struct) streamRecord.value();
+            Struct streamSource = (Struct) streamValue.get("source");
+            streamedTables.add(streamSource.getString("table"));
+            assertThat((Long) streamSource.get("ts_ms")).isGreaterThan(0);
+        }
+
+        assertThat(streamedTables).containsExactlyInAnyOrder("numeric_table", "string_table", "enum_table");
+        assertThat(consumer.isEmpty());
+    }
+
+    @Test
+    public void testTablesToCopyIgnoredAfterStreamingStarted() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+
+        // Configure connector without tables_to_copy initially
+        String tableInclude = TEST_UNSHARDED_KEYSPACE + ".numeric_table," +
+                TEST_UNSHARDED_KEYSPACE + ".string_table," +
+                TEST_UNSHARDED_KEYSPACE + ".enum_table";
+
+        startConnector(config -> config
+                .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude),
+                false);
+        assertConnectorIsRunning();
+
+        // Stream records from all three tables
+        int streamRecordsCount = 3;
+        consumer = testConsumer(streamRecordsCount);
+        TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        TestHelper.execute(INSERT_STRING_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        TestHelper.execute(INSERT_ENUM_TYPE_STMT, TEST_UNSHARDED_KEYSPACE);
+        consumer.awaitDefault();
+
+        // Verify we received records from all three tables during streaming phase
+        Set<String> streamedTables = new HashSet<>();
+        for (int i = 0; i < streamRecordsCount; i++) {
+            SourceRecord streamRecord = consumer.remove();
+            Struct streamValue = (Struct) streamRecord.value();
+            Struct streamSource = (Struct) streamValue.get("source");
+            streamedTables.add(streamSource.getString("table"));
+            assertThat((Long) streamSource.get("ts_ms")).isGreaterThan(0);
+        }
+        assertThat(streamedTables).containsExactlyInAnyOrder("numeric_table", "string_table", "enum_table");
+
+        // Stop the connector
+        stopConnector();
+        assertConnectorNotRunning();
+
+        // Insert more records while connector is stopped
+        TestHelper.execute(INSERT_NUMERIC_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        TestHelper.execute(INSERT_STRING_TYPES_STMT, TEST_UNSHARDED_KEYSPACE);
+        TestHelper.execute(INSERT_ENUM_TYPE_STMT, TEST_UNSHARDED_KEYSPACE);
+
+        // Restart connector with tables_to_copy configured (should be ignored)
+        startConnector(config -> config
+                .with(VitessConnectorConfig.TABLES_TO_COPY, "numeric_table")
+                .with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, tableInclude),
+                false);
+        assertConnectorIsRunning();
+
+        // We should receive all 3 records that were inserted while stopped
+        // (tables_to_copy should be ignored since we're resuming from a saved offset)
+        // We will also receive one additional record since the last transaction
+        // is resubmitted. For streaming records source ts_ms will not be zero
+        // (ts_ms=0 means it is a VStream copy record)
+        int expectedRestartRecordsCount = streamRecordsCount + 1;
+        consumer = testConsumer(expectedRestartRecordsCount);
+        consumer.awaitDefault();
+
+        // Verify we received records from all three tables (no copy phase occurred)
+        streamedTables.clear();
+        for (int i = 0; i < expectedRestartRecordsCount; i++) {
+            SourceRecord streamRecord = consumer.remove();
+            Struct streamValue = (Struct) streamRecord.value();
+            Struct streamSource = (Struct) streamValue.get("source");
+            streamedTables.add(streamSource.getString("table"));
+            assertThat((Long) streamSource.get("ts_ms")).isGreaterThan(0);
+        }
         assertThat(streamedTables).containsExactlyInAnyOrder("numeric_table", "string_table", "enum_table");
         assertThat(consumer.isEmpty());
     }

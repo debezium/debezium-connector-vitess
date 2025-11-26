@@ -229,7 +229,7 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
 
     @Override
     protected Optional<ErrorHandler> getErrorHandler() {
-        return Optional.of(errorHandler);
+        return Optional.ofNullable(errorHandler);
     }
 
     @Override

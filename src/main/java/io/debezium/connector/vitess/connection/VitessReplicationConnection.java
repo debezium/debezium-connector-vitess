@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.debezium.DebeziumException;
+import io.debezium.config.CommonConnectorConfig;
 import io.debezium.connector.vitess.Vgtid;
 import io.debezium.connector.vitess.VitessConnector;
 import io.debezium.connector.vitess.VitessConnectorConfig;
@@ -292,9 +293,10 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 .setExcludeKeyspaceFromTableName(config.getExcludeKeyspaceFromTableName())
                 .setHeartbeatInterval(getHeartbeatSeconds())
                 .setStreamKeyspaceHeartbeats(config.getStreamKeyspaceHeartbeats());
-        final List<String> allTables = new VitessMetadata(config).getTables();
-        List<String> tablesToCopy = VitessConnector.getTablesToCopyByPrefix(config, allTables);
-        if (!tablesToCopy.isEmpty()) {
+
+        if (!Strings.isNullOrEmpty(config.getConfig().getString(CommonConnectorConfig.SNAPSHOT_MODE_TABLES))) {
+            final List<String> allTables = new VitessMetadata(config).getTables();
+            List<String> tablesToCopy = VitessConnector.getTablesToCopyByPrefix(config, allTables);
             vStreamFlagsBuilder.addAllTablesToCopy(tablesToCopy);
         }
         Vtgate.VStreamFlags vStreamFlags = vStreamFlagsBuilder.build();
@@ -302,6 +304,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
         // Add filtering for whitelist tables
         Binlogdata.Filter.Builder filterBuilder = Binlogdata.Filter.newBuilder();
         if (!Strings.isNullOrEmpty(config.tableIncludeList())) {
+            final List<String> allTables = new VitessMetadata(config).getTables();
             List<String> includedTables = VitessConnector.getIncludedTables(config, allTables);
             for (String table : includedTables) {
                 String sql = "select * from `" + table + "`";

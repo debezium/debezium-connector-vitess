@@ -32,7 +32,7 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
     public VitessDatabaseSchema(
                                 VitessConnectorConfig config,
                                 SchemaNameAdjuster schemaNameAdjuster,
-                                TopicNamingStrategy<TableId> topicNamingStrategy, CustomConverterRegistry customConverterRegistry) {
+                                TopicNamingStrategy<TableId> topicNamingStrategy, CustomConverterRegistry customConverterRegistry, VitessTaskContext taskContext) {
         super(
                 config,
                 topicNamingStrategy,
@@ -54,7 +54,7 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
                         config.getFieldNamer(),
                         false),
                 false,
-                config.getKeyMapper());
+                config.getKeyMapper(), taskContext);
         this.keyspace = config.getKeyspace();
         this.excludeKeyspaceFromTableName = config.getExcludeKeyspaceFromTableName();
     }

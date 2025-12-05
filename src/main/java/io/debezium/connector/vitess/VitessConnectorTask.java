@@ -24,6 +24,7 @@ import io.debezium.config.Field;
 import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.connector.base.DefaultQueueProvider;
 import io.debezium.connector.common.BaseSourceTask;
+import io.debezium.connector.common.CdcSourceTaskContext;
 import io.debezium.connector.common.DebeziumHeaderProducer;
 import io.debezium.connector.common.DebeziumHeaderProducerProvider;
 import io.debezium.connector.vitess.connection.ReplicationConnection;
@@ -57,6 +58,8 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
     private volatile ErrorHandler errorHandler;
     private volatile VitessDatabaseSchema schema;
     private volatile ReplicationConnection replicationConnection;
+    private VitessConnectorConfig connectorConfig;
+    private VitessTaskContext taskContext;
 
     @Override
     public String version() {
@@ -64,10 +67,17 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
     }
 
     @Override
-    protected ChangeEventSourceCoordinator<VitessPartition, VitessOffsetContext> start(Configuration config) {
+    public CdcSourceTaskContext<? extends CommonConnectorConfig> preStart(Configuration config) {
 
         config = getConfigWithOffsets(config);
-        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
+        connectorConfig = new VitessConnectorConfig(config);
+        taskContext = new VitessTaskContext(config, connectorConfig);
+
+        return taskContext;
+    }
+
+    @Override
+    protected ChangeEventSourceCoordinator<VitessPartition, VitessOffsetContext> start(Configuration config) {
 
         final TopicNamingStrategy<TableId> topicNamingStrategy = connectorConfig.getTopicNamingStrategy(CommonConnectorConfig.TOPIC_NAMING_STRATEGY);
         final SchemaNameAdjuster schemaNameAdjuster = connectorConfig.schemaNameAdjuster();
@@ -76,8 +86,8 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
 
         CustomConverterRegistry customConverterRegistry = connectorConfig.getServiceRegistry().tryGetService(CustomConverterRegistry.class);
 
-        schema = new VitessDatabaseSchema(connectorConfig, schemaNameAdjuster, topicNamingStrategy, customConverterRegistry);
-        VitessTaskContext taskContext = new VitessTaskContext(config, connectorConfig);
+        schema = new VitessDatabaseSchema(connectorConfig, schemaNameAdjuster, topicNamingStrategy, customConverterRegistry, taskContext);
+
         Offsets<VitessPartition, VitessOffsetContext> previousOffsets = getPreviousOffsets(new VitessPartition.Provider(connectorConfig),
                 new VitessOffsetContext.Loader(connectorConfig));
         final VitessOffsetContext previousOffset = previousOffsets.getTheOnlyOffset();

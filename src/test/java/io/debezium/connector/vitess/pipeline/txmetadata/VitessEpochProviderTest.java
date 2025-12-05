@@ -19,7 +19,7 @@ import static org.assertj.core.api.Java6Assertions.assertThatThrownBy;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.DebeziumException;
 import io.debezium.config.Configuration;

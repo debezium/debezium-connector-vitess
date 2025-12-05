@@ -14,7 +14,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.connector.vitess.AnonymousValue;
 import io.debezium.connector.vitess.VitessType;

@@ -8,7 +8,7 @@ package io.debezium.connector.vitess.pipeline.txmetadata;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.TestHelper;

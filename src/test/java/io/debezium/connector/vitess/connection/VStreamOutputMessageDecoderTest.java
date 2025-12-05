@@ -13,8 +13,8 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +44,7 @@ public class VStreamOutputMessageDecoderTest {
     private VitessDatabaseSchema schema;
     private VStreamOutputMessageDecoder decoder;
 
-    @Before
+    @BeforeEach
     public void before() {
 
         Configuration configuration = TestHelper.defaultConfig().build();

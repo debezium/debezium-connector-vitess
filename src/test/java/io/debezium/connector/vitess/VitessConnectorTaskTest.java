@@ -11,7 +11,7 @@ import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_SHARD1;
 import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_SHARD2;
 import static io.debezium.connector.vitess.VgtidTest.VGTID_JSON;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.Collections;
 import java.util.Map;
@@ -26,7 +26,7 @@ import org.apache.kafka.connect.storage.OffsetBackingStore;
 import org.apache.kafka.connect.storage.OffsetStorageReader;
 import org.apache.kafka.connect.storage.OffsetStorageReaderImpl;
 import org.apache.kafka.connect.storage.OffsetStorageWriter;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.config.Configuration;
 import io.debezium.connector.common.BaseSourceTask;

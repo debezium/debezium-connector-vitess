@@ -14,7 +14,7 @@ import java.util.Map;
 
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.connector.SnapshotRecord;
 import io.debezium.connector.base.ChangeEventQueue;

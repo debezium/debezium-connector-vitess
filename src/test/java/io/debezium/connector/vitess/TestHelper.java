@@ -5,7 +5,7 @@
  */
 package io.debezium.connector.vitess;
 
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -304,7 +304,7 @@ public class TestHelper {
 
     private static String readStringFromFile(String ddlFile) throws IOException, URISyntaxException {
         URL ddlTestFile = TestHelper.class.getClassLoader().getResource(ddlFile);
-        assertNotNull("Cannot locate " + ddlFile, ddlTestFile);
+        assertNotNull(ddlTestFile, "Cannot locate " + ddlFile);
         String statements = Files.readAllLines(Paths.get(ddlTestFile.toURI())).stream()
                 .filter(line -> !line.isEmpty())
                 .collect(Collectors.joining(System.lineSeparator()));

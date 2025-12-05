@@ -12,7 +12,7 @@ import java.util.List;
 import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.connector.AbstractSourceInfo;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionContext;

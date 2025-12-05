@@ -15,8 +15,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.connect.data.Struct;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +38,7 @@ import io.vitess.proto.Query;
 public class VitessBigIntUnsignedTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessChangeRecordEmitterTest.class);
 
-    @Before
+    @BeforeEach
     public void setUp() {
         DebeziumOpenLineageEmitter.init(TestHelper.defaultConfig().build().asMap(), "test_server");
     }

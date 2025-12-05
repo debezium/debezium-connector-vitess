@@ -6,12 +6,13 @@
 package io.debezium.connector.vitess;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.lang.management.ManagementFactory;
 import java.nio.ByteBuffer;
@@ -50,8 +51,7 @@ import org.apache.kafka.connect.data.Time;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.awaitility.Awaitility;
 import org.json.JSONException;
-import org.junit.Assert;
-import org.junit.ComparisonFailure;
+import org.opentest4j.AssertionFailedError;
 import org.skyscreamer.jsonassert.JSONAssert;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -630,8 +630,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
 
     protected static TableId tableIdFromInsertStmt(String statement, String keyspace) {
         Matcher matcher = INSERT_TABLE_MATCHING_PATTERN.matcher(statement);
-        assertTrue(
-                "Extraction of table name from insert statement failed: " + statement, matcher.matches());
+        assertTrue(matcher.matches(), "Extraction of table name from insert statement failed: " + statement);
 
         TableId id = TableId.parse(matcher.group(1), false);
 
@@ -887,7 +886,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
         Map<String, ?> offset = record.sourceOffset();
         assertNotNull(offset.get(SourceInfo.VGTID_KEY));
         Object snapshot = offset.get(SourceInfo.SNAPSHOT_KEY);
-        assertNull("Snapshot marker not expected, but found", snapshot);
+        assertNull(snapshot, "Snapshot marker not expected, but found");
 
         String offsetVgtidJson = offset.get(SourceInfo.VGTID_KEY).toString();
         String sourceVgtidJson = expectedRecordOffset.vgtid;
@@ -928,10 +927,10 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
     protected void assertSourceInfo(SourceRecord record, String name, String keyspace, String table) {
         assertTrue(record.value() instanceof Struct);
         Struct source = ((Struct) record.value()).getStruct("source");
-        Assert.assertEquals(name, source.getString(SourceInfo.SERVER_NAME_KEY));
-        Assert.assertEquals("", source.getString(SourceInfo.DATABASE_NAME_KEY));
-        Assert.assertEquals(keyspace, source.getString(SourceInfo.KEYSPACE_NAME_KEY));
-        Assert.assertEquals(table, source.getString(SourceInfo.TABLE_NAME_KEY));
+        assertEquals(name, source.getString(SourceInfo.SERVER_NAME_KEY));
+        assertEquals("", source.getString(SourceInfo.DATABASE_NAME_KEY));
+        assertEquals(keyspace, source.getString(SourceInfo.KEYSPACE_NAME_KEY));
+        assertEquals(table, source.getString(SourceInfo.TABLE_NAME_KEY));
         assertNotNull(source.getString(SourceInfo.VGTID_KEY));
     }
 
@@ -941,7 +940,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                                                String envelopeFieldName) {
         Struct content = ((Struct) record.value()).getStruct(envelopeFieldName);
 
-        assertNotNull("expected there to be content in Envelope under " + envelopeFieldName, content);
+        assertNotNull(content, "expected there to be content in Envelope under " + envelopeFieldName);
         expectedSchemaAndValuesByColumn.forEach(
                 schemaAndValueField -> schemaAndValueField.assertFor(content));
     }
@@ -988,7 +987,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
          */
         protected void assertFor(SourceRecord record) {
             Map<String, ?> offset = record.sourceOffset();
-            Assert.assertEquals(vgtid, offset.get(SourceInfo.VGTID_KEY));
+            assertEquals(vgtid, offset.get(SourceInfo.VGTID_KEY));
         }
     }
 
@@ -1016,7 +1015,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
 
         private void assertValue(Struct content) {
             if (value == null) {
-                assertNull(fieldName + " is present in the actual content", content.get(fieldName));
+                assertNull(content.get(fieldName), fieldName + " is present in the actual content");
                 return;
             }
             Object actualValue = content.get(fieldName);
@@ -1024,11 +1023,11 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
             // assert the value type; for List all implementation types (e.g. immutable ones) are
             // acceptable
             if (actualValue instanceof List) {
-                assertTrue("Incorrect value type for " + fieldName, value instanceof List);
+                assertInstanceOf(List.class, actualValue, "Incorrect value type for " + fieldName);
                 final List<?> actualValueList = (List<?>) actualValue;
                 final List<?> valueList = (List<?>) value;
                 assertEquals(
-                        "List size don't match for " + fieldName, valueList.size(), actualValueList.size());
+                        valueList.size(), actualValueList.size(), "List size don't match for " + fieldName);
                 if (!valueList.isEmpty() && valueList.iterator().next() instanceof Struct) {
                     for (int i = 0; i < valueList.size(); i++) {
                         assertStruct((Struct) valueList.get(i), (Struct) actualValueList.get(i));
@@ -1038,14 +1037,13 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
             }
             else {
                 assertEquals(
-                        "Incorrect value type for " + fieldName,
                         (value != null) ? value.getClass() : null,
-                        (actualValue != null) ? actualValue.getClass() : null);
+                        (actualValue != null) ? actualValue.getClass() : null,
+                        "Incorrect value type for " + fieldName);
             }
 
             if (actualValue instanceof byte[]) {
-                assertArrayEquals(
-                        "Values don't match for " + fieldName, (byte[]) value, (byte[]) actualValue);
+                assertArrayEquals((byte[]) value, (byte[]) actualValue, "Values don't match for " + fieldName);
             }
             else if (actualValue instanceof Struct) {
                 assertStruct((Struct) value, (Struct) actualValue);
@@ -1061,11 +1059,13 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                         JSONAssert.assertEquals("Values don't match for field '" + fieldName + "'", (String) value, (String) actualValue, false);
                     }
                     catch (JSONException e) {
-                        throw new ComparisonFailure("Failed to compare JSON field '" + fieldName + "'", (String) value, (String) actualValue);
+                        AssertionFailedError error = new AssertionFailedError("Failed to compare JSON field '" + fieldName + "'", value, actualValue);
+                        error.initCause(e);
+                        throw error;
                     }
                 }
                 else {
-                    assertEquals("Values don't match for field '" + fieldName + "'", value, actualValue);
+                    assertEquals(value, actualValue, "Values don't match for field '" + fieldName + "'");
                 }
             }
         }
@@ -1077,27 +1077,27 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                                 final Object expectedValue = expectedStruct.get(field);
                                 if (expectedValue == null) {
                                     assertNull(
-                                            fieldName + " is present in the actual content",
-                                            actualStruct.get(field.name()));
+                                            actualStruct.get(field.name()),
+                                            fieldName + " is present in the actual content");
                                     return;
                                 }
                                 final Object actualValue = actualStruct.get(field.name());
-                                assertNotNull("No value found for " + fieldName, actualValue);
+                                assertNotNull(actualValue, "No value found for " + fieldName);
                                 assertEquals(
-                                        "Incorrect value type for " + fieldName,
                                         expectedValue.getClass(),
-                                        actualValue.getClass());
+                                        actualValue.getClass(),
+                                        "Incorrect value type for " + fieldName);
                                 if (actualValue instanceof byte[]) {
                                     assertArrayEquals(
-                                            "Values don't match for " + fieldName,
                                             (byte[]) expectedValue,
-                                            (byte[]) actualValue);
+                                            (byte[]) actualValue,
+                                            "Values don't match for " + fieldName);
                                 }
                                 else if (actualValue instanceof Struct) {
                                     assertStruct((Struct) expectedValue, (Struct) actualValue);
                                 }
                                 else {
-                                    assertEquals("Values don't match for " + fieldName, expectedValue, actualValue);
+                                    assertEquals(expectedValue, actualValue, "Values don't match for " + fieldName);
                                 }
                             });
         }
@@ -1108,7 +1108,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
             }
             Schema schema = content.schema();
             Field field = schema.field(fieldName);
-            assertNotNull(fieldName + " not found in schema " + SchemaUtil.asString(schema), field);
+            assertNotNull(field, fieldName + " not found in schema " + SchemaUtil.asString(schema));
             VerifyRecord.assertConnectSchemasAreEqual(field.name(), field.schema(), this.schema);
         }
     }

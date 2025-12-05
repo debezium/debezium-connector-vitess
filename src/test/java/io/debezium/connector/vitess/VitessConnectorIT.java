@@ -19,10 +19,10 @@ import static io.debezium.connector.vitess.TestHelper.TEST_SHARDED_KEYSPACE;
 import static io.debezium.connector.vitess.TestHelper.TEST_SHARD_TO_EPOCH;
 import static io.debezium.connector.vitess.TestHelper.TEST_UNSHARDED_KEYSPACE;
 import static io.debezium.connector.vitess.TestHelper.VGTID_JSON_TEMPLATE;
-import static junit.framework.TestCase.assertEquals;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -49,9 +49,9 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.awaitility.Awaitility;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,12 +90,12 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     private VitessConnector connector;
     private AtomicBoolean isConnectorRunning = new AtomicBoolean(false);
 
-    @Before
+    @BeforeEach
     public void before() {
         Testing.Print.enable();
     }
 
-    @After
+    @AfterEach
     public void after() {
         stopConnector();
         assertConnectorNotRunning();
@@ -139,8 +139,8 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 .configValues()
                 .forEach(
                         configValue -> assertTrue(
-                                "Unexpected error for: " + configValue.name(),
-                                configValue.errorMessages().isEmpty()));
+                                configValue.errorMessages().isEmpty(),
+                                "Unexpected error for: " + configValue.name()));
     }
 
     @Test
@@ -2649,7 +2649,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     private SourceRecord assertRecordInserted(String expectedTopicName) {
-        assertFalse("records not generated", consumer.isEmpty());
+        assertFalse(consumer.isEmpty(), "records not generated");
         SourceRecord insertedRecord = consumer.remove();
         return assertRecordInserted(insertedRecord, expectedTopicName);
     }
@@ -2659,13 +2659,13 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     private SourceRecord assertRecordInserted(String expectedTopicName, String pkField, Object pkValue) {
-        assertFalse("records not generated", consumer.isEmpty());
+        assertFalse(consumer.isEmpty(), "records not generated");
         SourceRecord insertedRecord = consumer.remove();
         return assertRecordInserted(insertedRecord, expectedTopicName, pkField, pkValue);
     }
 
     private SourceRecord assertRecordUpdated() {
-        assertFalse("records not generated", consumer.isEmpty());
+        assertFalse(consumer.isEmpty(), "records not generated");
         SourceRecord updatedRecord = consumer.remove();
         return assertRecordUpdated(updatedRecord);
     }
@@ -2700,7 +2700,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     private SourceRecord assertRecordBeginSourceRecord() {
-        assertFalse("records not generated", consumer.isEmpty());
+        assertFalse(consumer.isEmpty(), "records not generated");
         SourceRecord record = consumer.remove();
         return record;
     }
@@ -2724,7 +2724,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
      * @param expectedEventCount The expected event count
      */
     private void assertRecordEnd(String expectedTxId, long expectedEventCount) {
-        assertFalse("records not generated", consumer.isEmpty());
+        assertFalse(consumer.isEmpty(), "records not generated");
         SourceRecord record = consumer.remove();
         final Struct end = (Struct) record.value();
         assertThat(end.getString("status")).isEqualTo("END");

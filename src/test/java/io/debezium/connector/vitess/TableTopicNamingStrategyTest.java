@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.Properties;
 
 import org.apache.kafka.connect.errors.ConnectException;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.relational.TableId;
 import io.debezium.spi.topic.TopicNamingStrategy;

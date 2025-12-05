@@ -20,8 +20,8 @@ import java.util.List;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.junit.logging.LogInterceptor;
@@ -46,7 +46,7 @@ public class VitessValueConverterTest {
     private VitessValueConverter converter;
     private VStreamOutputMessageDecoder decoder;
 
-    @Before
+    @BeforeEach
     public void before() {
 
         DebeziumOpenLineageEmitter.init(TestHelper.defaultConfig().build().asMap(), "test_server");

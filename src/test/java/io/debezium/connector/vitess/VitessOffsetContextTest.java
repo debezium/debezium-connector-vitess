@@ -10,8 +10,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,7 +42,7 @@ public class VitessOffsetContextTest {
     private VitessOffsetContext.Loader loader;
     private VitessOffsetContext offsetContext;
 
-    @Before
+    @BeforeEach
     public void before() {
         loader = new VitessOffsetContext.Loader(
                 new VitessConnectorConfig(TestHelper.defaultConfig().build()));

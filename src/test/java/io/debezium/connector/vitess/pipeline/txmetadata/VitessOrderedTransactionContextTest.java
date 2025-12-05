@@ -17,7 +17,7 @@ import java.util.Map;
 
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.SourceInfo;

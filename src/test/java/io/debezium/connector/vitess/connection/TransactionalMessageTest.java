@@ -11,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.connector.vitess.TestHelper;
 

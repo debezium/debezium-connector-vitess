@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 import org.apache.kafka.connect.data.Struct;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.TestHelper;

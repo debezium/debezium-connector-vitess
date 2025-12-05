@@ -14,7 +14,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;

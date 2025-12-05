@@ -9,11 +9,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.Types;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.connector.vitess.AnonymousValue;
 import io.debezium.connector.vitess.VitessType;
 import io.debezium.jdbc.TemporalPrecisionMode;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class ReplicationMessageColumnTest {
 
@@ -28,13 +29,15 @@ public class ReplicationMessageColumnTest {
         assertThat(columnValue).isEqualTo(10);
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void shouldGetExceptionWhenTypeAndValueNotMatch() {
-        ReplicationMessageColumn column = new ReplicationMessageColumn(
-                AnonymousValue.getString(),
-                new VitessType(AnonymousValue.getString(), Types.INTEGER),
-                true,
-                "10.1".getBytes());
-        column.getValue(false, TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
+        assertThrows(RuntimeException.class, () -> {
+            ReplicationMessageColumn column = new ReplicationMessageColumn(
+                    AnonymousValue.getString(),
+                    new VitessType(AnonymousValue.getString(), Types.INTEGER),
+                    true,
+                    "10.1".getBytes());
+            column.getValue(false, TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
+        });
     }
 }

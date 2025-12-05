@@ -8,7 +8,7 @@ package io.debezium.connector.vitess;
 import static io.debezium.connector.vitess.TestHelper.TEST_UNSHARDED_KEYSPACE;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -25,8 +25,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import org.awaitility.Awaitility;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +51,7 @@ public class VitessReplicationConnectionIT {
 
     protected long pollTimeoutInMs = SECONDS.toMillis(5);
 
-    @Before
+    @BeforeEach
     public void beforeEach() {
         DebeziumOpenLineageEmitter.init(TestHelper.defaultConfig(false, false, 1, -1, -1,
                 null, VitessConnectorConfig.SnapshotMode.NEVER, TestHelper.TEST_SHARD,

@@ -6,12 +6,13 @@
 package io.debezium.connector.vitess;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Collections;
 
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,15 +32,11 @@ import io.debezium.util.Clock;
 public class VitessChangeRecordEmitterTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessChangeRecordEmitterTest.class);
 
-    @Before
-    public void setUp() {
-    }
-
     private static VitessConnectorConfig connectorConfig;
     private static VitessDatabaseSchema schema;
     private static VStreamOutputMessageDecoder decoder;
 
-    @BeforeClass
+    @BeforeAll
     public static void beforeClass() throws Exception {
         Configuration configuration = TestHelper.defaultConfig().build();
         DebeziumOpenLineageEmitter.init(configuration.asMap(), "test_server");
@@ -137,36 +134,40 @@ public class VitessChangeRecordEmitterTest {
         assertThat(emitter.getNewColumnValues()).isEqualTo(TestHelper.defaultJavaValues().toArray());
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void shouldNotSupportBeginMessage() {
         // setup fixture
         ReplicationMessage message = new TransactionalMessage(ReplicationMessage.Operation.BEGIN, AnonymousValue.getString(), AnonymousValue.getInstant(),
                 AnonymousValue.getString(), AnonymousValue.getString());
 
         // exercise SUT
-        new VitessChangeRecordEmitter(
-                initializePartition(),
-                null,
-                Clock.system(),
-                new VitessConnectorConfig(TestHelper.defaultConfig().build()),
-                schema,
-                message);
+        assertThrows(UnsupportedOperationException.class, () -> {
+            new VitessChangeRecordEmitter(
+                    initializePartition(),
+                    null,
+                    Clock.system(),
+                    new VitessConnectorConfig(TestHelper.defaultConfig().build()),
+                    schema,
+                    message);
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void shouldNotSupportCommitMessage() {
         // setup fixture
         ReplicationMessage message = new TransactionalMessage(ReplicationMessage.Operation.COMMIT, AnonymousValue.getString(), AnonymousValue.getInstant(),
                 AnonymousValue.getString(), AnonymousValue.getString());
 
         // exercise SUT
-        new VitessChangeRecordEmitter(
-                initializePartition(),
-                null,
-                Clock.system(),
-                new VitessConnectorConfig(TestHelper.defaultConfig().build()),
-                schema,
-                message);
+        assertThrows(UnsupportedOperationException.class, () -> {
+            new VitessChangeRecordEmitter(
+                    initializePartition(),
+                    null,
+                    Clock.system(),
+                    new VitessConnectorConfig(TestHelper.defaultConfig().build()),
+                    schema,
+                    message);
+        });
     }
 
     private VitessPartition initializePartition() {

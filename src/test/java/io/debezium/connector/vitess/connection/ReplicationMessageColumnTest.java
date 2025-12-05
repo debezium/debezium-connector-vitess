@@ -6,6 +6,7 @@
 package io.debezium.connector.vitess.connection;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.sql.Types;
 
@@ -14,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import io.debezium.connector.vitess.AnonymousValue;
 import io.debezium.connector.vitess.VitessType;
 import io.debezium.jdbc.TemporalPrecisionMode;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class ReplicationMessageColumnTest {
 

@@ -291,6 +291,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
         Vtgate.VStreamFlags.Builder vStreamFlagsBuilder = Vtgate.VStreamFlags.newBuilder()
                 .setStopOnReshard(config.getStopOnReshard())
                 .setExcludeKeyspaceFromTableName(config.getExcludeKeyspaceFromTableName())
+                .setTransactionChunkSize(config.getTransactionChunkSizeBytes())
                 .setHeartbeatInterval(getHeartbeatSeconds())
                 .setStreamKeyspaceHeartbeats(config.getStreamKeyspaceHeartbeats());
 

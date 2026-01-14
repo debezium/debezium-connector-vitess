@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.lang.management.ManagementFactory;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -1111,5 +1112,42 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
             assertNotNull(field, fieldName + " not found in schema " + SchemaUtil.asString(schema));
             VerifyRecord.assertConnectSchemasAreEqual(field.name(), field.schema(), this.schema);
         }
+    }
+
+    protected static class TransactionMetadata {
+        final Long epoch;
+        final BigDecimal rank;
+        final Long totalOrder;
+
+        TransactionMetadata(Long epoch, BigDecimal rank, Long totalOrder) {
+            this.epoch = epoch;
+            this.rank = rank;
+            this.totalOrder = totalOrder;
+        }
+    }
+
+    protected TransactionMetadata extractTransactionMetadata(SourceRecord record) {
+        Struct value = (Struct) record.value();
+        Struct transaction = value.getStruct("transaction");
+
+        Long epoch = transaction.getInt64("transaction_epoch");
+        BigDecimal rank = (BigDecimal) transaction.get("transaction_rank");
+        Long totalOrder = transaction.getInt64("total_order");
+
+        return new TransactionMetadata(epoch, rank, totalOrder);
+    }
+
+    protected int compareTransactionMetadata(TransactionMetadata m1, TransactionMetadata m2) {
+        int epochCompare = Long.compare(m1.epoch, m2.epoch);
+        if (epochCompare != 0) {
+            return epochCompare;
+        }
+
+        int rankCompare = m1.rank.compareTo(m2.rank);
+        if (rankCompare != 0) {
+            return rankCompare;
+        }
+
+        return Long.compare(m1.totalOrder, m2.totalOrder);
     }
 }

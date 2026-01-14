@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 
 import org.apache.kafka.common.config.Config;
 import org.apache.kafka.common.config.ConfigDef;
@@ -1822,6 +1823,165 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         fields.add(new SchemaAndValueField("decimal_col2", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "12.3400"));
         fields.add(new SchemaAndValueField("decimal_col3", SchemaBuilder.OPTIONAL_STRING_SCHEMA, "-12.3400"));
         assertInsert(INSERT_NUMERIC_TYPES_STMT, fields, TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void shouldChunkLargeTransactionsAcrossMultipleShards() throws Exception {
+        final LogInterceptor logInterceptor = new LogInterceptor(VitessReplicationConnection.class);
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+        startConnector(config -> config
+                .with(VitessConnectorConfig.TRANSACTION_CHUNK_SIZE_BYTES, 100000L)
+                .with(VitessConnectorConfig.PROVIDE_TRANSACTION_METADATA, true),
+                true,
+                "-80,80-");
+        assertConnectorIsRunning();
+
+        int transactionEvents = 4;
+        int dataEvents = 50;
+        int totalEvents = transactionEvents + dataEvents;
+        consumer = testConsumer(totalEvents);
+
+        String largeString = "x".repeat(10000);
+        StringBuilder insertStatement = new StringBuilder("INSERT INTO string_table (text_col, mediumtext_col, longtext_col) VALUES ");
+        for (int i = 0; i < dataEvents; i++) {
+            if (i > 0) {
+                insertStatement.append(", ");
+            }
+            insertStatement.append("('").append(largeString).append("', '")
+                    .append(largeString).append("', '").append(largeString).append("')");
+        }
+
+        executeAndWait(insertStatement.toString(), TEST_SHARDED_KEYSPACE);
+
+        String firstShard = null;
+        String secondShard = null;
+        int shardSwitchIndex = -1;
+        Map<String, List<Integer>> shardToEventIndices = new HashMap<>();
+        Map<String, List<Long>> shardToTotalOrders = new HashMap<>();
+        int dataRecordCount = 0;
+
+        for (int i = 0; i < totalEvents; i++) {
+            SourceRecord record = consumer.remove();
+
+            if (record.topic().endsWith(".transaction")) {
+                continue;
+            }
+
+            Struct value = (Struct) record.value();
+            Struct source = value.getStruct("source");
+            String currentShard = source.getString("shard");
+
+            Struct transaction = value.getStruct("transaction");
+            long totalOrder = transaction.getInt64("total_order");
+
+            if (firstShard == null) {
+                firstShard = currentShard;
+            }
+            else if (secondShard == null && !currentShard.equals(firstShard)) {
+                secondShard = currentShard;
+                shardSwitchIndex = dataRecordCount;
+            }
+
+            shardToEventIndices.computeIfAbsent(currentShard, k -> new ArrayList<>()).add(dataRecordCount);
+            shardToTotalOrders.computeIfAbsent(currentShard, k -> new ArrayList<>()).add(totalOrder);
+
+            dataRecordCount++;
+        }
+
+        assertThat(dataRecordCount).isEqualTo(dataEvents);
+        assertThat(shardSwitchIndex).isGreaterThan(0).isLessThan(dataEvents);
+
+        List<Integer> firstShardIndices = shardToEventIndices.get(firstShard);
+        List<Integer> secondShardIndices = shardToEventIndices.get(secondShard);
+
+        assertThat(firstShardIndices).containsExactlyElementsOf(
+                IntStream.range(0, firstShardIndices.size()).boxed().toList());
+        assertThat(secondShardIndices).containsExactlyElementsOf(
+                IntStream.range(shardSwitchIndex, shardSwitchIndex + secondShardIndices.size()).boxed().toList());
+
+        List<Long> firstShardOrders = shardToTotalOrders.get(firstShard);
+        List<Long> secondShardOrders = shardToTotalOrders.get(secondShard);
+
+        assertThat(firstShardOrders).containsExactlyElementsOf(
+                LongStream.rangeClosed(1, firstShardOrders.size()).boxed().toList());
+        assertThat(secondShardOrders).containsExactlyElementsOf(
+                LongStream.rangeClosed(1, secondShardOrders.size()).boxed().toList());
+
+        assertThat(logInterceptor.containsMessage("Transaction chunking")).isTrue();
+    }
+
+    @Test
+    public void shouldMaintainTransactionOrderingWhenEnablingChunking() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_UNSHARDED_KEYSPACE);
+
+        startConnector(config -> config
+                .with(VitessConnectorConfig.KEYSPACE, TEST_UNSHARDED_KEYSPACE)
+                .with(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
+                .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true),
+                false);
+        assertConnectorIsRunning();
+
+        int txMetadataEventCount = 2;
+        int tx1DataEvents = 2;
+        int tx1TotalEvents = tx1DataEvents + txMetadataEventCount;
+        consumer = testConsumer(tx1TotalEvents);
+        executeAndWait("INSERT INTO numeric_table (tinyint_col) VALUES (1), (2)", TEST_UNSHARDED_KEYSPACE);
+
+        List<TransactionMetadata> tx1Metadata = new ArrayList<>();
+        while (tx1Metadata.size() < tx1DataEvents) {
+            SourceRecord record = consumer.remove();
+            if (record.topic().endsWith(".transaction")) {
+                continue;
+            }
+            tx1Metadata.add(extractTransactionMetadata(record));
+        }
+
+        stopConnector();
+        assertConnectorNotRunning();
+
+        startConnector(config -> config
+                .with(VitessConnectorConfig.KEYSPACE, TEST_UNSHARDED_KEYSPACE)
+                .with(VitessConnectorConfig.TRANSACTION_CHUNK_SIZE_BYTES, 100000L)
+                .with(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
+                .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true),
+                false);
+        assertConnectorIsRunning();
+
+        int tx2DataEvents = 50;
+        int tx2TotalEvents = tx2DataEvents + txMetadataEventCount;
+        consumer = testConsumer(tx2TotalEvents);
+
+        String largeString = "x".repeat(10000);
+        StringBuilder insertStatement = new StringBuilder("INSERT INTO string_table (text_col, mediumtext_col, longtext_col) VALUES ");
+        for (int i = 0; i < tx2DataEvents; i++) {
+            if (i > 0) {
+                insertStatement.append(", ");
+            }
+            insertStatement.append("('").append(largeString).append("', '")
+                    .append(largeString).append("', '").append(largeString).append("')");
+        }
+        executeAndWait(insertStatement.toString(), TEST_UNSHARDED_KEYSPACE);
+
+        List<TransactionMetadata> tx2Metadata = new ArrayList<>();
+        while (tx2Metadata.size() < tx2DataEvents) {
+            SourceRecord record = consumer.remove();
+            if (record.topic().endsWith(".transaction")) {
+                continue;
+            }
+            tx2Metadata.add(extractTransactionMetadata(record));
+        }
+
+        for (TransactionMetadata tx1Meta : tx1Metadata) {
+            for (TransactionMetadata tx2Meta : tx2Metadata) {
+                int comparison = compareTransactionMetadata(tx1Meta, tx2Meta);
+                assertThat(comparison)
+                        .as("tx1 event (epoch=%s, rank=%s, order=%s) should be ordered before tx2 event (epoch=%s, rank=%s, order=%s)",
+                                tx1Meta.epoch, tx1Meta.rank, tx1Meta.totalOrder,
+                                tx2Meta.epoch, tx2Meta.rank, tx2Meta.totalOrder)
+                        .isLessThan(0);
+            }
+        }
     }
 
     @Test

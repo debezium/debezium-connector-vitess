@@ -337,6 +337,19 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDescription("Control the interval between periodic gPRC keepalive pings for VStream." +
                     " Defaults to Long.MAX_VALUE (disabled).");
 
+    public static final Field TRANSACTION_CHUNK_SIZE_BYTES = Field.create(VITESS_CONFIG_GROUP_PREFIX + "transaction.chunk.size.bytes")
+            .withDisplayName("Transaction chunk size (bytes)")
+            .withType(Type.LONG)
+            .withDefault(0L)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.HIGH)
+            .withValidation(VitessConnectorConfig::validateTransactionChunkSize)
+            .withDescription("Enables transaction chunking on the VTGate VStream when set to a positive value (in bytes). " +
+                    "When a transaction exceeds this threshold, both the VTGate and Debezium will process the transaction in chunks " +
+                    "rather than buffering the entire transaction in memory. This is recommended to prevent out-of-memory errors " +
+                    "when processing large transactions. A value of 0 (default) disables chunking. " +
+                    "See https://vitess.io/docs/24.0/reference/vreplication/vstream/#transactionchunksize for more details.");
+
     public static final Field GRPC_HEADERS = Field.create(VITESS_CONFIG_GROUP_PREFIX + "grpc.headers")
             .withDisplayName("VStream gRPC headers")
             .withType(Type.STRING)
@@ -512,6 +525,20 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return 0;
     }
 
+    private static int validateTransactionChunkSize(Configuration config, Field field, ValidationOutput problems) {
+        long chunkSize = config.getLong(TRANSACTION_CHUNK_SIZE_BYTES, 0L);
+        if (chunkSize < 0) {
+            problems.accept(TRANSACTION_CHUNK_SIZE_BYTES, chunkSize, "Transaction chunk size must be >= 0");
+            return 1;
+        }
+        if (chunkSize == 0) {
+            LOGGER.warn("Transaction chunk size is disabled (set to 0). Large transactions may cause out-of-memory errors. " +
+                    "Consider setting {} to a value like 134217728 (128MB) to enable transaction chunking.",
+                    TRANSACTION_CHUNK_SIZE_BYTES.name());
+        }
+        return 0;
+    }
+
     public static final Field SOURCE_INFO_STRUCT_MAKER = CommonConnectorConfig.SOURCE_INFO_STRUCT_MAKER
             .withDefault(VitessSourceInfoStructMaker.class.getName());
 
@@ -530,6 +557,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     TABLET_TYPE,
                     STOP_ON_RESHARD_FLAG,
                     KEEPALIVE_INTERVAL_MS,
+                    TRANSACTION_CHUNK_SIZE_BYTES,
                     GRPC_HEADERS,
                     GRPC_MAX_INBOUND_MESSAGE_SIZE,
                     BINARY_HANDLING_MODE,
@@ -741,6 +769,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public Duration getKeepaliveInterval() {
         return getConfig().getDuration(KEEPALIVE_INTERVAL_MS, ChronoUnit.MILLIS);
+    }
+
+    public long getTransactionChunkSizeBytes() {
+        return getConfig().getLong(TRANSACTION_CHUNK_SIZE_BYTES, 0L);
     }
 
     public Map<String, String> getGrpcHeaders() {

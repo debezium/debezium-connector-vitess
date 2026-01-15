@@ -53,6 +53,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     private static final String VITESS_CONFIG_GROUP_PREFIX = "vitess.";
     private static final int DEFAULT_VTGATE_PORT = 15_991;
+    public static final long DEFAULT_CONNECTOR_GENERATION = 0L;
 
     /**
      * The set of predefined SnapshotMode options or aliases.
@@ -444,6 +445,18 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                             + "Once we persist the new offsets in offset storage using new partition key "
                             + "based on current <numTasks> and <gen>, we will no longer read prev.num.tasks param");
 
+    public static final Field CONNECTOR_GENERATION = Field.create(VITESS_CONFIG_GROUP_PREFIX + "connector.generation")
+            .withDisplayName("Connector Generation")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(ConfigDef.Importance.LOW)
+            .withDefault(DEFAULT_CONNECTOR_GENERATION)
+            .withDescription("Generation number for transaction ordering semantics. " +
+                    "Increment this when making changes that affect transaction ordering. " +
+                    "The epoch will be automatically incremented when the generation increases. " +
+                    "This setting only takes effect when transaction.metadata.factory is set to " +
+                    "io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionMetadataFactory.");
+
     public static final Field SNAPSHOT_MODE = Field.create("snapshot.mode")
             .withDisplayName("Snapshot mode")
             .withEnum(SnapshotMode.class, SnapshotMode.INITIAL)
@@ -538,6 +551,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     OVERRIDE_DATETIME_TO_NULLABLE,
                     OFFSET_STORAGE_TASK_KEY_GEN,
                     PREV_NUM_TASKS,
+                    CONNECTOR_GENERATION,
                     STREAM_KEYSPACE_HEARTBEATS,
                     EXCLUDE_KEYSPACE_FROM_TABLE_NAME,
                     EXCLUDE_EMPTY_SHARDS)
@@ -791,6 +805,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public int getPrevNumTasks() {
         return getConfig().getInteger(PREV_NUM_TASKS);
+    }
+
+    public long getConnectorGeneration() {
+        return getConfig().getLong(CONNECTOR_GENERATION);
     }
 
     public String getVitessTaskKey() {

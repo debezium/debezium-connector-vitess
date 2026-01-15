@@ -1650,6 +1650,165 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    public void shouldIncrementEpochWhenConnectorGenerationIncreases() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+
+        startConnector(config -> config
+                .with(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
+                .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true),
+                true,
+                "-80,80-");
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount + 2);
+        String insertRowsStatement = buildInsertStatement(expectedRecordsCount);
+        executeAndWait(insertRowsStatement, TEST_SHARDED_KEYSPACE);
+
+        SourceRecord beginRecord = assertRecordBeginSourceRecord();
+        assertThat(beginRecord.sourceOffset()).containsKey("transaction_epoch");
+        String expectedTxId1 = ((Struct) beginRecord.value()).getString("id");
+
+        String initialEpochMapStr = (String) beginRecord.sourceOffset().get("transaction_epoch");
+        assertThat(initialEpochMapStr).isNotNull();
+        ShardEpochMap initialEpochMap = ShardEpochMap.of(initialEpochMapStr);
+
+        assertThat(initialEpochMap.get("-80")).isNotNull().isGreaterThanOrEqualTo(1L);
+        assertThat(initialEpochMap.get("80-")).isNotNull().isGreaterThanOrEqualTo(1L);
+
+        Map<String, Long> initialTransactionEpochs = new HashMap<>();
+        for (int i = 1; i <= expectedRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
+            Struct source = (Struct) ((Struct) record.value()).get("source");
+            String shard = source.getString("shard");
+            final Struct txn = ((Struct) record.value()).getStruct("transaction");
+            Long transactionEpoch = (Long) txn.get("transaction_epoch");
+
+            // Verify epochs are consistent
+            assertThat(transactionEpoch).isEqualTo(initialEpochMap.get(shard));
+            initialTransactionEpochs.put(shard, transactionEpoch);
+        }
+        assertRecordEnd(expectedTxId1, expectedRecordsCount);
+
+        stopConnector();
+        assertConnectorNotRunning();
+
+        startConnector(config -> config
+                .with(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
+                .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true)
+                // Increasing the generation (default was zero) should trigger epochs to increment
+                .with(VitessConnectorConfig.CONNECTOR_GENERATION, 1),
+                true,
+                "-80,80-");
+        assertConnectorIsRunning();
+
+        consumer = testConsumer(expectedRecordsCount + 2);
+        String insertRowsStatement2 = buildInsertStatement(expectedRecordsCount);
+        executeAndWait(insertRowsStatement2, TEST_SHARDED_KEYSPACE);
+
+        SourceRecord beginRecord2 = assertRecordBeginSourceRecord();
+        String expectedTxId2 = ((Struct) beginRecord2.value()).getString("id");
+
+        String newEpochMapStr = (String) beginRecord2.sourceOffset().get("transaction_epoch");
+        assertThat(newEpochMapStr).isNotNull();
+        ShardEpochMap newEpochMap = ShardEpochMap.of(newEpochMapStr);
+
+        // Verify that transaction metadata record epoch is incremented
+        assertThat(newEpochMap.get("-80")).isEqualTo(initialEpochMap.get("-80") + 1);
+        assertThat(newEpochMap.get("80-")).isEqualTo(initialEpochMap.get("80-") + 1);
+
+        for (int i = 1; i <= expectedRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
+            Struct source = (Struct) ((Struct) record.value()).get("source");
+            String shard = source.getString("shard");
+            final Struct txn = ((Struct) record.value()).getStruct("transaction");
+            Long newTransactionEpoch = (Long) txn.get("transaction_epoch");
+
+            // Verify change recorc epoch is incremented
+            Long initialTransactionEpoch = initialTransactionEpochs.get(shard);
+            assertThat(newTransactionEpoch).isEqualTo(initialTransactionEpoch + 1);
+            // Verify epochs consistent
+            assertThat(newTransactionEpoch).isEqualTo(newEpochMap.get(shard));
+        }
+        assertRecordEnd(expectedTxId2, expectedRecordsCount);
+    }
+
+    @Test
+    public void shouldNotIncrementEpochWhenConnectorGenerationUnchanged() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl", TEST_SHARDED_KEYSPACE);
+        TestHelper.applyVSchema("vitess_vschema.json");
+
+        startConnector(config -> config
+                .with(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
+                .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true)
+                .with(VitessConnectorConfig.CONNECTOR_GENERATION, 1),
+                true,
+                "-80,80-");
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount + 2);
+        String insertRowsStatement = buildInsertStatement(expectedRecordsCount);
+        executeAndWait(insertRowsStatement, TEST_SHARDED_KEYSPACE);
+
+        SourceRecord beginRecord = assertRecordBeginSourceRecord();
+        String expectedTxId1 = ((Struct) beginRecord.value()).getString("id");
+
+        String initialEpochMapStr = (String) beginRecord.sourceOffset().get("transaction_epoch");
+        ShardEpochMap initialEpochMap = ShardEpochMap.of(initialEpochMapStr);
+
+        Map<String, Long> initialTransactionEpochs = new HashMap<>();
+        for (int i = 1; i <= expectedRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
+            Struct source = (Struct) ((Struct) record.value()).get("source");
+            String shard = source.getString("shard");
+            final Struct txn = ((Struct) record.value()).getStruct("transaction");
+            Long transactionEpoch = (Long) txn.get("transaction_epoch");
+            assertThat(transactionEpoch).isEqualTo(initialEpochMap.get(shard));
+            initialTransactionEpochs.put(shard, transactionEpoch);
+        }
+        assertRecordEnd(expectedTxId1, expectedRecordsCount);
+
+        stopConnector();
+        assertConnectorNotRunning();
+
+        startConnector(config -> config
+                .with(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY, VitessOrderedTransactionMetadataFactory.class)
+                .with(CommonConnectorConfig.PROVIDE_TRANSACTION_METADATA, true)
+                .with(VitessConnectorConfig.CONNECTOR_GENERATION, 1),
+                true,
+                "-80,80-");
+        assertConnectorIsRunning();
+
+        consumer = testConsumer(expectedRecordsCount + 2);
+        String insertRowsStatement2 = buildInsertStatement(expectedRecordsCount);
+        executeAndWait(insertRowsStatement2, TEST_SHARDED_KEYSPACE);
+
+        SourceRecord beginRecord2 = assertRecordBeginSourceRecord();
+        String expectedTxId2 = ((Struct) beginRecord2.value()).getString("id");
+
+        String newEpochMapStr = (String) beginRecord2.sourceOffset().get("transaction_epoch");
+        ShardEpochMap newEpochMap = ShardEpochMap.of(newEpochMapStr);
+
+        assertThat(newEpochMap.get("-80")).isEqualTo(initialEpochMap.get("-80"));
+        assertThat(newEpochMap.get("80-")).isEqualTo(initialEpochMap.get("80-"));
+
+        for (int i = 1; i <= expectedRecordsCount; i++) {
+            SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
+            Struct source = (Struct) ((Struct) record.value()).get("source");
+            String shard = source.getString("shard");
+            final Struct txn = ((Struct) record.value()).getStruct("transaction");
+            Long newTransactionEpoch = (Long) txn.get("transaction_epoch");
+
+            Long initialTransactionEpoch = initialTransactionEpochs.get(shard);
+            assertThat(newTransactionEpoch).isEqualTo(initialTransactionEpoch);
+            assertThat(newTransactionEpoch).isEqualTo(newEpochMap.get(shard));
+        }
+        assertRecordEnd(expectedTxId2, expectedRecordsCount);
+    }
+
+    @Test
     @FixFor("DBZ-2578")
     public void shouldUseMultiColumnPkAsRecordKey() throws Exception {
         final boolean hasMultipleShards = true;
@@ -2779,4 +2938,5 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertThat(key.validator).isNull();
         assertThat(key.recommender).isNull();
     }
+
 }

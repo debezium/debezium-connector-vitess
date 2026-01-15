@@ -22,14 +22,16 @@ public class VitessEpochProvider {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessEpochProvider.class);
     private ShardEpochMap shardEpochMap;
     private boolean isInheritEpochEnabled = false;
+    private long connectorGeneration = VitessConnectorConfig.DEFAULT_CONNECTOR_GENERATION;
 
     public VitessEpochProvider() {
         shardEpochMap = new ShardEpochMap();
     }
 
-    public VitessEpochProvider(ShardEpochMap shardToEpoch, boolean isInheritEpochEnabled) {
+    public VitessEpochProvider(ShardEpochMap shardToEpoch, boolean isInheritEpochEnabled, long connectorGeneration) {
         this.shardEpochMap = shardToEpoch;
         this.isInheritEpochEnabled = isInheritEpochEnabled;
+        this.connectorGeneration = connectorGeneration;
     }
 
     private static boolean isGtidOverridden(String gtid) {
@@ -96,11 +98,13 @@ public class VitessEpochProvider {
     public static VitessEpochProvider initialize(VitessConnectorConfig config) {
         ShardEpochMap shardEpochMap = VitessReplicationConnection.defaultShardEpochMap(config);
         boolean isInheritEpochEnabled = config.getInheritEpoch();
-        return new VitessEpochProvider(shardEpochMap, isInheritEpochEnabled);
+        long connectorGeneration = config.getConnectorGeneration();
+        return new VitessEpochProvider(shardEpochMap, isInheritEpochEnabled, connectorGeneration);
     }
 
     public Map<String, Object> store(Map<String, Object> offset) {
         offset.put(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, shardEpochMap.toString());
+        offset.put(VitessOrderedTransactionContext.OFFSET_CONNECTOR_GENERATION, connectorGeneration);
         return offset;
     }
 
@@ -116,6 +120,36 @@ public class VitessEpochProvider {
             shardEpochMap = ShardEpochMap.of(shardToEpochString);
         }
         isInheritEpochEnabled = config.getInheritEpoch();
+
+        Long lastGeneration = (Long) offsets.get(VitessOrderedTransactionContext.OFFSET_CONNECTOR_GENERATION);
+        if (lastGeneration == null) {
+            // If no generation was stored, then fall back to the configured generation as the last generation
+            lastGeneration = config.getConnectorGeneration();
+        }
+
+        long configGeneration = config.getConnectorGeneration();
+
+        if (configGeneration > lastGeneration) {
+            LOGGER.info("Connector generation increased: {} -> {}. Incrementing all shard epochs by 1.",
+                    lastGeneration, configGeneration);
+            incrementAllEpochs();
+        }
+        else if (configGeneration < lastGeneration) {
+            LOGGER.warn("Connector generation downgrade detected: {} -> {}. " +
+                    "This may indicate a rollback. Incrementing all shard epochs by 1 for safety.",
+                    lastGeneration, configGeneration);
+            incrementAllEpochs();
+        }
+
+        connectorGeneration = configGeneration;
+    }
+
+    private void incrementAllEpochs() {
+        ShardEpochMap newMap = new ShardEpochMap();
+        for (Map.Entry<String, Long> entry : shardEpochMap.getMap().entrySet()) {
+            newMap.put(entry.getKey(), entry.getValue() + 1);
+        }
+        shardEpochMap = newMap;
     }
 
     public Long getEpoch(String shard, String previousVgtidString, String vgtidString) {

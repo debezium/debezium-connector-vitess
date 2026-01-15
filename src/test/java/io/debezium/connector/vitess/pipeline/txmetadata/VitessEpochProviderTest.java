@@ -46,6 +46,9 @@ public class VitessEpochProviderTest {
     private List<String> shards = List.of(VgtidTest.TEST_SHARD, VgtidTest.TEST_SHARD2);
     private String errorOnCurrentOverrideValue = "Current GTID cannot be override value if previous is standard";
 
+    private static final long SHARD1_EPOCH = 5L;
+    private static final long SHARD2_EPOCH = 3L;
+
     String vgtidJsonCurrent = String.format(
             VGTID_JSON_TEMPLATE,
             VgtidTest.TEST_KEYSPACE,
@@ -63,7 +66,7 @@ public class VitessEpochProviderTest {
 
     @Test
     public void testLoadsEpochFromOffsets() {
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false, 0L);
         VitessConnectorConfig config = new VitessConnectorConfig(Configuration.empty());
         provider.load(Map.of(VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, TEST_SHARD_TO_EPOCH.toString()), config);
         Long epoch = provider.getEpoch(TEST_SHARD1, VGTID_JSON, VGTID_JSON);
@@ -105,7 +108,7 @@ public class VitessEpochProviderTest {
 
     @Test
     public void snapshotIncrementsEpoch() {
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false, 0L);
         String vgtidJsonEmpty = String.format(
                 VGTID_JSON_TEMPLATE,
                 VgtidTest.TEST_KEYSPACE,
@@ -122,7 +125,7 @@ public class VitessEpochProviderTest {
 
     @Test
     public void fastForwardVgtidIncrementsEpoch() {
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false, 0L);
         String vgtidJsonCurrent = String.format(
                 VGTID_JSON_TEMPLATE,
                 VgtidTest.TEST_KEYSPACE,
@@ -137,7 +140,7 @@ public class VitessEpochProviderTest {
 
     @Test
     public void currentVgtidIncrementsEpochForAllShards() {
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false, 0L);
         Long epochShard1 = provider.getEpoch(VgtidTest.TEST_SHARD, vgtidJsonCurrent, VGTID_JSON);
         assertThat(provider.getShardEpochMap()).isEqualTo(new ShardEpochMap(Map.of(VgtidTest.TEST_SHARD, 1L, VgtidTest.TEST_SHARD2, 1L)));
         Long epochShard2 = provider.getEpoch(VgtidTest.TEST_SHARD2, VGTID_JSON, VGTID_JSON);
@@ -174,7 +177,7 @@ public class VitessEpochProviderTest {
 
     @Test
     public void splitShardInheritsEpoch() {
-        VitessEpochProvider provider = new VitessEpochProvider(new ShardEpochMap(Map.of("0", 0L)), true);
+        VitessEpochProvider provider = new VitessEpochProvider(new ShardEpochMap(Map.of("0", 0L)), true, 0L);
         String vgtidSingleCurrent = String.format(
                 VGTID_SINGLE_SHARD_JSON_TEMPLATE,
                 TestHelper.TEST_SHARDED_KEYSPACE,
@@ -201,7 +204,7 @@ public class VitessEpochProviderTest {
 
     @Test
     public void nullPreviousVgtidWithStoredEpochShouldThrowException() {
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false, 0L);
         int expectedEpoch = 1;
         String shardToEpoch = String.format("{\"%s\": %d}", TEST_SHARD1, expectedEpoch);
         VitessConnectorConfig config = new VitessConnectorConfig(Configuration.empty());
@@ -277,7 +280,7 @@ public class VitessEpochProviderTest {
 
     @Test
     public void matchingGtidReturnsInitialEpoch() {
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false, 0L);
         int expectedEpoch = 0;
         Long epoch = provider.getEpoch(VgtidTest.TEST_SHARD, VGTID_JSON, VGTID_JSON);
         assertThat(epoch).isEqualTo(expectedEpoch);
@@ -286,7 +289,7 @@ public class VitessEpochProviderTest {
     @Test
     public void testInvalidCurrentGtid() {
         Long expectedEpoch = 0L;
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false, 0L);
         Long epoch = provider.getEpoch("-80", VGTID_JSON, VGTID_JSON);
         assertThat(epoch).isEqualTo(expectedEpoch);
         String vgtidJsonCurrent = String.format(
@@ -305,7 +308,7 @@ public class VitessEpochProviderTest {
     @Test
     public void testInvalidEmptyGtid() {
         Long expectedEpoch = 0L;
-        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false);
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false, 0L);
         Long epoch = provider.getEpoch("-80", VGTID_JSON, VGTID_JSON);
         assertThat(epoch).isEqualTo(expectedEpoch);
         String vgtidJsonEmpty = String.format(
@@ -344,5 +347,76 @@ public class VitessEpochProviderTest {
     public void testVersionUpgradeDoesNotAffectEpoch() {
         Long epoch = VitessEpochProvider.getEpochForGtid(0L, txIdVersion5, txIdVersion8);
         assertThat(epoch).isEqualTo(0L);
+    }
+
+    @Test
+    public void testConnectorGenerationIncrement() {
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false, 0L);
+        Configuration config = Configuration.create()
+                .with(VitessConnectorConfig.CONNECTOR_GENERATION, 1)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
+
+        Map<String, Object> offsets = Map.of(
+                VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, new ShardEpochMap(Map.of(TEST_SHARD1, SHARD1_EPOCH, TEST_SHARD2, SHARD2_EPOCH)).toString(),
+                VitessOrderedTransactionContext.OFFSET_CONNECTOR_GENERATION, 0L);
+
+        provider.load(offsets, connectorConfig);
+
+        assertThat(provider.getShardEpochMap().get(TEST_SHARD1)).isEqualTo(SHARD1_EPOCH + 1);
+        assertThat(provider.getShardEpochMap().get(TEST_SHARD2)).isEqualTo(SHARD2_EPOCH + 1);
+    }
+
+    @Test
+    public void testConnectorGenerationDecrementIncrementsEpochs() {
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false, 2L);
+        Configuration config = Configuration.create()
+                .with(VitessConnectorConfig.CONNECTOR_GENERATION, 1)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
+
+        Map<String, Object> offsets = Map.of(
+                VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, new ShardEpochMap(Map.of(TEST_SHARD1, SHARD1_EPOCH, TEST_SHARD2, SHARD2_EPOCH)).toString(),
+                VitessOrderedTransactionContext.OFFSET_CONNECTOR_GENERATION, 2L);
+
+        provider.load(offsets, connectorConfig);
+
+        assertThat(provider.getShardEpochMap().get(TEST_SHARD1)).isEqualTo(SHARD1_EPOCH + 1);
+        assertThat(provider.getShardEpochMap().get(TEST_SHARD2)).isEqualTo(SHARD2_EPOCH + 1);
+    }
+
+    @Test
+    public void testConnectorGenerationNoChange() {
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false, 1L);
+        Configuration config = Configuration.create()
+                .with(VitessConnectorConfig.CONNECTOR_GENERATION, 1)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
+
+        Map<String, Object> offsets = Map.of(
+                VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, new ShardEpochMap(Map.of(TEST_SHARD1, SHARD1_EPOCH, TEST_SHARD2, SHARD2_EPOCH)).toString(),
+                VitessOrderedTransactionContext.OFFSET_CONNECTOR_GENERATION, 1L);
+
+        provider.load(offsets, connectorConfig);
+
+        assertThat(provider.getShardEpochMap().get(TEST_SHARD1)).isEqualTo(SHARD1_EPOCH);
+        assertThat(provider.getShardEpochMap().get(TEST_SHARD2)).isEqualTo(SHARD2_EPOCH);
+    }
+
+    @Test
+    public void testConnectorGenerationMissingFromOffsetsNoChange() {
+        VitessEpochProvider provider = new VitessEpochProvider(ShardEpochMap.init(shards), false, 0L);
+        Configuration config = Configuration.create()
+                .with(VitessConnectorConfig.CONNECTOR_GENERATION, 0)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(config);
+
+        Map<String, Object> offsets = Map.of(
+                VitessOrderedTransactionContext.OFFSET_TRANSACTION_EPOCH, new ShardEpochMap(Map.of(TEST_SHARD1, SHARD1_EPOCH, TEST_SHARD2, SHARD2_EPOCH)).toString());
+
+        provider.load(offsets, connectorConfig);
+
+        assertThat(provider.getShardEpochMap().get(TEST_SHARD1)).isEqualTo(SHARD1_EPOCH);
+        assertThat(provider.getShardEpochMap().get(TEST_SHARD2)).isEqualTo(SHARD2_EPOCH);
     }
 }

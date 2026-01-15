@@ -266,4 +266,20 @@ public class VitessConnectorConfigTest {
         assertThat(tablesToCopy).containsExactly("numeric_table");
     }
 
+    @Test
+    public void shouldGetConnectorGeneration() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.CONNECTOR_GENERATION, 5)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getConnectorGeneration()).isEqualTo(5);
+    }
+
+    @Test
+    public void shouldGetConnectorGenerationDefaultValue() {
+        Configuration configuration = TestHelper.defaultConfig().build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getConnectorGeneration()).isEqualTo(0);
+    }
+
 }

@@ -19,6 +19,7 @@ import io.debezium.pipeline.txmetadata.TransactionInfo;
 public class VitessOrderedTransactionContext extends TransactionContext {
     public static final String OFFSET_TRANSACTION_EPOCH = "transaction_epoch";
     public static final String OFFSET_TRANSACTION_RANK = "transaction_rank";
+    public static final String OFFSET_CONNECTOR_GENERATION = "connector_generation";
     protected String previousVgtid = null;
     protected Long transactionEpoch = 0L;
     protected BigDecimal transactionRank = null;

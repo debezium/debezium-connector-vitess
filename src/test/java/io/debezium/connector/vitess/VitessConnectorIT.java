@@ -1677,7 +1677,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         assertThat(initialEpochMap.get("-80")).isNotNull().isGreaterThanOrEqualTo(1L);
         assertThat(initialEpochMap.get("80-")).isNotNull().isGreaterThanOrEqualTo(1L);
 
-        Map<String, Long> initialTransactionEpochs = new HashMap<>();
         for (int i = 1; i <= expectedRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
             Struct source = (Struct) ((Struct) record.value()).get("source");
@@ -1687,7 +1686,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
 
             // Verify epochs are consistent
             assertThat(transactionEpoch).isEqualTo(initialEpochMap.get(shard));
-            initialTransactionEpochs.put(shard, transactionEpoch);
         }
         assertRecordEnd(expectedTxId1, expectedRecordsCount);
 
@@ -1726,7 +1724,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
             Long newTransactionEpoch = (Long) txn.get("transaction_epoch");
 
             // Verify change recorc epoch is incremented
-            Long initialTransactionEpoch = initialTransactionEpochs.get(shard);
+            Long initialTransactionEpoch = initialEpochMap.get(shard);
             assertThat(newTransactionEpoch).isEqualTo(initialTransactionEpoch + 1);
             // Verify epochs consistent
             assertThat(newTransactionEpoch).isEqualTo(newEpochMap.get(shard));
@@ -1758,7 +1756,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         String initialEpochMapStr = (String) beginRecord.sourceOffset().get("transaction_epoch");
         ShardEpochMap initialEpochMap = ShardEpochMap.of(initialEpochMapStr);
 
-        Map<String, Long> initialTransactionEpochs = new HashMap<>();
         for (int i = 1; i <= expectedRecordsCount; i++) {
             SourceRecord record = assertRecordInserted(TEST_SHARDED_KEYSPACE + ".numeric_table", TestHelper.PK_FIELD);
             Struct source = (Struct) ((Struct) record.value()).get("source");
@@ -1766,7 +1763,6 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
             final Struct txn = ((Struct) record.value()).getStruct("transaction");
             Long transactionEpoch = (Long) txn.get("transaction_epoch");
             assertThat(transactionEpoch).isEqualTo(initialEpochMap.get(shard));
-            initialTransactionEpochs.put(shard, transactionEpoch);
         }
         assertRecordEnd(expectedTxId1, expectedRecordsCount);
 
@@ -1801,7 +1797,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
             final Struct txn = ((Struct) record.value()).getStruct("transaction");
             Long newTransactionEpoch = (Long) txn.get("transaction_epoch");
 
-            Long initialTransactionEpoch = initialTransactionEpochs.get(shard);
+            Long initialTransactionEpoch = initialEpochMap.get(shard);
             assertThat(newTransactionEpoch).isEqualTo(initialTransactionEpoch);
             assertThat(newTransactionEpoch).isEqualTo(newEpochMap.get(shard));
         }

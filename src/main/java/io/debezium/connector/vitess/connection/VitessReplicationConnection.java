@@ -57,10 +57,17 @@ public class VitessReplicationConnection implements ReplicationConnection {
     private final VitessConnectorConfig config;
     // Channel closing is invoked from the change-event-source-coordinator thread
     private final AtomicReference<ManagedChannel> managedChannel = new AtomicReference<>();
+    // Tracks whether the VStream copy phase has completed
+    private final AtomicReference<Boolean> copyCompleted = new AtomicReference<>(false);
 
     public VitessReplicationConnection(VitessConnectorConfig config, VitessDatabaseSchema schema) {
         this.messageDecoder = new VStreamOutputMessageDecoder(schema);
         this.config = config;
+    }
+
+    @Override
+    public boolean isCopyCompleted() {
+        return copyCompleted.get();
     }
 
     /**
@@ -164,10 +171,16 @@ public class VitessReplicationConnection implements ReplicationConnection {
                                 String msg = "Received duplicate BEGIN events";
                                 // During a copy operation, we receive the duplicate event once when no record is copied.
                                 String eventTypes = bufferedEvents.stream().map(VEvent::getType).map(Objects::toString).collect(Collectors.joining(", "));
-                                if (eventTypes.equals("BEGIN, FIELD") || eventTypes.equals("BEGIN, FIELD, VGTID") || eventTypes.equals("COPY_COMPLETED, BEGIN, FIELD")) {
+                                if (eventTypes.equals("BEGIN, FIELD") || eventTypes.equals("BEGIN, FIELD, VGTID")
+                                        || eventTypes.equals("COPY_COMPLETED, BEGIN, FIELD") || eventTypes.equals("COPY_COMPLETED, BEGIN, FIELD, VGTID")) {
                                     msg += String.format(" during a copy operation. No harm to skip the buffered events. Buffered event types: %s",
                                             eventTypes);
                                     LOGGER.info(msg);
+                                    // If COPY_COMPLETED is in the skipped buffer, mark copy as completed before resetting
+                                    if (eventTypes.startsWith("COPY_COMPLETED")) {
+                                        copyCompleted.set(true);
+                                        LOGGER.info("VStream copy phase completed (detected in skipped buffer)");
+                                    }
                                     reset();
                                 }
                                 else {
@@ -238,6 +251,8 @@ public class VitessReplicationConnection implements ReplicationConnection {
                         }
                         if (isInVStreamCopy && event.getType() == Binlogdata.VEventType.COPY_COMPLETED) {
                             isInVStreamCopy = false;
+                            copyCompleted.set(true);
+                            LOGGER.info("VStream copy phase completed");
                         }
                         messageDecoder.processMessage(bufferedEvents.get(i), processor, newVgtid, isInVStreamCopy);
                     }

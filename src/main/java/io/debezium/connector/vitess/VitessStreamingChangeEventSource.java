@@ -71,6 +71,11 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
                     offsetContext.getRestartVgtid(), newReplicationMessageProcessor(partition, offsetContext), error);
 
             while (context.isRunning() && error.get() == null) {
+                // Check if we should stop after copy completion (initial_only mode)
+                if (connectorConfig.shouldStopAfterSnapshot() && replicationConnection.isCopyCompleted()) {
+                    LOGGER.info("Copy phase completed. Stopping connector due to initial_only snapshot mode.");
+                    break;
+                }
                 pauseNoMessage.sleepWhen(true);
             }
             if (error.get() != null) {

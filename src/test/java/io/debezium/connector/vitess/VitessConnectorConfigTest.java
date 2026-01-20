@@ -266,4 +266,64 @@ public class VitessConnectorConfigTest {
         assertThat(tablesToCopy).containsExactly("numeric_table");
     }
 
+    @Test
+    public void shouldParseInitialOnlySnapshotMode() {
+        VitessConnectorConfig.SnapshotMode mode = VitessConnectorConfig.SnapshotMode.parse("initial_only");
+        assertThat(mode).isEqualTo(VitessConnectorConfig.SnapshotMode.INITIAL_ONLY);
+    }
+
+    @Test
+    public void shouldShouldStopAfterSnapshotReturnTrueForInitialOnlyMode() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.INITIAL_ONLY)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.shouldStopAfterSnapshot()).isTrue();
+    }
+
+    @Test
+    public void shouldShouldStopAfterSnapshotReturnFalseForInitialMode() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.INITIAL)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.shouldStopAfterSnapshot()).isFalse();
+    }
+
+    @Test
+    public void shouldShouldStopAfterSnapshotReturnFalseForNeverMode() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NEVER)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.shouldStopAfterSnapshot()).isFalse();
+    }
+
+    @Test
+    public void shouldGetVgtidReturnEmptyGtidForInitialOnlyMode() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.INITIAL_ONLY)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getVgtid()).isEqualTo(Vgtid.EMPTY_GTID);
+    }
+
+    @Test
+    public void shouldGetVgtidReturnEmptyGtidForInitialMode() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.INITIAL)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getVgtid()).isEqualTo(Vgtid.EMPTY_GTID);
+    }
+
+    @Test
+    public void shouldGetVgtidReturnCurrentGtidForNeverMode() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.SNAPSHOT_MODE, VitessConnectorConfig.SnapshotMode.NEVER)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getVgtid()).isEqualTo(Vgtid.CURRENT_GTID);
+    }
+
 }

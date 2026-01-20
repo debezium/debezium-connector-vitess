@@ -65,6 +65,11 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         INITIAL("initial"),
 
         /**
+         * Perform an initial snapshot and then stop, without streaming any changes.
+         */
+        INITIAL_ONLY("initial_only"),
+
+        /**
          * Never perform an initial snapshot and only receive new data changes.
          */
         NEVER("never");
@@ -453,6 +458,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDescription("The criteria for running a snapshot upon startup of the connector. "
                     + "Options include: "
                     + "'initial' (the default) to specify the connector should always perform an initial sync when required; "
+                    + "'initial_only' to specify the connector should perform an initial sync and then stop, without streaming changes; "
                     + "'never' to specify the connector should never perform an initial sync ");
 
     public static final Field BIGINT_UNSIGNED_HANDLING_MODE = Field.create("bigint.unsigned.handling.mode")
@@ -635,7 +641,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     }
 
     public String getVgtid() {
-        if (getSnapshotMode() == SnapshotMode.INITIAL) {
+        if (getSnapshotMode() == SnapshotMode.INITIAL || getSnapshotMode() == SnapshotMode.INITIAL_ONLY) {
             return Vgtid.EMPTY_GTID;
         }
         String value = getConfig().getString(VGTID);
@@ -816,6 +822,14 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public SnapshotMode getSnapshotMode() {
         return SnapshotMode.parse(getConfig().getString(SNAPSHOT_MODE), SNAPSHOT_MODE.defaultValueAsString());
+    }
+
+    /**
+     * Returns true if the connector should stop after completing the initial snapshot,
+     * without transitioning to streaming mode.
+     */
+    public boolean shouldStopAfterSnapshot() {
+        return getSnapshotMode() == SnapshotMode.INITIAL_ONLY;
     }
 
     @Override

@@ -52,7 +52,8 @@ public class VitessDatabaseSchema extends RelationalDatabaseSchema {
                         config.getSourceInfoStructMaker().schema(),
                         config.getTransactionMetadataFactory().getTransactionStructMaker().getTransactionBlockSchema(),
                         config.getFieldNamer(),
-                        false),
+                        false,
+                        config.getEventConvertingFailureHandlingMode()),
                 false,
                 config.getKeyMapper(), taskContext);
         this.keyspace = config.getKeyspace();

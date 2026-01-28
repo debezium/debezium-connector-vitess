@@ -121,11 +121,9 @@ public class VitessEpochProvider {
         }
         isInheritEpochEnabled = config.getInheritEpoch();
 
-        Long lastGeneration = (Long) offsets.get(VitessOrderedTransactionContext.OFFSET_CONNECTOR_GENERATION);
-        if (lastGeneration == null) {
-            // If no generation was stored, then fall back to the configured generation as the last generation
-            lastGeneration = config.getConnectorGeneration();
-        }
+        Object lastGenerationObj = offsets.get(VitessOrderedTransactionContext.OFFSET_CONNECTOR_GENERATION);
+        // If no generation was stored, then fall back to the configured generation as the last generation
+        Long lastGeneration = lastGenerationObj != null ? (Long) lastGenerationObj : config.getConnectorGeneration();
 
         long configGeneration = config.getConnectorGeneration();
 
@@ -145,11 +143,9 @@ public class VitessEpochProvider {
     }
 
     private void incrementAllEpochs() {
-        ShardEpochMap newMap = new ShardEpochMap();
-        for (Map.Entry<String, Long> entry : shardEpochMap.getMap().entrySet()) {
-            newMap.put(entry.getKey(), entry.getValue() + 1);
+        for (Map.Entry<String, Long> entry : shardEpochMap.entrySet()) {
+            shardEpochMap.put(entry.getKey(), entry.getValue() + 1);
         }
-        shardEpochMap = newMap;
     }
 
     public Long getEpoch(String shard, String previousVgtidString, String vgtidString) {

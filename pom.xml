@@ -212,6 +212,10 @@
         </dependency>
         <dependency>
             <groupId>io.debezium</groupId>
+            <artifactId>debezium-transforms</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.debezium</groupId>
             <artifactId>debezium-common</artifactId>
         </dependency>
         <!-- Vitess gRPC -->

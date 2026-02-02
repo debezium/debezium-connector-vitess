@@ -8,7 +8,9 @@ package io.debezium.connector.vitess.pipeline.txmetadata;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -60,6 +62,10 @@ public class ShardEpochMap {
 
     public Long get(String shard) {
         return shardEpochMap.get(shard);
+    }
+
+    public Set<Map.Entry<String, Long>> entrySet() {
+        return shardEpochMap.entrySet();
     }
 
     public Long put(String shard, Long epoch) {

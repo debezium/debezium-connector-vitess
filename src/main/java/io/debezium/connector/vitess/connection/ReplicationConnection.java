@@ -27,4 +27,12 @@ public interface ReplicationConnection extends AutoCloseable {
      */
     void startStreaming(
                         Vgtid vgtid, ReplicationMessageProcessor processor, AtomicReference<Throwable> error);
+
+    /**
+     * Returns true if the copy phase (VStream Copy) has completed.
+     * This is used to determine when to stop the connector in initial_only mode.
+     *
+     * @return true if copy phase is complete, false otherwise
+     */
+    boolean isCopyCompleted();
 }

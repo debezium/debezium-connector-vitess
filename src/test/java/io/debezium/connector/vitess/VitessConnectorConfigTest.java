@@ -266,4 +266,48 @@ public class VitessConnectorConfigTest {
         assertThat(tablesToCopy).containsExactly("numeric_table");
     }
 
+    @Test
+    public void shouldDefaultTransactionChunkSizeToZero() {
+        Configuration configuration = TestHelper.defaultConfig().build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getTransactionChunkSizeBytes()).isEqualTo(0L);
+    }
+
+    @Test
+    public void shouldSetTransactionChunkSizeToPositiveValue() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.TRANSACTION_CHUNK_SIZE_BYTES, 134217728L)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getTransactionChunkSizeBytes()).isEqualTo(134217728L);
+    }
+
+    @Test
+    public void shouldNegativeTransactionChunkSizeFailValidation() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.TRANSACTION_CHUNK_SIZE_BYTES, -1L)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.TRANSACTION_CHUNK_SIZE_BYTES), printConsumer);
+        assertThat(inputs.size()).isEqualTo(1);
+    }
+
+    @Test
+    public void shouldZeroTransactionChunkSizePassValidation() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.TRANSACTION_CHUNK_SIZE_BYTES, 0L)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.TRANSACTION_CHUNK_SIZE_BYTES), printConsumer);
+        assertThat(inputs.size()).isEqualTo(0);
+    }
+
 }

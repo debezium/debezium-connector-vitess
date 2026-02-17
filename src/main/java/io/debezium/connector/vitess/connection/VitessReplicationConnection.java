@@ -118,10 +118,13 @@ public class VitessReplicationConnection implements ReplicationConnection {
         StreamObserver<Vtgate.VStreamResponse> responseObserver = new StreamObserver<Vtgate.VStreamResponse>() {
             private List<VEvent> bufferedEvents = new ArrayList<>();
             private Vgtid newVgtid;
+            private Vgtid lastVgtid = vgtid;
             private boolean beginEventSeen;
             private boolean commitEventSeen;
-            private int numOfRowEvents;
             private int numResponses;
+            private final boolean isChunkingEnabled = config.getTransactionChunkSizeBytes() > 0;
+            private boolean inTransaction = false;
+            private boolean endedChunkedTransaction = false;
             private boolean isInVStreamCopy = vgtid.willTriggerVStreamCopy();
 
             @Override
@@ -134,7 +137,6 @@ public class VitessReplicationConnection implements ReplicationConnection {
                     LOGGER.debug("VEvent: {}", event);
                     switch (event.getType()) {
                         case ROW:
-                            numOfRowEvents++;
                             break;
                         case VGTID:
                             // We always use the latest VGTID if any.
@@ -155,7 +157,13 @@ public class VitessReplicationConnection implements ReplicationConnection {
                             break;
                         case BEGIN:
                             // We should only see BEGIN before seeing COMMIT.
-                            if (commitEventSeen) {
+                            inTransaction = true;
+                            if (commitEventSeen && isChunkingEnabled) {
+                                LOGGER.info("Transaction chunking: received BEGIN after COMMIT, " +
+                                        "indicating a chunked transaction has been committed, and a new transaction" +
+                                        "is beginning within the same VStreamResponse");
+                            }
+                            else if (commitEventSeen) {
                                 String msg = "Received BEGIN event after receiving COMMIT event";
                                 setError(msg);
                                 return;
@@ -179,11 +187,16 @@ public class VitessReplicationConnection implements ReplicationConnection {
                             break;
                         case COMMIT:
                             // We should only see COMMIT after seeing BEGIN.
-                            if (!beginEventSeen) {
+                            if (!beginEventSeen && inTransaction && isChunkingEnabled) {
+                                LOGGER.info("Transaction chunking: received COMMIT event in separate chunk");
+                                endedChunkedTransaction = true;
+                            }
+                            else if (!beginEventSeen) {
                                 String msg = "Received COMMIT event before receiving BEGIN event";
                                 setError(msg);
                                 return;
                             }
+                            inTransaction = false;
                             if (commitEventSeen) {
                                 String msg = "Received duplicate COMMIT events";
                                 setError(msg);
@@ -211,6 +224,13 @@ public class VitessReplicationConnection implements ReplicationConnection {
 
                 numResponses++;
 
+                // If chunking is enabled, and we are either in a chunked transaction (possibly split across
+                // several responses) or we just ended a chunked transaction, then send the events now.
+                if (isChunkingEnabled && (inTransaction || endedChunkedTransaction)) {
+                    LOGGER.info("Transaction chunking: received {} events during this chunk, " +
+                            "transaction chunk size bytes {}", bufferedEvents.size(), transactionChunkSizeBytes);
+                    sendNow = true;
+                }
                 // We only proceed when we receive a complete transaction after seeing both BEGIN and COMMIT events,
                 // OR if sendNow flag is true (meaning we should process buffered events immediately).
                 if ((!beginEventSeen || !commitEventSeen) && !sendNow) {
@@ -221,25 +241,40 @@ public class VitessReplicationConnection implements ReplicationConnection {
                     LOGGER.debug("Processing multi-response transaction: number of responses is {}", numResponses);
                 }
                 // If there is a heartbeat event we do not want to skip (we want to send the heartbeat)
-                if (newVgtid == null && !heartbeatReceived) {
+                // newVgtid may be null with chunking since events are sent eagerly (not buffered up to VGTID & COMMIT)
+                if (!isChunkingEnabled && newVgtid == null && !heartbeatReceived) {
                     LOGGER.warn("Skipping because no vgtid is found in buffered event types: {}",
                             bufferedEvents.stream().map(VEvent::getType).map(Objects::toString).collect(Collectors.joining(", ")));
                     reset();
                     return;
                 }
 
-                // Send the buffered events that belong to the same transaction.
+                // If chunking is enabled, use the previous (trailing) VGTID for all messages in the transaction
+                // since we can't know what the committed VGTID of this transaction is during the earlier chunks
+                Vgtid messageVgtid;
+                if (isChunkingEnabled) {
+                    messageVgtid = lastVgtid;
+                }
+                // If chunking is disabled, set all the messages' VGTID to the committed VGTID for this transaction
+                // (since we buffered the entire transaction in memory before sending, we know the committed VGTID)
+                else {
+                    messageVgtid = newVgtid;
+                }
+                // If a newVgtid has been read (a new VGTID event received) so it is not null, then set the
+                // lastVgtid to be equal to this newValue ahead of the next response
+                if (newVgtid != null) {
+                    lastVgtid = newVgtid;
+                }
+
+                // Send the buffered events that belong to the same transaction (note: it may be only part of the
+                // transaction if chunking is enabled).
                 try {
-                    int rowEventSeen = 0;
                     for (int i = 0; i < bufferedEvents.size(); i++) {
                         Binlogdata.VEvent event = bufferedEvents.get(i);
-                        if (event.getType() == Binlogdata.VEventType.ROW) {
-                            rowEventSeen++;
-                        }
                         if (isInVStreamCopy && event.getType() == Binlogdata.VEventType.COPY_COMPLETED) {
                             isInVStreamCopy = false;
                         }
-                        messageDecoder.processMessage(bufferedEvents.get(i), processor, newVgtid, isInVStreamCopy);
+                        messageDecoder.processMessage(bufferedEvents.get(i), processor, messageVgtid, isInVStreamCopy);
                     }
                 }
                 catch (InterruptedException e) {
@@ -272,7 +307,6 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 newVgtid = null;
                 beginEventSeen = false;
                 commitEventSeen = false;
-                numOfRowEvents = 0;
                 numResponses = 0;
             }
 
@@ -291,6 +325,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
         Vtgate.VStreamFlags.Builder vStreamFlagsBuilder = Vtgate.VStreamFlags.newBuilder()
                 .setStopOnReshard(config.getStopOnReshard())
                 .setExcludeKeyspaceFromTableName(config.getExcludeKeyspaceFromTableName())
+                .setTransactionChunkSize(config.getTransactionChunkSizeBytes())
                 .setHeartbeatInterval(getHeartbeatSeconds())
                 .setStreamKeyspaceHeartbeats(config.getStreamKeyspaceHeartbeats());
 

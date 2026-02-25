@@ -130,5 +130,10 @@ public class VitessChangeEventSourceFactory implements ChangeEventSourceFactory<
         public void currentChunk(VitessPartition partition, String chunkId, Object[] chunkFrom, Object[] chunkTo, Object[] tableTo) {
 
         }
+
+        @Override
+        public void chunkProgress(VitessPartition partition, TableId tableId, long totalChunks, long completedChunks) {
+
+        }
     };
 }

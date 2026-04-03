@@ -16,7 +16,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigValue;
@@ -327,15 +326,4 @@ public class VitessConnector extends RelationalBaseSourceConnector {
         return results;
     }
 
-    @SuppressWarnings("unchecked")
-    @Override
-    public List<TableId> getMatchingCollections(Configuration configuration) {
-        VitessConnectorConfig vitessConnectorConfig = new VitessConnectorConfig(configuration);
-        String keyspace = vitessConnectorConfig.getKeyspace();
-        List<String> allTables = vitessMetadata.getTables();
-        List<String> includedTables = getIncludedTables(vitessConnectorConfig, allTables);
-        return includedTables.stream()
-                .map(table -> new TableId(keyspace, null, table))
-                .collect(Collectors.toList());
-    }
 }

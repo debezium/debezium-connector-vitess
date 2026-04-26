@@ -34,6 +34,7 @@ public class VitessHeartbeatImplTest {
             .maxQueueSize(20)
             .loggingContextSupplier(() -> LoggingContext.forConnector("a", "b", "c"))
             .pollInterval(Duration.ofMillis(500))
+            .pollDispatchInterval(Duration.ofMillis(0))
             .queueProvider(new DefaultQueueProvider<>(20))
             .build();
 
@@ -60,6 +61,7 @@ public class VitessHeartbeatImplTest {
                 .maxQueueSize(20)
                 .loggingContextSupplier(() -> LoggingContext.forConnector("a", "b", "c"))
                 .pollInterval(Duration.ofMillis(500))
+                .pollDispatchInterval(Duration.ofMillis(0))
                 .queueProvider(new DefaultQueueProvider<>(20))
                 .build();
 

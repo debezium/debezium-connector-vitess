@@ -2647,6 +2647,32 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         Testing.print("*** Done with verifying without offset.storage.per.task");
     }
 
+    @Test
+    public void shouldRestartStreamWhenMaxStreamAgeExceeded() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        final LogInterceptor replicationLogInterceptor = new LogInterceptor(VitessReplicationConnection.class);
+
+        int maxStreamAgeSeconds = 5;
+        startConnector(config -> config
+                .with(VitessConnectorConfig.MAX_STREAM_AGE_SECONDS, maxStreamAgeSeconds),
+                false);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_NUMERIC_TYPES_STMT, schemasAndValuesForNumericTypes(), TestHelper.PK_FIELD);
+
+        int waitSeconds = maxStreamAgeSeconds * 2 + 10;
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(waitSeconds))
+                .pollInterval(Duration.ofSeconds(1))
+                .until(() -> replicationLogInterceptor.containsMessage(
+                        "VStream terminated, restarting stream on existing gRPC channel"));
+
+        assertConnectorIsRunning();
+    }
+
     private void waitForGtidAcquiring(final LogInterceptor logInterceptor) {
         // The inserts must happen only after GTID to stream from is obtained
         Awaitility.await().atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))

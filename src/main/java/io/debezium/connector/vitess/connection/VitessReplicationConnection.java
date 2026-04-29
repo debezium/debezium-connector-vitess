@@ -57,6 +57,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
     private final VitessConnectorConfig config;
     // Channel closing is invoked from the change-event-source-coordinator thread
     private final AtomicReference<ManagedChannel> managedChannel = new AtomicReference<>();
+    private final AtomicReference<Boolean> streamRestartNeeded = new AtomicReference<>(false);
 
     public VitessReplicationConnection(VitessConnectorConfig config, VitessDatabaseSchema schema) {
         this.messageDecoder = new VStreamOutputMessageDecoder(schema);
@@ -95,12 +96,29 @@ public class VitessReplicationConnection implements ReplicationConnection {
     }
 
     @Override
+    public boolean isStreamRestartNeeded() {
+        return streamRestartNeeded.get();
+    }
+
+    @Override
+    public void setStreamRestartNeeded(boolean needed) {
+        streamRestartNeeded.set(needed);
+    }
+
+    @Override
     public void startStreaming(
                                Vgtid vgtid, ReplicationMessageProcessor processor, AtomicReference<Throwable> error) {
         Objects.requireNonNull(vgtid);
 
-        ManagedChannel channel = newChannel();
-        managedChannel.compareAndSet(null, channel);
+        ManagedChannel channel = managedChannel.get();
+        if (channel == null || channel.isShutdown() || channel.isTerminated()) {
+            LOGGER.info("Creating new gRPC channel for VStream");
+            channel = newChannel();
+            managedChannel.set(channel);
+        }
+        else {
+            LOGGER.debug("Reusing existing gRPC channel for VStream");
+        }
 
         VitessGrpc.VitessStub stub = newStub(channel);
 
@@ -255,9 +273,16 @@ public class VitessReplicationConnection implements ReplicationConnection {
 
             @Override
             public void onError(Throwable t) {
-                LOGGER.error("VStream streaming onError. Status: {}", Status.fromThrowable(t), t);
-                // Only propagate the first error
-                error.compareAndSet(null, t);
+                Status status = Status.fromThrowable(t);
+                if (shouldRestartStream(status)) {
+                    LOGGER.info("VStream terminated, restarting stream on existing gRPC channel (preserves ORCA metrics): {}", status);
+                    streamRestartNeeded.set(true);
+                }
+                else {
+                    LOGGER.error("VStream streaming onError. Status: {}", Status.fromThrowable(t), t);
+                    // Only propagate the first error
+                    error.compareAndSet(null, t);
+                }
                 reset();
             }
 
@@ -292,7 +317,8 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 .setStopOnReshard(config.getStopOnReshard())
                 .setExcludeKeyspaceFromTableName(config.getExcludeKeyspaceFromTableName())
                 .setHeartbeatInterval(getHeartbeatSeconds())
-                .setStreamKeyspaceHeartbeats(config.getStreamKeyspaceHeartbeats());
+                .setStreamKeyspaceHeartbeats(config.getStreamKeyspaceHeartbeats())
+                .setMaxStreamAgeSeconds(config.getMaxStreamAgeSeconds());
 
         if (!Strings.isNullOrEmpty(config.getConfig().getString(CommonConnectorConfig.SNAPSHOT_MODE_TABLES))) {
             final List<String> allTables = new VitessMetadata(config).getTables();
@@ -358,6 +384,20 @@ public class VitessReplicationConnection implements ReplicationConnection {
             stub = stub.withCallCredentials(new StaticAuthCredentials(config.getVtgateUsername(), config.getVtgatePassword()));
         }
         return stub;
+    }
+
+    /**
+     * Determines if the stream should be restarted (reopened) on the existing gRPC channel
+     * rather than propagating the error. This allows the channel to be preserved, which
+     * maintains ORCA metrics for weighted load balancing.
+     */
+    private static boolean shouldRestartStream(Status status) {
+        if (status.getCode() == Status.Code.UNAVAILABLE
+                && status.getDescription() != null
+                && status.getDescription().contains("vstream exceeded maximum age")) {
+            return true;
+        }
+        return false;
     }
 
     private ManagedChannel newChannel() {

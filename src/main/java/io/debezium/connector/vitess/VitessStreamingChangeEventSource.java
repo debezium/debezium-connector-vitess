@@ -67,12 +67,21 @@ public class VitessStreamingChangeEventSource implements StreamingChangeEventSou
 
         try {
             AtomicReference<Throwable> error = new AtomicReference<>();
-            replicationConnection.startStreaming(
-                    offsetContext.getRestartVgtid(), newReplicationMessageProcessor(partition, offsetContext), error);
 
             while (context.isRunning() && error.get() == null) {
-                pauseNoMessage.sleepWhen(true);
+                replicationConnection.startStreaming(
+                        offsetContext.getRestartVgtid(), newReplicationMessageProcessor(partition, offsetContext), error);
+
+                while (context.isRunning() && error.get() == null && !replicationConnection.isStreamRestartNeeded()) {
+                    pauseNoMessage.sleepWhen(true);
+                }
+
+                if (replicationConnection.isStreamRestartNeeded()) {
+                    replicationConnection.setStreamRestartNeeded(false);
+                    continue;
+                }
             }
+
             if (error.get() != null) {
                 LOGGER.error("Error during streaming", error.get());
                 throw error.get();

@@ -194,4 +194,19 @@ public class TablePrimaryKeysTest {
         TablePrimaryKeys tablePrimaryKeys = TablePrimaryKeys.of(TEST_LAST_PKS_JSON);
         JSONAssert.assertEquals(tablePrimaryKeys.toString(), TEST_LAST_PKS_JSON, true);
     }
+
+    @Test
+    public void shouldHandleNullLastPkInVgtidJson() {
+        String vgtidJsonWithNullLastPk = "[{\"keyspace\":\"test_keyspace\",\"shard\":\"-80\"," +
+                "\"gtid\":\"MySQL56/a790d864-9ba1-11ea-99f6-0242ac11000a:1-1513\"," +
+                "\"table_p_ks\":[{\"table_name\":\"test_table\",\"lastpk\":null}]}]";
+
+        Vgtid vgtid = Vgtid.of(vgtidJsonWithNullLastPk);
+
+        assertThat(vgtid.getShardGtids()).hasSize(1);
+        assertThat(vgtid.getShardGtids().get(0).getTableLastPrimaryKeys()).hasSize(1);
+        TablePrimaryKeys.TableLastPrimaryKey tableLastPK = vgtid.getShardGtids().get(0).getTableLastPrimaryKeys().get(0);
+        assertThat(tableLastPK.getTableName()).isEqualTo("test_table");
+        assertThat(tableLastPK.getLastPrimaryKey()).isNull();
+    }
 }

@@ -151,10 +151,12 @@ public class TablePrimaryKeys {
 
         @JsonIgnore
         public Binlogdata.TableLastPK getRawTableLastPrimaryKey() {
-            return Binlogdata.TableLastPK.newBuilder()
-                    .setTableName(tableName)
-                    .setLastpk(lastPrimaryKey.getRawQueryResult())
-                    .build();
+            Binlogdata.TableLastPK.Builder builder = Binlogdata.TableLastPK.newBuilder()
+                    .setTableName(tableName);
+            if (lastPrimaryKey != null) {
+                builder.setLastpk(lastPrimaryKey.getRawQueryResult());
+            }
+            return builder.build();
         }
 
         @Override

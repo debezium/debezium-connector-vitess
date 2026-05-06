@@ -30,9 +30,10 @@ import org.junit.jupiter.api.Test;
 
 import io.debezium.config.Configuration;
 import io.debezium.connector.common.BaseSourceTask;
-import io.debezium.embedded.KafkaConnectUtil;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.pipeline.ChangeEventSourceCoordinator;
+import io.debezium.storage.kafka.KafkaConnectOffsetStoreAdapter;
+import io.debezium.storage.kafka.offset.KafkaMemoryOffsetProvider;
 import io.debezium.util.Collect;
 import io.debezium.util.Testing;
 
@@ -217,7 +218,7 @@ public class VitessConnectorTaskTest {
         SourceTaskContext sourceTaskContext;
 
         ContextHelper() {
-            this.offsetStore = KafkaConnectUtil.memoryOffsetBackingStore();
+            this.offsetStore = ((KafkaConnectOffsetStoreAdapter) (new KafkaMemoryOffsetProvider()).create(null)).getDelegate();
             this.sourceTaskContext = initSourceTaskContext();
         }
 

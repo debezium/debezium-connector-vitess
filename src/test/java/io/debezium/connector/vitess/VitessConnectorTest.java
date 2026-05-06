@@ -52,10 +52,11 @@ import io.debezium.connector.vitess.connection.VitessReplicationConnection;
 import io.debezium.connector.vitess.pipeline.txmetadata.ShardEpochMap;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionContext;
 import io.debezium.connector.vitess.pipeline.txmetadata.VitessOrderedTransactionMetadataFactory;
-import io.debezium.embedded.KafkaConnectUtil;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.spi.Offsets;
+import io.debezium.storage.kafka.KafkaConnectOffsetStoreAdapter;
+import io.debezium.storage.kafka.offset.KafkaMemoryOffsetProvider;
 import io.debezium.util.Collect;
 import io.debezium.util.Testing;
 
@@ -1889,7 +1890,7 @@ public class VitessConnectorTest {
     private Map<String, Map<String, String>> getOffsetFromStorage(int numTasks, List<String> shards, int gen, int prevNumTasks,
                                                                   Map<String, ?> serverOffsets, Map<String, Map<String, ?>> taskOffsets,
                                                                   Function<Configuration.Builder, Configuration.Builder> customConfig) {
-        final OffsetBackingStore offsetStore = KafkaConnectUtil.memoryOffsetBackingStore();
+        final OffsetBackingStore offsetStore = ((KafkaConnectOffsetStoreAdapter) (new KafkaMemoryOffsetProvider()).create(null)).getDelegate();
         offsetStore.start();
 
         storeOffsets(offsetStore, serverOffsets, taskOffsets);
@@ -1913,7 +1914,7 @@ public class VitessConnectorTest {
         SourceConnectorContext sourceConnectorContext;
 
         ContextHelper() {
-            this.offsetStore = KafkaConnectUtil.memoryOffsetBackingStore();
+            this.offsetStore = ((KafkaConnectOffsetStoreAdapter) (new KafkaMemoryOffsetProvider()).create(null)).getDelegate();
             this.sourceConnectorContext = initSourceConnectorContext();
         }
 

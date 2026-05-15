@@ -719,6 +719,98 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    public void shouldTruncateProportionallyBasedOnColumnSize() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        // Insert one 1000-char column and one 1500-char column
+        String smallText = "a".repeat(1000);
+        String largeText = "b".repeat(1500);
+        String insertStmt = "INSERT INTO string_table (text_col, mediumtext_col) "
+                + "VALUES ('" + smallText + "', '" + largeText + "');";
+        startConnector(builder -> builder
+                .with("transforms", "truncateColumn")
+                .with("transforms.truncateColumn.type", "io.debezium.connector.vitess.transforms.EnforceRecordSize")
+                .with("transforms.truncateColumn.max.bytes", "1000"),
+                false,
+                false, 1, -1, -1, null,
+                VitessConnectorConfig.SnapshotMode.NEVER, "");
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        consumer.expects(expectedRecordsCount);
+        executeAndWait(insertStmt);
+
+        SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(insertStmt), TestHelper.PK_FIELD);
+        Struct value = (Struct) record.value();
+        Struct after = value.getStruct("after");
+        String textResult = after.getString("text_col");
+        String mediumtextResult = after.getString("mediumtext_col");
+        // Both must be truncated from originals
+        assertThat(textResult.length()).isLessThan(1000);
+        assertThat(mediumtextResult.length()).isLessThan(1500);
+        // Proportional: the larger column (1500) should be truncated more in absolute bytes
+        int textBytesRemoved = 1000 - textResult.length();
+        int mediumtextBytesRemoved = 1500 - mediumtextResult.length();
+        assertThat(mediumtextBytesRemoved).isGreaterThan(textBytesRemoved);
+    }
+
+    @Test
+    public void shouldCombineWithStaticColumnTruncateConfig() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        // Insert large values: text_col and mediumtext_col both 800 chars
+        String largeText = "c".repeat(800);
+        String insertStmt = "INSERT INTO string_table (text_col, mediumtext_col) "
+                + "VALUES ('" + largeText + "', '" + largeText + "');";
+        // Static truncation: text_col is pre-truncated to 10 chars via column.truncate.to.10.chars
+        // Dynamic truncation: max message size is 600 bytes
+        // Expected: text_col stays at 10 (already small), mediumtext_col gets dynamically truncated
+        startConnector(builder -> builder
+                .with("column.truncate.to.10.chars",
+                        TEST_UNSHARDED_KEYSPACE + ".string_table.text_col")
+                .with("transforms", "truncateColumn")
+                .with("transforms.truncateColumn.type", "io.debezium.connector.vitess.transforms.EnforceRecordSize")
+                .with("transforms.truncateColumn.max.bytes", "600"),
+                false,
+                false, 1, -1, -1, null,
+                VitessConnectorConfig.SnapshotMode.NEVER, "");
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        consumer.expects(expectedRecordsCount);
+        executeAndWait(insertStmt);
+
+        SourceRecord record = assertRecordInserted(topicNameFromInsertStmt(insertStmt), TestHelper.PK_FIELD);
+        Struct value = (Struct) record.value();
+        Struct after = value.getStruct("after");
+        String textResult = after.getString("text_col");
+        String mediumtextResult = after.getString("mediumtext_col");
+        // text_col was statically truncated to 10 chars first, and should remain small
+        assertThat(textResult.length()).isLessThanOrEqualTo(10);
+        // mediumtext_col should be dynamically truncated from 800
+        assertThat(mediumtextResult.length()).isLessThan(800);
+    }
+
+    @Test
+    public void shouldNotTruncateWhenMessageSizeWithinBounds() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(builder -> builder
+                .with("transforms", "truncateColumn")
+                .with("transforms.truncateColumn.type", "io.debezium.connector.vitess.transforms.EnforceRecordSize")
+                .with("transforms.truncateColumn.max.bytes", "100000"),
+                false,
+                false, 1, -1, -1, null,
+                VitessConnectorConfig.SnapshotMode.NEVER, "");
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+        consumer.expects(expectedRecordsCount);
+        // Uses standard string insert which has small values (2-char, etc.)
+        assertInsert(INSERT_STRING_TYPES_STMT, schemasAndValuesForStringTypes(), TestHelper.PK_FIELD);
+    }
+
+    @Test
     public void shouldConsumeEventsWithExcludedColumn() throws Exception {
         String columnToExlude = "mediumtext_col";
         String someColumnIncluded = "varchar_col";

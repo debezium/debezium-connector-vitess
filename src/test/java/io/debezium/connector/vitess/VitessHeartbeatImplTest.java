@@ -34,7 +34,7 @@ public class VitessHeartbeatImplTest {
             .maxQueueSize(20)
             .loggingContextSupplier(() -> LoggingContext.forConnector("a", "b", "c"))
             .pollInterval(Duration.ofMillis(500))
-            .queueProvider(new DefaultQueueProvider<>(20))
+            .queueProvider(createDefaultQueueProvider(20))
             .build();
 
     private final VitessHeartbeatImpl underTest = new VitessHeartbeatImpl(Duration.ofMillis(1), "topicName", "key", SchemaNameAdjuster.NO_OP, eventQueue);
@@ -60,7 +60,7 @@ public class VitessHeartbeatImplTest {
                 .maxQueueSize(20)
                 .loggingContextSupplier(() -> LoggingContext.forConnector("a", "b", "c"))
                 .pollInterval(Duration.ofMillis(500))
-                .queueProvider(new DefaultQueueProvider<>(20))
+                .queueProvider(createDefaultQueueProvider(20))
                 .build();
 
         Heartbeat heartbeat = new VitessHeartbeatImpl(Duration.ofMillis(1), "topicName", "key", SchemaNameAdjuster.NO_OP, eventQueue);
@@ -128,4 +128,9 @@ public class VitessHeartbeatImplTest {
         };
     }
 
+    private static DefaultQueueProvider<DataChangeEvent> createDefaultQueueProvider(int maxQueueSize) {
+        DefaultQueueProvider<DataChangeEvent> provider = new DefaultQueueProvider<>();
+        provider.configure(java.util.Map.of("max.queue.size", String.valueOf(maxQueueSize)));
+        return provider;
+    }
 }

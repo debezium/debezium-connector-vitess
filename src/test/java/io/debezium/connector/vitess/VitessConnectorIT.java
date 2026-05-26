@@ -728,8 +728,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 + "VALUES ('" + smallText + "', '" + largeText + "');";
         startConnector(builder -> builder
                 .with("transforms", "truncateColumn")
-                .with("transforms.truncateColumn.type", "io.debezium.connector.vitess.transforms.EnforceRecordSize")
-                .with("transforms.truncateColumn.max.bytes", "1000"),
+                .with("transforms.truncateColumn.type", "io.debezium.transforms.EnforceRecordSize")
+                .with("transforms.truncateColumn.max.bytes", "1000")
+                .with("transforms.truncateColumn.min.field.size", "0"),
                 false,
                 false, 1, -1, -1, null,
                 VitessConnectorConfig.SnapshotMode.NEVER, "");
@@ -768,8 +769,9 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
                 .with("column.truncate.to.10.chars",
                         TEST_UNSHARDED_KEYSPACE + ".string_table.text_col")
                 .with("transforms", "truncateColumn")
-                .with("transforms.truncateColumn.type", "io.debezium.connector.vitess.transforms.EnforceRecordSize")
-                .with("transforms.truncateColumn.max.bytes", "600"),
+                .with("transforms.truncateColumn.type", "io.debezium.transforms.EnforceRecordSize")
+                .with("transforms.truncateColumn.max.bytes", "600")
+                .with("transforms.truncateColumn.min.field.size", "0"),
                 false,
                 false, 1, -1, -1, null,
                 VitessConnectorConfig.SnapshotMode.NEVER, "");
@@ -796,7 +798,7 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         startConnector(builder -> builder
                 .with("transforms", "truncateColumn")
-                .with("transforms.truncateColumn.type", "io.debezium.connector.vitess.transforms.EnforceRecordSize")
+                .with("transforms.truncateColumn.type", "io.debezium.transforms.EnforceRecordSize")
                 .with("transforms.truncateColumn.max.bytes", "100000"),
                 false,
                 false, 1, -1, -1, null,

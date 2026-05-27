@@ -23,6 +23,7 @@ import io.debezium.config.ConfigurationNames;
 import io.debezium.config.Field;
 import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.connector.base.QueueProviderService;
+import io.debezium.connector.base.QueueProviderServiceProvider;
 import io.debezium.connector.common.BaseSourceTask;
 import io.debezium.connector.common.CdcSourceTaskContext;
 import io.debezium.connector.common.DebeziumHeaderProducer;
@@ -261,5 +262,6 @@ public class VitessConnectorTask extends BaseSourceTask<VitessPartition, VitessO
         serviceRegistry.registerServiceProvider(new PostProcessorRegistryServiceProvider());
         serviceRegistry.registerServiceProvider(new DebeziumHeaderProducerProvider());
         serviceRegistry.registerServiceProvider(new CustomConverterServiceProvider());
+        serviceRegistry.registerServiceProvider(new QueueProviderServiceProvider());
     }
 }

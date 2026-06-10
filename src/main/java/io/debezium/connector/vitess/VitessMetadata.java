@@ -46,6 +46,28 @@ public class VitessMetadata {
         return formattedQuery;
     }
 
+    // MySQL identifier quoting: wrap in backticks and escape any embedded backtick by doubling.
+    // Required because keyspace/table names can legally contain characters that are not valid
+    // in bare MySQL identifiers (e.g. hyphens).
+    public static String quoteIdentifier(String identifier) {
+        return "`" + identifier.replace("`", "``") + "`";
+    }
+
+    // Escape a value to be placed inside a MySQL single-quoted string literal.
+    @VisibleForTesting
+    static String escapeStringLiteral(String value) {
+        return value.replace("\\", "\\\\").replace("'", "\\'");
+    }
+
+    // Escape LIKE wildcards so they match literally. Backslash is the LIKE escape character and
+    // must be escaped first; otherwise an unescaped `_` in a keyspace name would over-match
+    // (e.g. `foo_bar` would also match `foo-bar`). Apply before escapeStringLiteral so the added
+    // backslashes are themselves doubled when embedded in the literal.
+    @VisibleForTesting
+    static String escapeLikePattern(String value) {
+        return value.replace("\\", "\\\\").replace("_", "\\_").replace("%", "\\%");
+    }
+
     public List<String> getShards() {
         List<String> shards;
         if (config.excludeEmptyShards()) {
@@ -78,7 +100,7 @@ public class VitessMetadata {
             response = executeQuery(query, randomShard);
         }
         else {
-            query = formatQuery("SHOW TABLES FROM %s", config.getKeyspace());
+            query = formatQuery("SHOW TABLES FROM %s", quoteIdentifier(config.getKeyspace()));
             response = executeQuery(query);
         }
         logResponse(response, query);
@@ -92,7 +114,7 @@ public class VitessMetadata {
     }
 
     private List<String> getVitessShards() {
-        String query = formatQuery("SHOW VITESS_SHARDS LIKE '%s/%%'", config.getKeyspace());
+        String query = formatQuery("SHOW VITESS_SHARDS LIKE '%s/%%'", escapeStringLiteral(escapeLikePattern(config.getKeyspace())));
         Vtgate.ExecuteResponse response = executeQuery(query);
         logResponse(response, query);
         List<String> rows = getFlattenedRowsFromResponse(response);

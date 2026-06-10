@@ -59,4 +59,27 @@ public class VitessMetadataTest {
         List<List<String>> input = List.of(List.of("foo"), List.of("bar"));
         assertThat(VitessMetadata.flattenAndConcat(input)).isEqualTo(expected);
     }
+
+    @Test
+    public void shouldQuoteIdentifier() {
+        assertThat(VitessMetadata.quoteIdentifier("keyspace")).isEqualTo("`keyspace`");
+        assertThat(VitessMetadata.quoteIdentifier("tenant-a")).isEqualTo("`tenant-a`");
+        assertThat(VitessMetadata.quoteIdentifier("weird`name")).isEqualTo("`weird``name`");
+    }
+
+    @Test
+    public void shouldEscapeStringLiteral() {
+        assertThat(VitessMetadata.escapeStringLiteral("plain")).isEqualTo("plain");
+        assertThat(VitessMetadata.escapeStringLiteral("it's")).isEqualTo("it\\'s");
+        assertThat(VitessMetadata.escapeStringLiteral("back\\slash")).isEqualTo("back\\\\slash");
+    }
+
+    @Test
+    public void shouldEscapeLikePattern() {
+        assertThat(VitessMetadata.escapeLikePattern("plain")).isEqualTo("plain");
+        assertThat(VitessMetadata.escapeLikePattern("foo_bar")).isEqualTo("foo\\_bar");
+        assertThat(VitessMetadata.escapeLikePattern("100%")).isEqualTo("100\\%");
+        // Backslash must be escaped first so the backslashes added for `_` / `%` are not themselves doubled.
+        assertThat(VitessMetadata.escapeLikePattern("a\\b_c")).isEqualTo("a\\\\b\\_c");
+    }
 }

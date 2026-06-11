@@ -200,6 +200,24 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    public void shouldStreamFromTableWithDashInName() throws Exception {
+        String table = "dash-table";
+        TestHelper.execute(String.format("DROP TABLE IF EXISTS `%s`;", table));
+        TestHelper.execute(String.format("CREATE TABLE `%s` (id BIGINT NOT NULL AUTO_INCREMENT, int_col INT, PRIMARY KEY (id));", table));
+        startConnector(
+                builder -> builder.with(RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST, TEST_UNSHARDED_KEYSPACE + "." + table),
+                false);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        executeAndWait(String.format("INSERT INTO `%s` (int_col) VALUES (1);", table));
+        SourceRecord record = assertRecordInserted(TEST_UNSHARDED_KEYSPACE + "." + table, TestHelper.PK_FIELD);
+        assertSourceInfo(record, TEST_SERVER, TEST_UNSHARDED_KEYSPACE, table);
+    }
+
+    @Test
     @FixFor("DBZ-7962")
     public void shouldReceiveHeartbeatEvents() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");

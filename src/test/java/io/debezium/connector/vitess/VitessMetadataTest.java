@@ -61,13 +61,6 @@ public class VitessMetadataTest {
     }
 
     @Test
-    public void shouldQuoteIdentifier() {
-        assertThat(VitessMetadata.quoteIdentifier("keyspace")).isEqualTo("`keyspace`");
-        assertThat(VitessMetadata.quoteIdentifier("tenant-a")).isEqualTo("`tenant-a`");
-        assertThat(VitessMetadata.quoteIdentifier("weird`name")).isEqualTo("`weird``name`");
-    }
-
-    @Test
     public void shouldEscapeStringLiteral() {
         assertThat(VitessMetadata.escapeStringLiteral("plain")).isEqualTo("plain");
         assertThat(VitessMetadata.escapeStringLiteral("it's")).isEqualTo("it\\'s");

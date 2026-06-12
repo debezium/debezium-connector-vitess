@@ -9,6 +9,7 @@ package io.debezium.connector.vitess;
 import static io.debezium.connector.vitess.VitessValueConverterTest.temporalFieldEvent;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
@@ -44,10 +45,13 @@ public class VitessValueConverterTemporalTypesTest {
 
     @BeforeEach
     public void before() {
+        init(TemporalPrecisionMode.ISOSTRING);
+    }
 
+    private void init(TemporalPrecisionMode temporalPrecisionMode) {
         VitessConnectorConfig config = new VitessConnectorConfig(
                 TestHelper.defaultConfig().with(
-                        VitessConnectorConfig.TIME_PRECISION_MODE.name(), TemporalPrecisionMode.ISOSTRING).build());
+                        VitessConnectorConfig.TIME_PRECISION_MODE.name(), temporalPrecisionMode).build());
         converter = new VitessValueConverter(
                 config.getDecimalMode(),
                 config.getTemporalPrecisionMode(),
@@ -104,6 +108,55 @@ public class VitessValueConverterTemporalTypesTest {
         String timeString = "00:00:00";
         Object actual = valueConverter.convert(timeString);
         assertThat(actual).isEqualTo(timeString);
+    }
+
+    @Test
+    public void shouldGetConnectTimestampSchemaBuilderForTimestampWithConnectTimePrecisionMode() throws InterruptedException {
+        init(TemporalPrecisionMode.CONNECT);
+        decoder.processMessage(temporalFieldEvent(), null, null, false);
+        Table table = schema.tableFor(TestHelper.defaultTableId());
+
+        Column column = table.columnWithName("timestamp_col");
+        SchemaBuilder schemaBuilder = converter.schemaBuilder(column);
+        assertThat(schemaBuilder.schema()).isEqualTo(org.apache.kafka.connect.data.Timestamp.builder().schema());
+    }
+
+    @Test
+    public void shouldConvertTimestampToDateWithConnectTimePrecisionMode() throws InterruptedException {
+        init(TemporalPrecisionMode.CONNECT);
+        decoder.processMessage(temporalFieldEvent(), null, null, false);
+        Table table = schema.tableFor(TestHelper.defaultTableId());
+
+        String col = "timestamp_col";
+        Column column = table.columnWithName(col);
+        Field field = new Field(col, 3, org.apache.kafka.connect.data.Timestamp.builder().schema());
+
+        ValueConverter valueConverter = converter.converter(column, field);
+        Object actual = valueConverter.convert("2020-01-01 01:02:03");
+        assertThat(actual).isEqualTo(java.util.Date.from(
+                LocalDateTime.of(2020, 1, 1, 1, 2, 3).toInstant(ZoneOffset.UTC)));
+    }
+
+    @Test
+    public void shouldConvertZeroTimestampWithConnectTimePrecisionMode() throws InterruptedException {
+        init(TemporalPrecisionMode.CONNECT);
+        decoder.processMessage(temporalFieldEvent(), null, null, false);
+        Table table = schema.tableFor(TestHelper.defaultTableId());
+
+        String col = "timestamp_col";
+        Column column = table.columnWithName(col);
+
+        // The MySQL zero-date sentinel converts to null for optional columns, like a DATETIME zero-date
+        ValueConverter nullableConverter = converter.converter(
+                column.edit().optional(true).create(),
+                new Field(col, 3, org.apache.kafka.connect.data.Timestamp.builder().optional().schema()));
+        assertThat(nullableConverter.convert("0000-00-00 00:00:00")).isNull();
+
+        // For non-optional columns it converts to the epoch fallback
+        ValueConverter requiredConverter = converter.converter(
+                column.edit().optional(false).create(),
+                new Field(col, 3, org.apache.kafka.connect.data.Timestamp.builder().schema()));
+        assertThat(requiredConverter.convert("0000-00-00 00:00:00")).isEqualTo(new java.util.Date(0L));
     }
 
 }

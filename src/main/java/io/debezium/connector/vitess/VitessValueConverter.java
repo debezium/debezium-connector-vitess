@@ -16,6 +16,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
+import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -109,6 +110,12 @@ public class VitessValueConverter extends JdbcValueConverters {
         if (isTemporal(typeName) && temporalPrecisionMode.equals(TemporalPrecisionMode.ISOSTRING)) {
             return SchemaBuilder.string();
         }
+        // MySQL TIMESTAMP is mapped to Types.TIMESTAMP_WITH_TIMEZONE, for which JdbcValueConverters hardcodes
+        // ZonedTimestamp regardless of the configured time.precision.mode. Honor `connect` mode here so TIMESTAMP
+        // columns use Kafka Connect's Timestamp logical type (epoch millis), consistent with DATETIME.
+        if (isTimestamp(typeName) && temporalPrecisionMode.equals(TemporalPrecisionMode.CONNECT)) {
+            return org.apache.kafka.connect.data.Timestamp.builder();
+        }
 
         final SchemaBuilder jdbcSchemaBuilder = super.schemaBuilder(column);
         if (jdbcSchemaBuilder == null) {
@@ -133,6 +140,15 @@ public class VitessValueConverter extends JdbcValueConverters {
         return matches(typeName, Query.Type.DATE.name()) ||
                 matches(typeName, Query.Type.TIME.name()) ||
                 matches(typeName, Query.Type.DATETIME.name());
+    }
+
+    /**
+     * Detect the MySQL TIMESTAMP type, which {@link VitessType} maps to {@link java.sql.Types#TIMESTAMP_WITH_TIMEZONE}
+     * @param typeName
+     * @return if it is a timestamp type
+     */
+    private static boolean isTimestamp(String typeName) {
+        return matches(typeName, Query.Type.TIMESTAMP.name());
     }
 
     // Convert Java value to Kafka Connect value.
@@ -169,6 +185,9 @@ public class VitessValueConverter extends JdbcValueConverters {
 
         if (isTemporal(typeName) && temporalPrecisionMode.equals(TemporalPrecisionMode.ISOSTRING)) {
             return (data) -> convertString(column, fieldDefn, data);
+        }
+        if (isTimestamp(typeName) && temporalPrecisionMode.equals(TemporalPrecisionMode.CONNECT)) {
+            return (data) -> convertTimestampToConnectDate(column, fieldDefn, data);
         }
 
         final ValueConverter jdbcConverter = super.converter(column, fieldDefn);
@@ -410,7 +429,7 @@ public class VitessValueConverter extends JdbcValueConverters {
 
     /**
      * Converts a value object for an expected JDBC type of {@link java.sql.Types#TIMESTAMP_WITH_TIMEZONE}, which is
-     * the case for the MySQL TIMESTAMP type.
+     * the case for the MySQL TIMESTAMP type (in all time.precision.mode values except connect).
      *
      * VStream emits TIMESTAMP values as raw UTC strings, which {@code ZonedTimestamp.toIsoString} would otherwise
      * pass through verbatim, so the emitted value would not be a valid ISO 8601 zoned timestamp. Parse the string
@@ -455,5 +474,57 @@ public class VitessValueConverter extends JdbcValueConverters {
             return null;
         }
         return LocalDateTime.parse(timestampString, TIMESTAMP_FIELD_FORMATTER).atZone(ZoneOffset.UTC);
+    }
+
+    /**
+     * Called for TIMESTAMP type of MySQL when time.precision.mode is connect. Converts the UTC string emitted by
+     * VStream to a {@link java.util.Date} holding the corresponding epoch millis, the value type expected by Kafka
+     * Connect's {@link org.apache.kafka.connect.data.Timestamp} logical type.
+     *
+     * If the datetimeString cannot be represented by a Date, then it returns null.
+     * This happens if either month or day are equal to zero.
+     *
+     * @param datetimeString The String to convert
+     * @return The java.util.Date
+     */
+    public static Date stringToConnectDate(String datetimeString) {
+        if (datetimeString.matches("^\\d{4}-00-00.*$")) {
+            INVALID_VALUE_LOGGER.warn("Invalid value '{}' stored in column converted to null value", datetimeString);
+            return null;
+        }
+        return Date.from(LocalDateTime.parse(datetimeString, TIMESTAMP_FIELD_FORMATTER).toInstant(ZoneOffset.UTC));
+    }
+
+    /**
+     * Convert a raw TIMESTAMP value into a {@link java.util.Date} suitable for Kafka Connect's
+     * {@link org.apache.kafka.connect.data.Timestamp} logical type.
+     *
+     * The string value is parsed before being handed to {@code convertValue} so that the MySQL zero-date sentinel
+     * follows the same path as a DATETIME zero-date: null for optional columns, the schema default value or the
+     * epoch fallback for non-optional columns.
+     *
+     * @param column the column in which the value appears
+     * @param fieldDefn the field definition for the SourceRecord's {@link Schema}; never null
+     * @param data the data; may be null
+     *
+     * @return the converted value, or null if the conversion could not be made and the column allows nulls
+     */
+    protected Object convertTimestampToConnectDate(Column column, Field fieldDefn, Object data) {
+        Object value = data;
+        if (data instanceof String) {
+            try {
+                value = stringToConnectDate((String) data);
+            }
+            catch (DateTimeParseException e) {
+                INVALID_VALUE_LOGGER.warn("Invalid value '{}' stored in column converted to null value", data);
+                value = null;
+            }
+        }
+        final Object parsed = value;
+        return convertValue(column, fieldDefn, parsed, new Date(0L), (r) -> {
+            if (parsed instanceof Date) {
+                r.deliver(parsed);
+            }
+        });
     }
 }

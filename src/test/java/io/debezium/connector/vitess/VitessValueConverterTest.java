@@ -301,4 +301,22 @@ public class VitessValueConverterTest {
         ValueConverter valueConverter = converter.converter(column, field);
         assertThat(valueConverter.convert("2020-01-01 01:02:03")).isEqualTo("2020-01-01T01:02:03Z");
     }
+
+    @Test
+    public void shouldConvertStringToConnectDate() {
+        assertThat(VitessValueConverter.stringToConnectDate("2000-01-01 00:00:00")).isEqualTo(
+                java.util.Date.from(LocalDate.of(2000, 1, 1).atStartOfDay().toInstant(ZoneOffset.UTC)));
+        assertThat(VitessValueConverter.stringToConnectDate("2000-01-01 00:00:00.123")).isEqualTo(
+                java.util.Date.from(LocalDate.of(2000, 1, 1).atStartOfDay().withNano(123 * 1000 * 1000).toInstant(ZoneOffset.UTC)));
+        // Kafka Connect's Timestamp logical type has millisecond precision, sub-millisecond fractions are truncated
+        assertThat(VitessValueConverter.stringToConnectDate("2000-01-01 00:00:00.123456")).isEqualTo(
+                java.util.Date.from(LocalDate.of(2000, 1, 1).atStartOfDay().withNano(123 * 1000 * 1000).toInstant(ZoneOffset.UTC)));
+    }
+
+    @Test
+    public void shouldConvertInvalidValueToConnectDate() {
+        final LogInterceptor logInterceptor = new LogInterceptor(VitessValueConverter.class.getName() + ".invalid_value");
+        assertThat(VitessValueConverter.stringToConnectDate("0000-00-00 00:00:00")).isNull();
+        assertThat(logInterceptor.containsMessage("Invalid value")).isTrue();
+    }
 }

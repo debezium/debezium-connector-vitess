@@ -70,6 +70,7 @@ public class VitessValueConverterTest {
                 new TestHelper.ColumnValue("time_col", Query.Type.TIME, Types.TIME, "01:02:03".getBytes(), 3600),
                 new TestHelper.ColumnValue("year_col", Query.Type.YEAR, Types.INTEGER, "2020".getBytes(), 2020),
                 new TestHelper.ColumnValue("datetime_col", Query.Type.DATETIME, Types.TIMESTAMP, "2020-01-01 01:02:03".getBytes(), 3600),
+                new TestHelper.ColumnValue("timestamp_col", Query.Type.TIMESTAMP, Types.TIMESTAMP_WITH_TIMEZONE, "2020-01-01 01:02:03".getBytes(), 3600),
                 new TestHelper.ColumnValue("date_col", Query.Type.DATE, Types.DATE, "2020-01-01".getBytes(), 3600));
     }
 
@@ -268,6 +269,24 @@ public class VitessValueConverterTest {
     public void shouldConvertInvalidValueToLocalData() {
         final LogInterceptor logInterceptor = new LogInterceptor(VitessValueConverter.class.getName() + ".invalid_value");
         assertThat(VitessValueConverter.stringToLocalDate("0000-00-00")).isNull();
+        assertThat(logInterceptor.containsMessage("Invalid value")).isTrue();
+    }
+
+    @Test
+    public void shouldConvertStringToConnectDate() {
+        assertThat(VitessValueConverter.stringToConnectDate("2000-01-01 00:00:00")).isEqualTo(
+                java.util.Date.from(LocalDate.of(2000, 1, 1).atStartOfDay().toInstant(ZoneOffset.UTC)));
+        assertThat(VitessValueConverter.stringToConnectDate("2000-01-01 00:00:00.123")).isEqualTo(
+                java.util.Date.from(LocalDate.of(2000, 1, 1).atStartOfDay().withNano(123 * 1000 * 1000).toInstant(ZoneOffset.UTC)));
+        // Kafka Connect's Timestamp logical type has millisecond precision, sub-millisecond fractions are truncated
+        assertThat(VitessValueConverter.stringToConnectDate("2000-01-01 00:00:00.123456")).isEqualTo(
+                java.util.Date.from(LocalDate.of(2000, 1, 1).atStartOfDay().withNano(123 * 1000 * 1000).toInstant(ZoneOffset.UTC)));
+    }
+
+    @Test
+    public void shouldConvertInvalidValueToConnectDate() {
+        final LogInterceptor logInterceptor = new LogInterceptor(VitessValueConverter.class.getName() + ".invalid_value");
+        assertThat(VitessValueConverter.stringToConnectDate("0000-00-00 00:00:00")).isNull();
         assertThat(logInterceptor.containsMessage("Invalid value")).isTrue();
     }
 }

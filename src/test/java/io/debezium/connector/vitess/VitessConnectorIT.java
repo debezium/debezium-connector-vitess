@@ -681,6 +681,36 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
     }
 
     @Test
+    public void shouldReceiveChangesForInsertsWithTimestampTypesZeroValuesConnect() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(config -> config.with(
+                VitessConnectorConfig.TIME_PRECISION_MODE, TemporalPrecisionMode.CONNECT),
+                false);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_TIME_TYPES_ZERO_VALUE_STMT, schemasAndValuesForTimestampTypeZeroDateConnect(), TestHelper.PK_FIELD);
+    }
+
+    @Test
+    public void shouldReceiveChangesForInsertsWithTimestampTypesZeroValuesNullableConnect() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        startConnector(config -> config.with(
+                VitessConnectorConfig.TIME_PRECISION_MODE, TemporalPrecisionMode.CONNECT),
+                false);
+        assertConnectorIsRunning();
+
+        int expectedRecordsCount = 1;
+        consumer = testConsumer(expectedRecordsCount);
+
+        consumer.expects(expectedRecordsCount);
+        assertInsert(INSERT_TIME_TYPES_ZERO_VALUE_NULLABLE_STMT, schemasAndValuesForTimestampTypeZeroDateNullableConnect(), TestHelper.PK_FIELD);
+    }
+
+    @Test
     public void shouldReceiveChangesForInsertsWithTimestampTypesPrecisionString() throws Exception {
         TestHelper.executeDDL("vitess_create_tables.ddl");
         startConnector(config -> config.with(

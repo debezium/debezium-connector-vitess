@@ -528,8 +528,30 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                         new SchemaAndValueField(
                                 "datetime_col", org.apache.kafka.connect.data.Timestamp.SCHEMA, getDateForDatetime(DATETIME, 0)),
                         new SchemaAndValueField(
-                                "timestamp_col", ZonedTimestamp.schema(), TIMESTAMP),
+                                "timestamp_col", org.apache.kafka.connect.data.Timestamp.SCHEMA, getDateForDatetime(TIMESTAMP, 0)),
                         new SchemaAndValueField("year_col", Year.schema(), Integer.valueOf(YEAR))));
+        return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForTimestampTypeZeroDateConnect() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField(
+                                "timestamp_col", org.apache.kafka.connect.data.Timestamp.SCHEMA, new java.util.Date(0L)),
+                        new SchemaAndValueField(
+                                "timestamp_col6", org.apache.kafka.connect.data.Timestamp.SCHEMA, new java.util.Date(0L))));
+        return fields;
+    }
+
+    protected List<SchemaAndValueField> schemasAndValuesForTimestampTypeZeroDateNullableConnect() {
+        final List<SchemaAndValueField> fields = new ArrayList<>();
+        fields.addAll(
+                Arrays.asList(
+                        new SchemaAndValueField(
+                                "timestamp_col", org.apache.kafka.connect.data.Timestamp.builder().optional().schema(), null),
+                        new SchemaAndValueField(
+                                "timestamp_col6", org.apache.kafka.connect.data.Timestamp.builder().optional().schema(), null)));
         return fields;
     }
 
@@ -561,9 +583,9 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                         new SchemaAndValueField(
                                 "datetime_col5", org.apache.kafka.connect.data.Timestamp.SCHEMA, getDateForDatetime(DATETIME_PRECISION5, 5)),
                         new SchemaAndValueField(
-                                "timestamp_col3", ZonedTimestamp.schema(), TIMESTAMP_PRECISION3),
+                                "timestamp_col3", org.apache.kafka.connect.data.Timestamp.SCHEMA, getDateForDatetime(TIMESTAMP_PRECISION3, 3)),
                         new SchemaAndValueField(
-                                "timestamp_col6", ZonedTimestamp.schema(), TIMESTAMP_PRECISION6)));
+                                "timestamp_col6", org.apache.kafka.connect.data.Timestamp.SCHEMA, getDateForDatetime(TIMESTAMP_PRECISION6, 6))));
         return fields;
     }
 

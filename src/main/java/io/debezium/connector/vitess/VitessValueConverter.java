@@ -9,7 +9,13 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoField;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -47,6 +53,13 @@ public class VitessValueConverter extends JdbcValueConverters {
 
     private static final Pattern DATE_FIELD_PATTERN = Pattern.compile("([0-9]*)-([0-9]*)-([0-9]*)");
     private static final Pattern TIME_FIELD_PATTERN = Pattern.compile("(\\-?[0-9]*):([0-9]*)(:([0-9]*))?(\\.([0-9]*))?");
+    // VStream emits MySQL TIMESTAMP values as UTC strings ("yyyy-MM-dd HH:mm:ss" with optional fractional seconds)
+    private static final DateTimeFormatter TIMESTAMP_FIELD_FORMATTER = new DateTimeFormatterBuilder()
+            .append(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            .optionalStart()
+            .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+            .optionalEnd()
+            .toFormatter();
 
     public VitessValueConverter(
                                 DecimalMode decimalMode,
@@ -393,5 +406,54 @@ public class VitessValueConverter extends JdbcValueConverters {
             return null;
         }
         return Timestamp.valueOf(datetimeString);
+    }
+
+    /**
+     * Converts a value object for an expected JDBC type of {@link java.sql.Types#TIMESTAMP_WITH_TIMEZONE}, which is
+     * the case for the MySQL TIMESTAMP type.
+     *
+     * VStream emits TIMESTAMP values as raw UTC strings, which {@code ZonedTimestamp.toIsoString} would otherwise
+     * pass through verbatim, so the emitted value would not be a valid ISO 8601 zoned timestamp. Parse the string
+     * into a {@link ZonedDateTime} first, mirroring the binlog-based MySQL connector, so the emitted value is
+     * ISO 8601 in UTC (e.g. 2020-02-13T01:02:03Z) as the {@link io.debezium.time.ZonedTimestamp} contract requires.
+     *
+     * @param column the column in which the value appears
+     * @param fieldDefn the field definition for the SourceRecord's {@link Schema}; never null
+     * @param data the data; may be null
+     *
+     * @return the converted value, or null if the conversion could not be made and the column allows nulls
+     */
+    @Override
+    protected Object convertTimestampWithZone(Column column, Field fieldDefn, Object data) {
+        Object value = data;
+        if (data instanceof String) {
+            try {
+                value = stringToZonedDateTime((String) data);
+            }
+            catch (DateTimeParseException e) {
+                INVALID_VALUE_LOGGER.warn("Invalid value '{}' stored in column converted to null value", data);
+                value = null;
+            }
+        }
+        return super.convertTimestampWithZone(column, fieldDefn, value);
+    }
+
+    /**
+     * Called for TIMESTAMP type of MySQL. Converts the UTC string emitted by VStream to a {@link ZonedDateTime}
+     * in UTC, like the binlog-based MySQL connector's event deserializer does.
+     *
+     * If the datetimeString cannot be represented by a ZonedDateTime, then it returns null.
+     * This happens if either month or day are equal to zero, like the binlog-based MySQL connector's event
+     * deserializer does for values outside of the legal MySQL TIMESTAMP range.
+     *
+     * @param timestampString The String to convert
+     * @return The java.time.ZonedDateTime
+     */
+    public static ZonedDateTime stringToZonedDateTime(String timestampString) {
+        if (timestampString.matches("^\\d{4}-00-00.*$")) {
+            INVALID_VALUE_LOGGER.warn("Invalid value '{}' stored in column converted to null value", timestampString);
+            return null;
+        }
+        return LocalDateTime.parse(timestampString, TIMESTAMP_FIELD_FORMATTER).atZone(ZoneOffset.UTC);
     }
 }

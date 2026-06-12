@@ -209,6 +209,15 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
     protected static final String DATETIME_PRECISION5 = DATETIME + ".12345";
     protected static final String TIMESTAMP_PRECISION3 = TIMESTAMP + ".123";
     protected static final String TIMESTAMP_PRECISION6 = TIMESTAMP + ".123456";
+
+    // TIMESTAMP values are emitted as ISO 8601 strings in UTC, with fractional digits per the column's precision
+    protected static final String TIMESTAMP_ISO = "2020-02-13T01:02:03Z";
+    protected static final String TIMESTAMP_PRECISION3_ISO = "2020-02-13T01:02:03.123Z";
+    protected static final String TIMESTAMP_PRECISION6_ISO = "2020-02-13T01:02:03.123456Z";
+    protected static final String EPOCH_TIMESTAMP_ISO = "1970-01-01T00:00:01Z";
+    protected static final String EPOCH_TIMESTAMP_PRECISION6_ISO = "1970-01-01T00:00:01.000000Z";
+    // The JdbcValueConverters fallback for a zero-date TIMESTAMP in a non-optional column
+    protected static final String FALLBACK_TIMESTAMP_ISO = "1970-01-01T00:00:00Z";
     protected static final String INSERT_PRECISION_TIME_TYPES_STMT = "INSERT INTO time_table_precision ("
             + "time_col1,"
             + "time_col4,"
@@ -422,9 +431,9 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                         new SchemaAndValueField(
                                 "datetime_col4", MicroTimestamp.schema(), getMicrosForDatetime(EPOCH_DATETIME_PRECISION4, 4)),
                         new SchemaAndValueField(
-                                "timestamp_col", ZonedTimestamp.schema(), ZERO_TIMESTAMP),
+                                "timestamp_col", ZonedTimestamp.schema(), FALLBACK_TIMESTAMP_ISO),
                         new SchemaAndValueField(
-                                "timestamp_col6", ZonedTimestamp.schema(), ZERO_TIMESTAMP_PRECISION6),
+                                "timestamp_col6", ZonedTimestamp.schema(), FALLBACK_TIMESTAMP_ISO),
                         new SchemaAndValueField("year_col", Year.schema(), Integer.valueOf(ZERO_YEAR))));
         return fields;
     }
@@ -441,9 +450,9 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                         new SchemaAndValueField(
                                 "datetime_col4", Schema.STRING_SCHEMA, ZERO_DATETIME_PRECISION4),
                         new SchemaAndValueField(
-                                "timestamp_col", ZonedTimestamp.schema(), ZERO_TIMESTAMP),
+                                "timestamp_col", ZonedTimestamp.schema(), FALLBACK_TIMESTAMP_ISO),
                         new SchemaAndValueField(
-                                "timestamp_col6", ZonedTimestamp.schema(), ZERO_TIMESTAMP_PRECISION6),
+                                "timestamp_col6", ZonedTimestamp.schema(), FALLBACK_TIMESTAMP_ISO),
                         new SchemaAndValueField("year_col", Year.schema(), Integer.valueOf(ZERO_YEAR))));
         return fields;
     }
@@ -460,9 +469,9 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                         new SchemaAndValueField(
                                 "datetime_col4", MicroTimestamp.builder().optional().schema(), null),
                         new SchemaAndValueField(
-                                "timestamp_col", ZonedTimestamp.builder().optional().schema(), ZERO_TIMESTAMP),
+                                "timestamp_col", ZonedTimestamp.builder().optional().schema(), null),
                         new SchemaAndValueField(
-                                "timestamp_col6", ZonedTimestamp.builder().optional().schema(), ZERO_TIMESTAMP_PRECISION6),
+                                "timestamp_col6", ZonedTimestamp.builder().optional().schema(), null),
                         new SchemaAndValueField("year_col", Year.builder().optional().schema(), Integer.valueOf(ZERO_YEAR))));
         return fields;
     }
@@ -479,9 +488,9 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                         new SchemaAndValueField(
                                 "datetime_col4", MicroTimestamp.builder().optional().schema(), null),
                         new SchemaAndValueField(
-                                "timestamp_col", ZonedTimestamp.schema(), ZERO_TIMESTAMP),
+                                "timestamp_col", ZonedTimestamp.schema(), FALLBACK_TIMESTAMP_ISO),
                         new SchemaAndValueField(
-                                "timestamp_col6", ZonedTimestamp.schema(), ZERO_TIMESTAMP_PRECISION6),
+                                "timestamp_col6", ZonedTimestamp.schema(), FALLBACK_TIMESTAMP_ISO),
                         new SchemaAndValueField("year_col", Year.schema(), Integer.valueOf(ZERO_YEAR))));
         return fields;
     }
@@ -498,9 +507,9 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                         new SchemaAndValueField(
                                 "datetime_col4", MicroTimestamp.builder().optional().schema(), getMicrosForDatetime(EPOCH_DATETIME_PRECISION4, 4)),
                         new SchemaAndValueField(
-                                "timestamp_col", ZonedTimestamp.schema(), EPOCH_TIMESTAMP),
+                                "timestamp_col", ZonedTimestamp.schema(), EPOCH_TIMESTAMP_ISO),
                         new SchemaAndValueField(
-                                "timestamp_col6", ZonedTimestamp.schema(), EPOCH_TIMESTAMP_PRECISION6),
+                                "timestamp_col6", ZonedTimestamp.schema(), EPOCH_TIMESTAMP_PRECISION6_ISO),
                         new SchemaAndValueField("year_col", Year.schema(), Integer.valueOf(EPOCH_YEAR))));
         return fields;
     }
@@ -514,7 +523,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                         new SchemaAndValueField(
                                 "datetime_col", Timestamp.schema(), getMillisForDatetime(DATETIME, 0)),
                         new SchemaAndValueField(
-                                "timestamp_col", ZonedTimestamp.schema(), TIMESTAMP),
+                                "timestamp_col", ZonedTimestamp.schema(), TIMESTAMP_ISO),
                         new SchemaAndValueField("year_col", Year.schema(), Integer.valueOf(YEAR))));
         return fields;
     }
@@ -528,7 +537,7 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                         new SchemaAndValueField(
                                 "datetime_col", org.apache.kafka.connect.data.Timestamp.SCHEMA, getDateForDatetime(DATETIME, 0)),
                         new SchemaAndValueField(
-                                "timestamp_col", ZonedTimestamp.schema(), TIMESTAMP),
+                                "timestamp_col", ZonedTimestamp.schema(), TIMESTAMP_ISO),
                         new SchemaAndValueField("year_col", Year.schema(), Integer.valueOf(YEAR))));
         return fields;
     }
@@ -544,9 +553,9 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                         new SchemaAndValueField(
                                 "datetime_col5", MicroTimestamp.schema(), getMicrosForDatetime(DATETIME_PRECISION5, 5)),
                         new SchemaAndValueField(
-                                "timestamp_col3", ZonedTimestamp.schema(), TIMESTAMP_PRECISION3),
+                                "timestamp_col3", ZonedTimestamp.schema(), TIMESTAMP_PRECISION3_ISO),
                         new SchemaAndValueField(
-                                "timestamp_col6", ZonedTimestamp.schema(), TIMESTAMP_PRECISION6)));
+                                "timestamp_col6", ZonedTimestamp.schema(), TIMESTAMP_PRECISION6_ISO)));
         return fields;
     }
 
@@ -561,9 +570,9 @@ public abstract class AbstractVitessConnectorTest extends AbstractAsyncEngineCon
                         new SchemaAndValueField(
                                 "datetime_col5", org.apache.kafka.connect.data.Timestamp.SCHEMA, getDateForDatetime(DATETIME_PRECISION5, 5)),
                         new SchemaAndValueField(
-                                "timestamp_col3", ZonedTimestamp.schema(), TIMESTAMP_PRECISION3),
+                                "timestamp_col3", ZonedTimestamp.schema(), TIMESTAMP_PRECISION3_ISO),
                         new SchemaAndValueField(
-                                "timestamp_col6", ZonedTimestamp.schema(), TIMESTAMP_PRECISION6)));
+                                "timestamp_col6", ZonedTimestamp.schema(), TIMESTAMP_PRECISION6_ISO)));
         return fields;
     }
 

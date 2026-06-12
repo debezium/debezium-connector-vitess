@@ -70,6 +70,7 @@ public class VitessValueConverterTest {
                 new TestHelper.ColumnValue("time_col", Query.Type.TIME, Types.TIME, "01:02:03".getBytes(), 3600),
                 new TestHelper.ColumnValue("year_col", Query.Type.YEAR, Types.INTEGER, "2020".getBytes(), 2020),
                 new TestHelper.ColumnValue("datetime_col", Query.Type.DATETIME, Types.TIMESTAMP, "2020-01-01 01:02:03".getBytes(), 3600),
+                new TestHelper.ColumnValue("timestamp_col", Query.Type.TIMESTAMP, Types.TIMESTAMP_WITH_TIMEZONE, "2020-01-01 01:02:03".getBytes(), 3600),
                 new TestHelper.ColumnValue("date_col", Query.Type.DATE, Types.DATE, "2020-01-01".getBytes(), 3600));
     }
 
@@ -269,5 +270,35 @@ public class VitessValueConverterTest {
         final LogInterceptor logInterceptor = new LogInterceptor(VitessValueConverter.class.getName() + ".invalid_value");
         assertThat(VitessValueConverter.stringToLocalDate("0000-00-00")).isNull();
         assertThat(logInterceptor.containsMessage("Invalid value")).isTrue();
+    }
+
+    @Test
+    public void shouldConvertStringToZonedDateTime() {
+        assertThat(VitessValueConverter.stringToZonedDateTime("2000-01-01 00:00:00")).isEqualTo(
+                LocalDate.of(2000, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC));
+        assertThat(VitessValueConverter.stringToZonedDateTime("2000-01-01 00:00:00.123")).isEqualTo(
+                LocalDate.of(2000, 1, 1).atStartOfDay().withNano(123 * 1000 * 1000).atZone(ZoneOffset.UTC));
+        assertThat(VitessValueConverter.stringToZonedDateTime("2000-01-01 00:00:00.123456")).isEqualTo(
+                LocalDate.of(2000, 1, 1).atStartOfDay().withNano(123456 * 1000).atZone(ZoneOffset.UTC));
+    }
+
+    @Test
+    public void shouldConvertZeroDateStringToNullZonedDateTime() {
+        final LogInterceptor logInterceptor = new LogInterceptor(VitessValueConverter.class.getName() + ".invalid_value");
+        assertThat(VitessValueConverter.stringToZonedDateTime("0000-00-00 00:00:00")).isNull();
+        assertThat(logInterceptor.containsMessage("Invalid value")).isTrue();
+    }
+
+    @Test
+    public void shouldConvertTimestampToIsoString() throws InterruptedException {
+        decoder.processMessage(temporalFieldEvent(), null, null, false);
+        Table table = schema.tableFor(TestHelper.defaultTableId());
+
+        String col = "timestamp_col";
+        Column column = table.columnWithName(col);
+        Field field = new Field(col, 0, Schema.STRING_SCHEMA);
+
+        ValueConverter valueConverter = converter.converter(column, field);
+        assertThat(valueConverter.convert("2020-01-01 01:02:03")).isEqualTo("2020-01-01T01:02:03Z");
     }
 }

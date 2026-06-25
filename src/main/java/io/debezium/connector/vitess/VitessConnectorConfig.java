@@ -380,7 +380,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     public static final Field INCLUDE_SCHEMA_CHANGES = Field.create("include.schema.changes")
             .withDisplayName("Include database schema changes")
             .withType(Type.BOOLEAN)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR, 0))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR))
             .withWidth(Width.SHORT)
             .withImportance(ConfigDef.Importance.MEDIUM)
             .withDescription("Whether the connector should publish changes in the database schema to a Kafka topic with "
@@ -460,7 +460,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     public static final Field SNAPSHOT_MODE = Field.create("snapshot.mode")
             .withDisplayName("Snapshot mode")
             .withEnum(SnapshotMode.class, SnapshotMode.INITIAL)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT, 0))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT))
             .withWidth(Width.SHORT)
             .withImportance(ConfigDef.Importance.LOW)
             .withDescription("The criteria for running a snapshot upon startup of the connector. "
@@ -471,7 +471,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     public static final Field BIGINT_UNSIGNED_HANDLING_MODE = Field.create("bigint.unsigned.handling.mode")
             .withDisplayName("BIGINT UNSIGNED Handling")
             .withEnum(BigIntUnsignedHandlingMode.class, BigIntUnsignedHandlingMode.STRING)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR, 1))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR))
             .withWidth(Width.SHORT)
             .withImportance(ConfigDef.Importance.MEDIUM)
             .withDescription("Specify how BIGINT UNSIGNED columns should be represented in change events, including: "
@@ -492,7 +492,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public static final Field TIME_PRECISION_MODE = RelationalDatabaseConnectorConfig.TIME_PRECISION_MODE
             .withEnum(TemporalPrecisionMode.class, TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR, 26))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR))
             .withValidation(VitessConnectorConfig::validateTimePrecisionMode)
             .withDescription("Time, date and timestamps can be represented with different kinds of precisions, including: "
                     + "'adaptive_time_microseconds': the precision of date and timestamp values is based the database column's precision; but time fields always use microseconds precision; "
@@ -531,41 +531,44 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     protected static final ConfigDefinition CONFIG_DEFINITION = RelationalDatabaseConnectorConfig.CONFIG_DEFINITION
             .edit()
             .name("Vitess")
-            .type(
-                    KEYSPACE,
-                    SHARD,
-                    VGTID,
-                    GTID,
+            .group(Field.Group.CONNECTION,
                     VTGATE_HOST,
                     VTGATE_PORT,
                     VTGATE_USER,
                     VTGATE_PASSWORD,
+                    KEYSPACE,
+                    SHARD)
+            .group(Field.Group.CONNECTOR_SNAPSHOT,
+                    SNAPSHOT_MODE,
+                    VGTID,
+                    GTID)
+            .group(Field.Group.CONNECTOR,
                     TABLET_TYPE,
+                    BIGINT_UNSIGNED_HANDLING_MODE,
+                    TIME_PRECISION_MODE,
+                    OVERRIDE_DATETIME_TO_NULLABLE,
+                    INCLUDE_UNKNOWN_DATATYPES,
+                    INCLUDE_SCHEMA_CHANGES,
+                    EXCLUDE_KEYSPACE_FROM_TABLE_NAME,
+                    EXCLUDE_EMPTY_SHARDS,
+                    SOURCE_INFO_STRUCT_MAKER)
+            .group(Field.Group.CONNECTOR_ADVANCED,
                     STOP_ON_RESHARD_FLAG,
+                    INHERIT_EPOCH,
+                    SHARD_EPOCH_MAP,
                     KEEPALIVE_INTERVAL_MS,
                     GRPC_HEADERS,
                     GRPC_MAX_INBOUND_MESSAGE_SIZE,
-                    BINARY_HANDLING_MODE,
-                    SCHEMA_NAME_ADJUSTMENT_MODE,
+                    GRPC_DEFAULT_LOAD_BALANCING_POLICY,
                     OFFSET_STORAGE_PER_TASK,
-                    OVERRIDE_DATETIME_TO_NULLABLE,
                     OFFSET_STORAGE_TASK_KEY_GEN,
                     PREV_NUM_TASKS,
-                    CONNECTOR_GENERATION,
-                    STREAM_KEYSPACE_HEARTBEATS,
-                    EXCLUDE_KEYSPACE_FROM_TABLE_NAME,
-                    EXCLUDE_EMPTY_SHARDS)
-            .events(
-                    INCLUDE_UNKNOWN_DATATYPES,
-                    SOURCE_INFO_STRUCT_MAKER)
-            .connector(
-                    SNAPSHOT_MODE,
-                    BIGINT_UNSIGNED_HANDLING_MODE,
-                    TIME_PRECISION_MODE)
+                    CONNECTOR_GENERATION)
+            .group(Field.Group.ADVANCED_HEARTBEAT,
+                    STREAM_KEYSPACE_HEARTBEATS)
             .excluding(
                     SCHEMA_EXCLUDE_LIST,
-                    SCHEMA_INCLUDE_LIST,
-                    RelationalDatabaseConnectorConfig.TIME_PRECISION_MODE)
+                    SCHEMA_INCLUDE_LIST)
             .create();
 
     // tasks.max is defined in org.apache.kafka.connect.runtime.ConnectorConfig

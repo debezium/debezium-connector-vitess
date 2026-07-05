@@ -568,7 +568,8 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     STREAM_KEYSPACE_HEARTBEATS)
             .excluding(
                     SCHEMA_EXCLUDE_LIST,
-                    SCHEMA_INCLUDE_LIST)
+                    SCHEMA_INCLUDE_LIST,
+                    RelationalDatabaseConnectorConfig.DATABASE_NAME)
             .create();
 
     // tasks.max is defined in org.apache.kafka.connect.runtime.ConnectorConfig

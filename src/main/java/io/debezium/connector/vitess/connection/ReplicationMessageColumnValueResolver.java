@@ -37,6 +37,7 @@ public class ReplicationMessageColumnValueResolver {
                 return value.asInteger();
             case Types.BIGINT:
                 return value.asLong();
+            case Types.BIT:
             case Types.BLOB:
             case Types.BINARY:
                 return value.asBytes();

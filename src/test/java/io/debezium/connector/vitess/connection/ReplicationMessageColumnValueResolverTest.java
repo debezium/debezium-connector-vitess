@@ -63,6 +63,16 @@ public class ReplicationMessageColumnValueResolverTest {
     }
 
     @Test
+    public void shouldResolveBitToBytes() {
+        Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
+                new VitessType(AnonymousValue.getString(), Types.BIT),
+                new VitessColumnValue(new byte[]{ 0x05 }),
+                false,
+                TemporalPrecisionMode.ADAPTIVE_TIME_MICROSECONDS);
+        assertThat(resolvedJavaValue).isEqualTo(new byte[]{ 0x05 });
+    }
+
+    @Test
     public void shouldResolveBlobToBytes() {
         Object resolvedJavaValue = ReplicationMessageColumnValueResolver.resolveValue(
                 new VitessType(AnonymousValue.getString(), Types.BLOB),

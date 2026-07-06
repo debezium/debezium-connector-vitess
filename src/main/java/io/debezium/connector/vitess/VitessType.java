@@ -149,6 +149,8 @@ public class VitessType {
                 return new VitessType(type, Types.FLOAT);
             case "FLOAT64":
                 return new VitessType(type, Types.DOUBLE);
+            case "BIT":
+                return new VitessType(type, Types.BIT);
             default:
                 return new VitessType(type, Types.OTHER);
         }

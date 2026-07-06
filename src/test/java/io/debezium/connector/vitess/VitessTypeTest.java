@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.Types;
 import java.util.Arrays;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +45,19 @@ public class VitessTypeTest {
         assertThat(VitessType.resolve(asField(Query.Type.ENUM)).getJdbcId()).isEqualTo(Types.INTEGER);
         assertThat(VitessType.resolve(asField(Query.Type.SET)).getJdbcId()).isEqualTo(Types.BIGINT);
         assertThat(VitessType.resolve(asField(Query.Type.GEOMETRY)).getJdbcId()).isEqualTo(Types.OTHER);
-        assertThat(VitessType.resolve(asField(Query.Type.BIT)).getJdbcId()).isEqualTo(Types.BIT);
+    }
+
+    @Test
+    public void shouldResolveBitWithColumnLength() {
+        Query.Field bit1 = Query.Field.newBuilder().setType(Query.Type.BIT).setColumnLength(1).build();
+        VitessType resolved1 = VitessType.resolve(bit1);
+        assertThat(resolved1.getJdbcId()).isEqualTo(Types.BIT);
+        assertThat(resolved1.getPrecision()).isEqualTo(Optional.of(1));
+
+        Query.Field bit8 = Query.Field.newBuilder().setType(Query.Type.BIT).setColumnLength(8).build();
+        VitessType resolved8 = VitessType.resolve(bit8);
+        assertThat(resolved8.getJdbcId()).isEqualTo(Types.BIT);
+        assertThat(resolved8.getPrecision()).isEqualTo(Optional.of(8));
     }
 
     @Test

@@ -150,7 +150,7 @@ public class VitessType {
             case "FLOAT64":
                 return new VitessType(type, Types.DOUBLE);
             case "BIT":
-                return new VitessType(type, Types.BIT);
+                return new VitessType(type, Types.BIT, field.getColumnLength());
             default:
                 return new VitessType(type, Types.OTHER);
         }

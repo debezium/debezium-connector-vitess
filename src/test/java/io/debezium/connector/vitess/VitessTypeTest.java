@@ -44,6 +44,7 @@ public class VitessTypeTest {
         assertThat(VitessType.resolve(asField(Query.Type.ENUM)).getJdbcId()).isEqualTo(Types.INTEGER);
         assertThat(VitessType.resolve(asField(Query.Type.SET)).getJdbcId()).isEqualTo(Types.BIGINT);
         assertThat(VitessType.resolve(asField(Query.Type.GEOMETRY)).getJdbcId()).isEqualTo(Types.OTHER);
+        assertThat(VitessType.resolve(asField(Query.Type.BIT)).getJdbcId()).isEqualTo(Types.BIT);
     }
 
     @Test

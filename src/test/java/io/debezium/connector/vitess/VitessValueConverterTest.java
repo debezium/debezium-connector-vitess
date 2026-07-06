@@ -319,4 +319,21 @@ public class VitessValueConverterTest {
         assertThat(VitessValueConverter.stringToConnectDate("0000-00-00 00:00:00")).isNull();
         assertThat(logInterceptor.containsMessage("Invalid value")).isTrue();
     }
+
+    @Test
+    public void shouldConvertBit1ToBoolean() {
+        Column column = Column.editor().name("bit1").type("BIT").jdbcType(Types.BIT).length(1).optional(true).create();
+        Field field = new Field("bit1", 0, Schema.BOOLEAN_SCHEMA);
+        ValueConverter valueConverter = converter.converter(column, field);
+        assertThat(valueConverter.convert(new byte[]{ 0x01 })).isEqualTo(Boolean.TRUE);
+        assertThat(valueConverter.convert(new byte[]{ 0x00 })).isEqualTo(Boolean.FALSE);
+    }
+
+    @Test
+    public void shouldConvertBitNToBytes() {
+        Column column = Column.editor().name("bit8").type("BIT").jdbcType(Types.BIT).length(8).optional(true).create();
+        Field field = new Field("bit8", 0, Schema.BYTES_SCHEMA);
+        ValueConverter valueConverter = converter.converter(column, field);
+        assertThat(valueConverter.convert(new byte[]{ 0x05 })).isEqualTo(new byte[]{ 0x05 });
+    }
 }

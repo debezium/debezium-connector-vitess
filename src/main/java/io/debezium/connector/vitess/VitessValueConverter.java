@@ -153,20 +153,14 @@ public class VitessValueConverter extends JdbcValueConverters {
 
     @Override
     protected ValueConverter convertBits(Column column, Field fieldDefn) {
-        if (column.length() <= 1) {
-            // BIT(1) - VStream sends raw bytes; convert to boolean as JdbcValueConverters expects
-            return (data) -> {
-                if (data instanceof byte[]) {
-                    byte[] bytes = (byte[]) data;
+        // VStream sends raw bytes; convert BIT(1) to boolean as JdbcValueConverters expects,
+        // return BIT(N) as-is for Kafka Connect BYTES schema
+        return (data) -> {
+            if (data instanceof byte[] bytes) {
+                if (column.length() <= 1) {
                     return bytes.length > 0 && bytes[0] != 0;
                 }
-                return super.convertBits(column, fieldDefn).convert(data);
-            };
-        }
-        // BIT(N) - VStream sends raw bytes; return as-is for Kafka Connect BYTES schema
-        return (data) -> {
-            if (data instanceof byte[]) {
-                return data;
+                return bytes;
             }
             return super.convertBits(column, fieldDefn).convert(data);
         };

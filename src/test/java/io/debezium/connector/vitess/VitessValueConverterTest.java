@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
+import io.debezium.doc.FixFor;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.Column;
 import io.debezium.relational.CustomConverterRegistry;
@@ -263,6 +264,16 @@ public class VitessValueConverterTest {
                 Timestamp.valueOf(LocalDate.of(2000, 1, 1).atStartOfDay().withNano(12345 * 1000 * 10)));
         assertThat(VitessValueConverter.stringToTimestamp("2000-01-01 00:00:00.123456")).isEqualTo(
                 Timestamp.valueOf(LocalDate.of(2000, 1, 1).atStartOfDay().withNano(123456 * 1000)));
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2548")
+    public void shouldConvertInvalidTimestampToNull() {
+        final LogInterceptor logInterceptor = new LogInterceptor(VitessValueConverter.class.getName() + ".invalid_value");
+        assertThat(VitessValueConverter.stringToTimestamp("0000-00-00 00:00:00")).isNull();
+        assertThat(VitessValueConverter.stringToTimestamp("2024-00-15 10:00:00")).isNull();
+        assertThat(VitessValueConverter.stringToTimestamp("2024-01-00 10:00:00")).isNull();
+        assertThat(logInterceptor.containsMessage("Invalid value")).isTrue();
     }
 
     @Test

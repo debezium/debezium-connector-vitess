@@ -302,6 +302,10 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 .setHeartbeatInterval(getHeartbeatSeconds())
                 .setStreamKeyspaceHeartbeats(config.getStreamKeyspaceHeartbeats());
 
+        if (!Strings.isNullOrEmpty(config.getCells())) {
+            vStreamFlagsBuilder.setCells(config.getCells());
+        }
+
         if (!Strings.isNullOrEmpty(config.getConfig().getString(CommonConnectorConfig.SNAPSHOT_MODE_TABLES))) {
             final List<String> allTables = new VitessMetadata(config).getTables();
             List<String> tablesToCopy = VitessConnector.getTablesToCopyByPrefix(config, allTables);

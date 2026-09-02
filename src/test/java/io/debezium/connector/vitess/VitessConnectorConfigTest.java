@@ -333,4 +333,27 @@ public class VitessConnectorConfigTest {
                 .hasSize(1);
     }
 
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldGetCells() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.CELLS, "cell1,cell2")
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getCells()).isEqualTo("cell1,cell2");
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldDefaultCellsToNull() {
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(TestHelper.defaultConfig().build());
+        assertThat(connectorConfig.getCells()).isNull();
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldExposeCellsInConfigDefinition() {
+        assertThat(VitessConnectorConfig.ALL_FIELDS).anyMatch(field -> field.name().equals("vitess.cells"));
+    }
+
 }

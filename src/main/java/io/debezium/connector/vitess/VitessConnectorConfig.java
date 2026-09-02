@@ -320,6 +320,14 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withDescription("Control StopOnReshard VStream flag."
                     + " If set true, the old VStream will be stopped after a reshard operation.");
 
+    public static final Field CELLS = Field.create(VITESS_CONFIG_GROUP_PREFIX + "cells")
+            .withDisplayName("VStream cells")
+            .withType(Type.STRING)
+            .withWidth(Width.MEDIUM)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription("Comma-separated list of Vitess cells (or cell aliases) the VStream"
+                    + " should be served from. If not set, vtgate applies its default cell selection.");
+
     public static final Field INHERIT_EPOCH = Field.create(VITESS_CONFIG_GROUP_PREFIX + "inherit.epoch")
             .withDisplayName("Inherit epoch")
             .withType(Type.BOOLEAN)
@@ -554,6 +562,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     SOURCE_INFO_STRUCT_MAKER)
             .group(Field.Group.CONNECTOR_ADVANCED,
                     STOP_ON_RESHARD_FLAG,
+                    CELLS,
                     INHERIT_EPOCH,
                     SHARD_EPOCH_MAP,
                     KEEPALIVE_INTERVAL_MS,
@@ -752,6 +761,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public boolean getStopOnReshard() {
         return getConfig().getBoolean(STOP_ON_RESHARD_FLAG);
+    }
+
+    public String getCells() {
+        return getConfig().getString(CELLS);
     }
 
     public boolean getInheritEpoch() {

@@ -461,7 +461,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
             // If offset storage per task is disabled, then find the vgtid elsewhere
             if (config.getShard() == null || config.getShard().isEmpty()) {
                 // This case is not supported by the Vitess, so our workaround is to get all the shards from vtgate.
-                if (config.getVgtid() == Vgtid.EMPTY_GTID) {
+                if (Vgtid.EMPTY_GTID.equals(config.getVgtid())) {
                     List<String> shards = new VitessMetadata(config).getShards();
                     List<String> gtids = Collections.nCopies(shards.size(), config.getVgtid());
                     vgtid = buildVgtid(config.getKeyspace(), shards, gtids);
@@ -478,8 +478,8 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 List<String> shards = config.getShard();
                 String vgtidString = config.getVgtid();
                 List<String> gtids;
-                if (vgtidString == Vgtid.CURRENT_GTID ||
-                        vgtidString == Vgtid.EMPTY_GTID) {
+                if (Vgtid.CURRENT_GTID.equals(vgtidString) ||
+                        Vgtid.EMPTY_GTID.equals(vgtidString)) {
                     gtids = Collections.nCopies(shards.size(), vgtidString);
                     vgtid = buildVgtid(config.getKeyspace(), shards, gtids);
                 }

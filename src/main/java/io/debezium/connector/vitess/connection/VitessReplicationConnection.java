@@ -70,8 +70,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
      */
     public Vtgate.ExecuteResponse execute(String sqlStatement) {
         LOGGER.debug("Executing sqlStament {}", sqlStatement);
-        ManagedChannel channel = newChannel();
-        managedChannel.compareAndSet(null, channel);
+        ManagedChannel channel = replaceManagedChannel();
 
         Vtgate.ExecuteRequest request = Vtgate.ExecuteRequest.newBuilder()
                 .setQuery(Proto.bindQuery(sqlStatement, Collections.emptyMap()))
@@ -81,8 +80,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
 
     public Vtgate.ExecuteResponse execute(String sqlStatement, String shard) {
         LOGGER.info("Executing sqlStament {}", sqlStatement);
-        ManagedChannel channel = newChannel();
-        managedChannel.compareAndSet(null, channel);
+        ManagedChannel channel = replaceManagedChannel();
 
         String target = String.format("%s:%s@%s", config.getKeyspace(), shard, config.getTabletType());
         Vtgate.Session session = Vtgate.Session.newBuilder().setTargetString(target).setAutocommit(true).build();
@@ -109,8 +107,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
                                Vgtid vgtid, ReplicationMessageProcessor processor, AtomicReference<Throwable> error) {
         Objects.requireNonNull(vgtid);
 
-        ManagedChannel channel = newChannel();
-        managedChannel.compareAndSet(null, channel);
+        ManagedChannel channel = replaceManagedChannel();
 
         VitessGrpc.VitessStub stub = newStub(channel);
 
@@ -384,13 +381,31 @@ public class VitessReplicationConnection implements ReplicationConnection {
         return channel;
     }
 
+    /**
+     * Create a new channel and make it the tracked channel, shutting down the previously
+     * tracked channel (if any) so repeated connects do not leak channels.
+     */
+    private ManagedChannel replaceManagedChannel() {
+        ManagedChannel channel = newChannel();
+        ManagedChannel previous = managedChannel.getAndSet(channel);
+        if (previous != null) {
+            previous.shutdownNow();
+        }
+        return channel;
+    }
+
     /** Close the gRPC connection to VStream */
     @Override
     public void close() throws Exception {
         LOGGER.info("Closing replication connection");
-        managedChannel.get().shutdownNow();
+        ManagedChannel channel = managedChannel.get();
+        if (channel == null) {
+            LOGGER.info("No VStream GRPC channel was created, nothing to close.");
+            return;
+        }
+        channel.shutdownNow();
         LOGGER.trace("VStream GRPC channel shutdownNow is invoked.");
-        if (managedChannel.get().awaitTermination(5, TimeUnit.SECONDS)) {
+        if (channel.awaitTermination(5, TimeUnit.SECONDS)) {
             LOGGER.info("VStream GRPC channel is shutdown in time.");
         }
         else {

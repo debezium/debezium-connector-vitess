@@ -185,6 +185,70 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         }
     }
 
+    /**
+     * The set of predefined CellPreference options. Values mirror the values accepted by
+     * vtgate's tablet picker for the {@code VStreamFlags.cell_preference} flag, which vtgate
+     * parses case-insensitively.
+     */
+    public enum CellPreference implements EnumeratedValue {
+        /**
+         * Prefer tablets in vtgate's local cell (and its cell alias) before the cells listed
+         * in {@code vitess.cells}. This is vtgate's default behavior.
+         */
+        PREFER_LOCAL_WITH_ALIAS("preferlocalwithalias"),
+
+        /**
+         * Restrict tablet selection to exactly the cells listed in {@code vitess.cells},
+         * with no local-cell fallback. Required to pin the VStream to specific cells.
+         */
+        ONLY_SPECIFIED("onlyspecified");
+
+        private final String value;
+
+        CellPreference(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String getValue() {
+            return value;
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value the configuration property value; may not be null
+         * @return the matching option, or null if no match is found
+         */
+        public static CellPreference parse(String value) {
+            if (value == null) {
+                return null;
+            }
+            value = value.trim();
+            for (CellPreference option : CellPreference.values()) {
+                if (option.getValue().equalsIgnoreCase(value)) {
+                    return option;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value the configuration property value; may not be null
+         * @param defaultValue the default value; may be null
+         * @return the matching option, or null if no match is found and the non-null default is invalid
+         */
+        public static CellPreference parse(String value, String defaultValue) {
+            CellPreference preference = parse(value);
+            if (preference == null && defaultValue != null) {
+                preference = parse(defaultValue);
+            }
+            return preference;
+        }
+    }
+
     public static final Field VTGATE_HOST = Field.create(DATABASE_CONFIG_PREFIX + JdbcConfiguration.HOSTNAME)
             .withDisplayName("Vitess database hostname")
             .withType(Type.STRING)
@@ -332,10 +396,9 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public static final Field CELL_PREFERENCE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "cell.preference")
             .withDisplayName("VStream cell preference")
-            .withType(Type.STRING)
+            .withEnum(CellPreference.class, CellPreference.PREFER_LOCAL_WITH_ALIAS)
             .withWidth(Width.MEDIUM)
             .withImportance(ConfigDef.Importance.MEDIUM)
-            .withValidation(VitessConnectorConfig::validateCellPreference)
             .withDescription("Controls how vtgate's tablet picker treats the cells listed in '" + VITESS_CONFIG_GROUP_PREFIX + "cells':"
                     + " 'preferlocalwithalias' (vtgate's default) prefers tablets in vtgate's local cell and its alias before the other listed cells,"
                     + " while 'onlyspecified' restricts tablet selection to exactly the listed cells (no local-cell fallback),"
@@ -743,19 +806,6 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return 0;
     }
 
-    private static int validateCellPreference(Configuration config, Field field, ValidationOutput problems) {
-        String cellPreference = config.getString(field);
-        if (cellPreference == null || cellPreference.isEmpty()) {
-            return 0;
-        }
-        // vtgate parses this value case-insensitively (blank falls back to 'preferlocalwithalias').
-        if (!"preferlocalwithalias".equalsIgnoreCase(cellPreference) && !"onlyspecified".equalsIgnoreCase(cellPreference)) {
-            problems.accept(field, cellPreference, "Valid values are 'preferlocalwithalias' and 'onlyspecified'");
-            return 1;
-        }
-        return 0;
-    }
-
     private static int validateInheritEpoch(Configuration config, Field field, ValidationOutput problems) {
         Boolean inheritEpoch = config.getBoolean(field);
         String factory = config.getString(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY);
@@ -794,8 +844,8 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return getConfig().getString(CELLS);
     }
 
-    public String getCellPreference() {
-        return getConfig().getString(CELL_PREFERENCE);
+    public CellPreference getCellPreference() {
+        return CellPreference.parse(getConfig().getString(CELL_PREFERENCE), CELL_PREFERENCE.defaultValueAsString());
     }
 
     public boolean getInheritEpoch() {

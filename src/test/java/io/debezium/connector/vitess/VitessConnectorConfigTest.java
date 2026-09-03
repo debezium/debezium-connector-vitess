@@ -356,4 +356,54 @@ public class VitessConnectorConfigTest {
         assertThat(VitessConnectorConfig.ALL_FIELDS).anyMatch(field -> field.name().equals("vitess.cells"));
     }
 
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldGetCellPreference() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.CELL_PREFERENCE, "onlyspecified")
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getCellPreference()).isEqualTo("onlyspecified");
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldDefaultCellPreferenceToNull() {
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(TestHelper.defaultConfig().build());
+        assertThat(connectorConfig.getCellPreference()).isNull();
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldPassCellPreferenceValidationForKnownValues() {
+        // vtgate parses the value case-insensitively, so mixed case must validate too.
+        for (String value : new String[]{ "preferlocalwithalias", "onlyspecified", "OnlySpecified" }) {
+            Configuration configuration = TestHelper.defaultConfig()
+                    .with(VitessConnectorConfig.CELL_PREFERENCE, value)
+                    .build();
+            List<String> problems = new ArrayList<>();
+            boolean valid = VitessConnectorConfig.CELL_PREFERENCE.validate(configuration, (field, fieldValue, message) -> problems.add(message));
+            assertThat(valid).isTrue();
+            assertThat(problems).isEmpty();
+        }
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldFailCellPreferenceValidationForUnknownValue() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.CELL_PREFERENCE, "nearest")
+                .build();
+        List<String> problems = new ArrayList<>();
+        boolean valid = VitessConnectorConfig.CELL_PREFERENCE.validate(configuration, (field, value, message) -> problems.add(message));
+        assertThat(valid).isFalse();
+        assertThat(problems).containsExactly("Valid values are 'preferlocalwithalias' and 'onlyspecified'");
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldExposeCellPreferenceInConfigDefinition() {
+        assertThat(VitessConnectorConfig.ALL_FIELDS).anyMatch(field -> field.name().equals("vitess.cell.preference"));
+    }
+
 }

@@ -326,7 +326,20 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withWidth(Width.MEDIUM)
             .withImportance(ConfigDef.Importance.MEDIUM)
             .withDescription("Comma-separated list of Vitess cells (or cell aliases) the VStream"
-                    + " should be served from. If not set, vtgate applies its default cell selection.");
+                    + " should be served from. If not set, vtgate defaults to its own local cell."
+                    + " Only applies when '" + VITESS_CONFIG_GROUP_PREFIX + "tablet.type' is REPLICA or RDONLY;"
+                    + " for MASTER the shard primary is used regardless of cell.");
+
+    public static final Field CELL_PREFERENCE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "cell.preference")
+            .withDisplayName("VStream cell preference")
+            .withType(Type.STRING)
+            .withWidth(Width.MEDIUM)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withValidation(VitessConnectorConfig::validateCellPreference)
+            .withDescription("Controls how vtgate's tablet picker treats the cells listed in '" + VITESS_CONFIG_GROUP_PREFIX + "cells':"
+                    + " 'preferlocalwithalias' (vtgate's default) prefers tablets in vtgate's local cell and its alias before the other listed cells,"
+                    + " while 'onlyspecified' restricts tablet selection to exactly the listed cells (no local-cell fallback),"
+                    + " which is required to pin the VStream to specific cells.");
 
     public static final Field INHERIT_EPOCH = Field.create(VITESS_CONFIG_GROUP_PREFIX + "inherit.epoch")
             .withDisplayName("Inherit epoch")
@@ -563,6 +576,7 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .group(Field.Group.CONNECTOR_ADVANCED,
                     STOP_ON_RESHARD_FLAG,
                     CELLS,
+                    CELL_PREFERENCE,
                     INHERIT_EPOCH,
                     SHARD_EPOCH_MAP,
                     KEEPALIVE_INTERVAL_MS,
@@ -729,6 +743,19 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         return 0;
     }
 
+    private static int validateCellPreference(Configuration config, Field field, ValidationOutput problems) {
+        String cellPreference = config.getString(field);
+        if (cellPreference == null || cellPreference.isEmpty()) {
+            return 0;
+        }
+        // vtgate parses this value case-insensitively (blank falls back to 'preferlocalwithalias').
+        if (!"preferlocalwithalias".equalsIgnoreCase(cellPreference) && !"onlyspecified".equalsIgnoreCase(cellPreference)) {
+            problems.accept(field, cellPreference, "Valid values are 'preferlocalwithalias' and 'onlyspecified'");
+            return 1;
+        }
+        return 0;
+    }
+
     private static int validateInheritEpoch(Configuration config, Field field, ValidationOutput problems) {
         Boolean inheritEpoch = config.getBoolean(field);
         String factory = config.getString(CommonConnectorConfig.TRANSACTION_METADATA_FACTORY);
@@ -765,6 +792,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public String getCells() {
         return getConfig().getString(CELLS);
+    }
+
+    public String getCellPreference() {
+        return getConfig().getString(CELL_PREFERENCE);
     }
 
     public boolean getInheritEpoch() {

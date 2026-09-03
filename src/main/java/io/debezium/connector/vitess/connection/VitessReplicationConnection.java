@@ -305,6 +305,9 @@ public class VitessReplicationConnection implements ReplicationConnection {
         if (!Strings.isNullOrEmpty(config.getCells())) {
             vStreamFlagsBuilder.setCells(config.getCells());
         }
+        if (!Strings.isNullOrEmpty(config.getCellPreference())) {
+            vStreamFlagsBuilder.setCellPreference(config.getCellPreference());
+        }
 
         if (!Strings.isNullOrEmpty(config.getConfig().getString(CommonConnectorConfig.SNAPSHOT_MODE_TABLES))) {
             final List<String> allTables = new VitessMetadata(config).getTables();

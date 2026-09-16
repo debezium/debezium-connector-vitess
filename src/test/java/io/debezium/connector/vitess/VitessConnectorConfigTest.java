@@ -333,4 +333,88 @@ public class VitessConnectorConfigTest {
                 .hasSize(1);
     }
 
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldGetCells() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.CELLS, "cell1,cell2")
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getCells()).isEqualTo("cell1,cell2");
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldDefaultCellsToNull() {
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(TestHelper.defaultConfig().build());
+        assertThat(connectorConfig.getCells()).isNull();
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldExposeCellsInConfigDefinition() {
+        assertThat(VitessConnectorConfig.ALL_FIELDS).anyMatch(field -> field.name().equals("vitess.cells"));
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldGetCellPreference() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.CELL_PREFERENCE, "onlyspecified")
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getCellPreference()).isEqualTo(VitessConnectorConfig.CellPreference.ONLY_SPECIFIED);
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldDefaultCellPreferenceToPreferLocalWithAlias() {
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(TestHelper.defaultConfig().build());
+        assertThat(connectorConfig.getCellPreference()).isEqualTo(VitessConnectorConfig.CellPreference.PREFER_LOCAL_WITH_ALIAS);
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldParseCellPreferenceCaseInsensitively() {
+        // vtgate parses the value case-insensitively, so mixed case must resolve too.
+        assertThat(VitessConnectorConfig.CellPreference.parse("OnlySpecified"))
+                .isEqualTo(VitessConnectorConfig.CellPreference.ONLY_SPECIFIED);
+        assertThat(VitessConnectorConfig.CellPreference.parse("preferlocalwithalias"))
+                .isEqualTo(VitessConnectorConfig.CellPreference.PREFER_LOCAL_WITH_ALIAS);
+        assertThat(VitessConnectorConfig.CellPreference.parse("nearest")).isNull();
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldPassCellPreferenceValidationForKnownValues() {
+        // vtgate parses the value case-insensitively, so mixed case must validate too.
+        for (String value : new String[]{ "preferlocalwithalias", "onlyspecified", "OnlySpecified" }) {
+            Configuration configuration = TestHelper.defaultConfig()
+                    .with(VitessConnectorConfig.CELL_PREFERENCE, value)
+                    .build();
+            List<String> problems = new ArrayList<>();
+            boolean valid = VitessConnectorConfig.CELL_PREFERENCE.validate(configuration, (field, fieldValue, message) -> problems.add(message));
+            assertThat(valid).isTrue();
+            assertThat(problems).isEmpty();
+        }
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldFailCellPreferenceValidationForUnknownValue() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.CELL_PREFERENCE, "nearest")
+                .build();
+        List<String> problems = new ArrayList<>();
+        boolean valid = VitessConnectorConfig.CELL_PREFERENCE.validate(configuration, (field, value, message) -> problems.add(message));
+        assertThat(valid).isFalse();
+        assertThat(problems).hasSize(1);
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2547")
+    public void shouldExposeCellPreferenceInConfigDefinition() {
+        assertThat(VitessConnectorConfig.ALL_FIELDS).anyMatch(field -> field.name().equals("vitess.cell.preference"));
+    }
+
 }

@@ -300,7 +300,12 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 .setStopOnReshard(config.getStopOnReshard())
                 .setExcludeKeyspaceFromTableName(config.getExcludeKeyspaceFromTableName())
                 .setHeartbeatInterval(getHeartbeatSeconds())
-                .setStreamKeyspaceHeartbeats(config.getStreamKeyspaceHeartbeats());
+                .setStreamKeyspaceHeartbeats(config.getStreamKeyspaceHeartbeats())
+                .setCellPreference(config.getCellPreference().getValue());
+
+        if (!Strings.isNullOrEmpty(config.getCells())) {
+            vStreamFlagsBuilder.setCells(config.getCells());
+        }
 
         if (!Strings.isNullOrEmpty(config.getConfig().getString(CommonConnectorConfig.SNAPSHOT_MODE_TABLES))) {
             final List<String> allTables = new VitessMetadata(config).getTables();

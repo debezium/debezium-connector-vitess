@@ -185,6 +185,70 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
         }
     }
 
+    /**
+     * The set of predefined CellPreference options. Values mirror the values accepted by
+     * vtgate's tablet picker for the {@code VStreamFlags.cell_preference} flag, which vtgate
+     * parses case-insensitively.
+     */
+    public enum CellPreference implements EnumeratedValue {
+        /**
+         * Prefer tablets in vtgate's local cell (and its cell alias) before the cells listed
+         * in {@code vitess.cells}. This is vtgate's default behavior.
+         */
+        PREFER_LOCAL_WITH_ALIAS("preferlocalwithalias"),
+
+        /**
+         * Restrict tablet selection to exactly the cells listed in {@code vitess.cells},
+         * with no local-cell fallback. Required to pin the VStream to specific cells.
+         */
+        ONLY_SPECIFIED("onlyspecified");
+
+        private final String value;
+
+        CellPreference(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String getValue() {
+            return value;
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value the configuration property value; may not be null
+         * @return the matching option, or null if no match is found
+         */
+        public static CellPreference parse(String value) {
+            if (value == null) {
+                return null;
+            }
+            value = value.trim();
+            for (CellPreference option : CellPreference.values()) {
+                if (option.getValue().equalsIgnoreCase(value)) {
+                    return option;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value the configuration property value; may not be null
+         * @param defaultValue the default value; may be null
+         * @return the matching option, or null if no match is found and the non-null default is invalid
+         */
+        public static CellPreference parse(String value, String defaultValue) {
+            CellPreference preference = parse(value);
+            if (preference == null && defaultValue != null) {
+                preference = parse(defaultValue);
+            }
+            return preference;
+        }
+    }
+
     public static final Field VTGATE_HOST = Field.create(DATABASE_CONFIG_PREFIX + JdbcConfiguration.HOSTNAME)
             .withDisplayName("Vitess database hostname")
             .withType(Type.STRING)
@@ -319,6 +383,26 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withImportance(ConfigDef.Importance.HIGH)
             .withDescription("Control StopOnReshard VStream flag."
                     + " If set true, the old VStream will be stopped after a reshard operation.");
+
+    public static final Field CELLS = Field.create(VITESS_CONFIG_GROUP_PREFIX + "cells")
+            .withDisplayName("VStream cells")
+            .withType(Type.STRING)
+            .withWidth(Width.MEDIUM)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription("Comma-separated list of Vitess cells (or cell aliases) the VStream"
+                    + " should be served from. If not set, vtgate defaults to its own local cell."
+                    + " Only applies when '" + VITESS_CONFIG_GROUP_PREFIX + "tablet.type' is REPLICA or RDONLY;"
+                    + " for MASTER the shard primary is used regardless of cell.");
+
+    public static final Field CELL_PREFERENCE = Field.create(VITESS_CONFIG_GROUP_PREFIX + "cell.preference")
+            .withDisplayName("VStream cell preference")
+            .withEnum(CellPreference.class, CellPreference.PREFER_LOCAL_WITH_ALIAS)
+            .withWidth(Width.MEDIUM)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withDescription("Controls how vtgate's tablet picker treats the cells listed in '" + VITESS_CONFIG_GROUP_PREFIX + "cells':"
+                    + " 'preferlocalwithalias' (vtgate's default) prefers tablets in vtgate's local cell and its alias before the other listed cells,"
+                    + " while 'onlyspecified' restricts tablet selection to exactly the listed cells (no local-cell fallback),"
+                    + " which is required to pin the VStream to specific cells.");
 
     public static final Field INHERIT_EPOCH = Field.create(VITESS_CONFIG_GROUP_PREFIX + "inherit.epoch")
             .withDisplayName("Inherit epoch")
@@ -554,6 +638,8 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     SOURCE_INFO_STRUCT_MAKER)
             .group(Field.Group.CONNECTOR_ADVANCED,
                     STOP_ON_RESHARD_FLAG,
+                    CELLS,
+                    CELL_PREFERENCE,
                     INHERIT_EPOCH,
                     SHARD_EPOCH_MAP,
                     KEEPALIVE_INTERVAL_MS,
@@ -752,6 +838,14 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public boolean getStopOnReshard() {
         return getConfig().getBoolean(STOP_ON_RESHARD_FLAG);
+    }
+
+    public String getCells() {
+        return getConfig().getString(CELLS);
+    }
+
+    public CellPreference getCellPreference() {
+        return CellPreference.parse(getConfig().getString(CELL_PREFERENCE), CELL_PREFERENCE.defaultValueAsString());
     }
 
     public boolean getInheritEpoch() {

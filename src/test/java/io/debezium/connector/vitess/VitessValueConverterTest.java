@@ -8,6 +8,7 @@ package io.debezium.connector.vitess;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Duration;
@@ -28,6 +29,7 @@ import io.debezium.doc.FixFor;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.Column;
 import io.debezium.relational.CustomConverterRegistry;
+import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.Table;
 import io.debezium.relational.ValueConverter;
 import io.debezium.schema.DefaultTopicNamingStrategy;
@@ -346,5 +348,63 @@ public class VitessValueConverterTest {
         Field field = new Field("bit8", 0, Schema.BYTES_SCHEMA);
         ValueConverter valueConverter = converter.converter(column, field);
         assertThat(valueConverter.convert(new byte[]{ 0x05 })).isEqualTo(new byte[]{ 0x05 });
+    }
+
+    private static List<TestHelper.ColumnValue> blobAndTextColumnValues() {
+        return List.of(
+                new TestHelper.ColumnValue("id", Query.Type.INT32, Types.INTEGER, "1".getBytes(), 1),
+                new TestHelper.ColumnValue("text_col", Query.Type.TEXT, Types.VARCHAR, "text".getBytes(), "text"),
+                new TestHelper.ColumnValue("blob_col", Query.Type.BLOB, Types.BLOB, "blob".getBytes(), "blob".getBytes()));
+    }
+
+    private VitessValueConverter converterWithPlaceholder(String placeholder) {
+        VitessConnectorConfig placeholderConfig = new VitessConnectorConfig(TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.UNAVAILABLE_VALUE_PLACEHOLDER, placeholder)
+                .build());
+        return new VitessValueConverter(
+                placeholderConfig.getDecimalMode(),
+                placeholderConfig.getTemporalPrecisionMode(),
+                ZoneOffset.UTC,
+                placeholderConfig.binaryHandlingMode(),
+                placeholderConfig.includeUnknownDatatypes(),
+                placeholderConfig.getBigIntUnsgnedHandlingMode(),
+                false,
+                placeholderConfig.getUnavailableValuePlaceholder());
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2607")
+    public void shouldConvertUnavailableValueToPlaceholderString() throws Exception {
+        // setup fixture: a TEXT column whose value was omitted from the row image (NOBLOB)
+        decoder.processMessage(TestHelper.newFieldEvent(blobAndTextColumnValues()), null, null, false);
+        Column column = schema.tableFor(TestHelper.defaultTableId()).columnWithName("text_col");
+        Field field = new Field("text_col", 1, Schema.OPTIONAL_STRING_SCHEMA);
+
+        // exercise SUT / verify outcome: the default placeholder, and a configured one
+        assertThat(converter.converter(column, field).convert(VitessValueConverter.UNAVAILABLE_VALUE))
+                .isEqualTo(RelationalDatabaseConnectorConfig.DEFAULT_UNAVAILABLE_VALUE_PLACEHOLDER);
+        assertThat(converterWithPlaceholder("__unchanged__").converter(column, field).convert(VitessValueConverter.UNAVAILABLE_VALUE))
+                .isEqualTo("__unchanged__");
+        // a regular value is unaffected
+        assertThat(converter.converter(column, field).convert("text")).isEqualTo("text");
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2607")
+    public void shouldConvertUnavailableValueToPlaceholderBytes() throws Exception {
+        // setup fixture: a BLOB column whose value was omitted from the row image (NOBLOB)
+        decoder.processMessage(TestHelper.newFieldEvent(blobAndTextColumnValues()), null, null, false);
+        Column column = schema.tableFor(TestHelper.defaultTableId()).columnWithName("blob_col");
+        Field field = new Field("blob_col", 2, Schema.OPTIONAL_BYTES_SCHEMA);
+
+        // exercise SUT / verify outcome: the default placeholder, a configured one, and a hex one
+        assertThat(converter.converter(column, field).convert(VitessValueConverter.UNAVAILABLE_VALUE))
+                .isEqualTo(ByteBuffer.wrap(RelationalDatabaseConnectorConfig.DEFAULT_UNAVAILABLE_VALUE_PLACEHOLDER.getBytes(StandardCharsets.UTF_8)));
+        assertThat(converterWithPlaceholder("__unchanged__").converter(column, field).convert(VitessValueConverter.UNAVAILABLE_VALUE))
+                .isEqualTo(ByteBuffer.wrap("__unchanged__".getBytes(StandardCharsets.UTF_8)));
+        assertThat(converterWithPlaceholder("hex:00ff").converter(column, field).convert(VitessValueConverter.UNAVAILABLE_VALUE))
+                .isEqualTo(ByteBuffer.wrap(new byte[]{ 0x00, (byte) 0xff }));
+        // a regular value is unaffected
+        assertThat(converter.converter(column, field).convert("blob".getBytes())).isEqualTo(ByteBuffer.wrap("blob".getBytes()));
     }
 }

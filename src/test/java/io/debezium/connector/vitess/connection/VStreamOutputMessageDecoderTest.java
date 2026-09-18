@@ -26,7 +26,9 @@ import io.debezium.connector.vitess.VgtidTest;
 import io.debezium.connector.vitess.VitessConnectorConfig;
 import io.debezium.connector.vitess.VitessDatabaseSchema;
 import io.debezium.connector.vitess.VitessTaskContext;
+import io.debezium.connector.vitess.VitessValueConverter;
 import io.debezium.doc.FixFor;
+import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
@@ -595,6 +597,184 @@ public class VStreamOutputMessageDecoderTest {
                 null,
                 false);
         assertThat(processed[0]).isTrue();
+    }
+
+    /** A table with an INT primary key, a TEXT column, a BLOB column and a VARCHAR column. */
+    private static List<TestHelper.ColumnValue> noBlobColumnValues(byte[] text, byte[] blob, byte[] varchar) {
+        return List.of(
+                new TestHelper.ColumnValue("id", Query.Type.INT32, Types.INTEGER, "1".getBytes(), 1),
+                new TestHelper.ColumnValue("text_col", Query.Type.TEXT, Types.VARCHAR, text, text == null ? null : new String(text)),
+                new TestHelper.ColumnValue("blob_col", Query.Type.BLOB, Types.BLOB, blob, blob),
+                new TestHelper.ColumnValue("varchar_col", Query.Type.VARCHAR, Types.VARCHAR, varchar, varchar == null ? null : new String(varchar)));
+    }
+
+    private static boolean isUnavailable(ReplicationMessage.Column column) {
+        return ((ReplicationMessageColumn) column).isUnavailable();
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2607")
+    public void shouldMarkBlobAndTextColumnsOmittedFromPartialRowImageAsUnavailable() throws Exception {
+        // setup fixture: with binlog_row_image=NOBLOB the unchanged TEXT and BLOB columns are
+        // omitted from the AFTER image. They arrive as NULL cells, distinguishable from a real
+        // NULL only via the data_columns bitmap. varchar_col is a real NULL, present in the bitmap.
+        // No before_data_columns (Vitess < 25): the AFTER bitmap is applied to the BEFORE image.
+        decoder.processMessage(TestHelper.newFieldEvent(noBlobColumnValues("t".getBytes(), "b".getBytes(), "v".getBytes())), null, null, false);
+        List<TestHelper.ColumnValue> before = noBlobColumnValues(null, null, "v".getBytes());
+        List<TestHelper.ColumnValue> after = noBlobColumnValues(null, null, null);
+        Binlogdata.RowChange.Bitmap dataColumns = TestHelper.dataColumnsBitmap(4, 0, 3);
+
+        // exercise SUT
+        final boolean[] processed = { false };
+        decoder.processMessage(
+                TestHelper.newUpdateEvent(before, after, dataColumns),
+                (message, vgtid) -> {
+                    // verify outcome
+                    assertThat(message.getOperation()).isEqualTo(ReplicationMessage.Operation.UPDATE);
+                    List<ReplicationMessage.Column> newColumns = message.getNewTupleList();
+                    assertThat(newColumns).hasSize(4);
+                    assertThat(isUnavailable(newColumns.get(0))).isFalse();
+                    assertThat(isUnavailable(newColumns.get(1))).as("omitted TEXT column").isTrue();
+                    assertThat(isUnavailable(newColumns.get(2))).as("omitted BLOB column").isTrue();
+                    assertThat(isUnavailable(newColumns.get(3))).as("a real NULL is not unavailable").isFalse();
+                    assertThat(newColumns.get(1).getValue(false, TemporalPrecisionMode.ADAPTIVE)).isSameAs(VitessValueConverter.UNAVAILABLE_VALUE);
+                    assertThat(newColumns.get(3).getValue(false, TemporalPrecisionMode.ADAPTIVE)).isNull();
+                    // A column omitted from the AFTER image was omitted from the BEFORE image too.
+                    List<ReplicationMessage.Column> oldColumns = message.getOldTupleList();
+                    assertThat(isUnavailable(oldColumns.get(1))).isTrue();
+                    assertThat(isUnavailable(oldColumns.get(2))).isTrue();
+                    assertThat(isUnavailable(oldColumns.get(0))).isFalse();
+                    assertThat(isUnavailable(oldColumns.get(3))).isFalse();
+                    processed[0] = true;
+                },
+                null, false);
+        assertThat(processed[0]).isTrue();
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2607")
+    public void shouldUseBeforeDataColumnsBitmapForBeforeImageWhenPresent() throws Exception {
+        // setup fixture: Vitess 25+ describes the BEFORE image with before_data_columns.
+        // text_col changed, so it is present in the AFTER image but (like every non-PK
+        // BLOB/TEXT column under NOBLOB) absent from the BEFORE image; blob_col is unchanged
+        // and absent from both.
+        decoder.processMessage(TestHelper.newFieldEvent(noBlobColumnValues("t".getBytes(), "b".getBytes(), "v".getBytes())), null, null, false);
+        List<TestHelper.ColumnValue> before = noBlobColumnValues(null, null, "v".getBytes());
+        List<TestHelper.ColumnValue> after = noBlobColumnValues("new".getBytes(), null, "v".getBytes());
+        Binlogdata.RowChange.Bitmap dataColumns = TestHelper.dataColumnsBitmap(4, 0, 1, 3);
+        Binlogdata.RowChange.Bitmap beforeDataColumns = TestHelper.dataColumnsBitmap(4, 0, 3);
+
+        // exercise SUT
+        final boolean[] processed = { false };
+        decoder.processMessage(
+                TestHelper.newUpdateEvent(before, after, dataColumns, beforeDataColumns),
+                (message, vgtid) -> {
+                    // verify outcome
+                    List<ReplicationMessage.Column> newColumns = message.getNewTupleList();
+                    assertThat(isUnavailable(newColumns.get(1))).as("changed TEXT column is present after").isFalse();
+                    assertThat(newColumns.get(1).getValue(false, TemporalPrecisionMode.ADAPTIVE)).isEqualTo("new");
+                    assertThat(isUnavailable(newColumns.get(2))).as("unchanged BLOB column is absent after").isTrue();
+                    List<ReplicationMessage.Column> oldColumns = message.getOldTupleList();
+                    assertThat(isUnavailable(oldColumns.get(1))).as("changed TEXT column is absent before").isTrue();
+                    assertThat(isUnavailable(oldColumns.get(2))).as("unchanged BLOB column is absent before").isTrue();
+                    assertThat(isUnavailable(oldColumns.get(0))).isFalse();
+                    assertThat(isUnavailable(oldColumns.get(3))).isFalse();
+                    processed[0] = true;
+                },
+                null, false);
+        assertThat(processed[0]).isTrue();
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2607")
+    public void shouldMarkBlobAndTextColumnsOmittedFromDeleteRowImageAsUnavailable() throws Exception {
+        // setup fixture: a DELETE only has a BEFORE image; with before_data_columns (Vitess 25+)
+        // the omitted TEXT and BLOB columns can be told apart from NULL. Without it (older
+        // Vitess) they cannot and stay NULL.
+        decoder.processMessage(TestHelper.newFieldEvent(noBlobColumnValues("t".getBytes(), "b".getBytes(), "v".getBytes())), null, null, false);
+        List<TestHelper.ColumnValue> row = noBlobColumnValues(null, null, "v".getBytes());
+
+        final boolean[] processed = { false };
+        decoder.processMessage(
+                TestHelper.newDeleteEvent(row, TestHelper.dataColumnsBitmap(4, 0, 3)),
+                (message, vgtid) -> {
+                    assertThat(message.getOperation()).isEqualTo(ReplicationMessage.Operation.DELETE);
+                    List<ReplicationMessage.Column> oldColumns = message.getOldTupleList();
+                    assertThat(isUnavailable(oldColumns.get(0))).isFalse();
+                    assertThat(isUnavailable(oldColumns.get(1))).isTrue();
+                    assertThat(isUnavailable(oldColumns.get(2))).isTrue();
+                    assertThat(isUnavailable(oldColumns.get(3))).isFalse();
+                    processed[0] = true;
+                },
+                null, false);
+        assertThat(processed[0]).isTrue();
+
+        processed[0] = false;
+        decoder.processMessage(
+                TestHelper.newDeleteEvent(row),
+                (message, vgtid) -> {
+                    for (ReplicationMessage.Column column : message.getOldTupleList()) {
+                        assertThat(isUnavailable(column)).as(column.getName()).isFalse();
+                    }
+                    processed[0] = true;
+                },
+                null, false);
+        assertThat(processed[0]).isTrue();
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2607")
+    public void shouldOnlyMarkBlobAndTextColumnsAsUnavailable() throws Exception {
+        // setup fixture: a bitmap that claims a non-BLOB/TEXT column (varchar_col) is absent.
+        // MySQL never omits such columns with NOBLOB, so like the MySQL connector we leave
+        // the column alone (NULL) rather than substituting the placeholder.
+        decoder.processMessage(TestHelper.newFieldEvent(noBlobColumnValues("t".getBytes(), "b".getBytes(), "v".getBytes())), null, null, false);
+        List<TestHelper.ColumnValue> row = noBlobColumnValues("t".getBytes(), "b".getBytes(), null);
+        Binlogdata.RowChange.Bitmap dataColumns = TestHelper.dataColumnsBitmap(4, 0, 1, 2);
+
+        // exercise SUT
+        final boolean[] processed = { false };
+        decoder.processMessage(
+                TestHelper.newUpdateEvent(row, row, dataColumns),
+                (message, vgtid) -> {
+                    // verify outcome
+                    for (ReplicationMessage.Column column : message.getNewTupleList()) {
+                        assertThat(isUnavailable(column)).as(column.getName()).isFalse();
+                    }
+                    assertThat(message.getNewTupleList().get(3).getValue(false, TemporalPrecisionMode.ADAPTIVE)).isNull();
+                    processed[0] = true;
+                },
+                null, false);
+        assertThat(processed[0]).isTrue();
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2607")
+    public void shouldNotMarkColumnsAsUnavailableForFullRowImages() throws Exception {
+        // setup fixture: no data_columns bitmap (full row image) with real NULLs in the
+        // TEXT and BLOB columns, and separately a bitmap with every column present as sent
+        // for partial JSON updates with binlog_row_value_options=PARTIAL_JSON.
+        decoder.processMessage(TestHelper.newFieldEvent(noBlobColumnValues("t".getBytes(), "b".getBytes(), "v".getBytes())), null, null, false);
+        List<TestHelper.ColumnValue> row = noBlobColumnValues(null, null, "v".getBytes());
+
+        for (Binlogdata.RowChange.Bitmap dataColumns : new Binlogdata.RowChange.Bitmap[]{ null, TestHelper.dataColumnsBitmap(4, 0, 1, 2, 3) }) {
+            // exercise SUT
+            final boolean[] processed = { false };
+            decoder.processMessage(
+                    TestHelper.newUpdateEvent(row, row, dataColumns),
+                    (message, vgtid) -> {
+                        // verify outcome
+                        for (ReplicationMessage.Column column : message.getNewTupleList()) {
+                            assertThat(isUnavailable(column)).as(column.getName()).isFalse();
+                        }
+                        for (ReplicationMessage.Column column : message.getOldTupleList()) {
+                            assertThat(isUnavailable(column)).as(column.getName()).isFalse();
+                        }
+                        processed[0] = true;
+                    },
+                    null, false);
+            assertThat(processed[0]).isTrue();
+        }
     }
 
     @Test

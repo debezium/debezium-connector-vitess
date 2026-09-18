@@ -6,6 +6,7 @@
 package io.debezium.connector.vitess;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
@@ -37,6 +38,7 @@ import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.util.Strings;
 import io.grpc.LoadBalancerProvider;
 import io.grpc.LoadBalancerRegistry;
 import io.grpc.internal.GrpcUtil;
@@ -528,6 +530,13 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
     public static final Field SOURCE_INFO_STRUCT_MAKER = CommonConnectorConfig.SOURCE_INFO_STRUCT_MAKER
             .withDefault(VitessSourceInfoStructMaker.class.getName());
 
+    public static final Field UNAVAILABLE_VALUE_PLACEHOLDER = RelationalDatabaseConnectorConfig.UNAVAILABLE_VALUE_PLACEHOLDER
+            .withDescription("Specify the constant that will be provided by Debezium to indicate that "
+                    + "the original value is unavailable because the source omitted it from the row image, "
+                    + "which happens for unchanged BLOB/TEXT columns when MySQL runs with binlog_row_image=NOBLOB. "
+                    + "The value is emitted as bytes for binary columns and as a string for all other columns. "
+                    + "A value starting with 'hex:' is interpreted as a hexadecimal byte sequence.");
+
     protected static final ConfigDefinition CONFIG_DEFINITION = RelationalDatabaseConnectorConfig.CONFIG_DEFINITION
             .edit()
             .name("Vitess")
@@ -563,7 +572,8 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     OFFSET_STORAGE_PER_TASK,
                     OFFSET_STORAGE_TASK_KEY_GEN,
                     PREV_NUM_TASKS,
-                    CONNECTOR_GENERATION)
+                    CONNECTOR_GENERATION,
+                    UNAVAILABLE_VALUE_PLACEHOLDER)
             .group(Field.Group.ADVANCED_HEARTBEAT,
                     STREAM_KEYSPACE_HEARTBEATS)
             .excluding(
@@ -607,6 +617,15 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public static ConfigDef configDef() {
         return CONFIG_DEFINITION.configDef();
+    }
+
+    @Override
+    public byte[] getUnavailableValuePlaceholder() {
+        String placeholder = getConfig().getString(UNAVAILABLE_VALUE_PLACEHOLDER);
+        if (placeholder.startsWith("hex:")) {
+            return Strings.hexStringToByteArray(placeholder.substring(4));
+        }
+        return placeholder.getBytes(StandardCharsets.UTF_8);
     }
 
     public VitessConnectorConfig(Configuration config) {

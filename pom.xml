@@ -253,6 +253,9 @@
         <dependency>
             <groupId>io.vitess</groupId>
             <artifactId>vitess-grpc-client</artifactId>
+            <!-- TODO(debezium/dbz#2607): remove this version once the Debezium BOM pins a Vitess 25+ client, the first
+                 whose RowChange carries the before_data_columns bitmap (vitessio/vitess#21067). -->
+            <version>25.0.0-SNAPSHOT</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.grpc</groupId>

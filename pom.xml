@@ -117,6 +117,18 @@
                 <artifactId>grpc-api</artifactId>
                 <version>${version.grpc}</version>
             </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-inprocess</artifactId>
+                <version>${version.grpc}</version>
+            </dependency>
+
+            <!-- protobuf runtime: grpc ${version.grpc} requires protobuf-java 4.x -->
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${version.com.google.protobuf}</version>
+            </dependency>
 
             <!-- Building -->
             <dependency>

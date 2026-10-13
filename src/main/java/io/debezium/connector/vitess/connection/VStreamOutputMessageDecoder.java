@@ -160,15 +160,21 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
             int numOfRowChanges = rowEvent.getRowChangesCount();
             for (int i = 0; i < numOfRowChanges; i++) {
                 Binlogdata.RowChange rowChange = rowEvent.getRowChanges(i);
+                // Only set for partial row images (binlog_row_image=NOBLOB and/or
+                // binlog_row_value_options=PARTIAL_JSON). data_columns describes the AFTER
+                // image; before_data_columns (Vitess 25+) describes the BEFORE image.
+                Binlogdata.RowChange.Bitmap dataColumns = rowChange.hasDataColumns() ? rowChange.getDataColumns() : null;
+                Binlogdata.RowChange.Bitmap beforeDataColumns = rowChange.hasBeforeDataColumns() ? rowChange.getBeforeDataColumns() : null;
                 if (rowChange.hasAfter() && !rowChange.hasBefore()) {
-                    decodeInsert(rowChange.getAfter(), schemaName, tableName, shard, processor, newVgtid);
+                    decodeInsert(rowChange.getAfter(), dataColumns, schemaName, tableName, shard, processor, newVgtid);
                 }
                 else if (rowChange.hasAfter() && rowChange.hasBefore()) {
                     decodeUpdate(
-                            rowChange.getBefore(), rowChange.getAfter(), schemaName, tableName, shard, processor, newVgtid);
+                            rowChange.getBefore(), rowChange.getAfter(), beforeDataColumns, dataColumns, schemaName, tableName, shard, processor,
+                            newVgtid);
                 }
                 else if (!rowChange.hasAfter() && rowChange.hasBefore()) {
-                    decodeDelete(rowChange.getBefore(), schemaName, tableName, shard, processor, newVgtid);
+                    decodeDelete(rowChange.getBefore(), beforeDataColumns, schemaName, tableName, shard, processor, newVgtid);
                 }
                 else {
                     LOGGER.error("{} decodeRow skipped.", vEvent);
@@ -179,6 +185,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
 
     private void decodeInsert(
                               Row row,
+                              Binlogdata.RowChange.Bitmap dataColumns,
                               String schemaName,
                               String tableName,
                               String shard,
@@ -197,7 +204,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         else {
             Table table = resolvedTable.get();
             tableId = table.id();
-            columns = resolveColumns(row, table);
+            columns = resolveColumns(row, dataColumns, table);
         }
 
         processor.process(
@@ -216,6 +223,8 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
     private void decodeUpdate(
                               Row oldRow,
                               Row newRow,
+                              Binlogdata.RowChange.Bitmap beforeDataColumns,
+                              Binlogdata.RowChange.Bitmap dataColumns,
                               String schemaName,
                               String tableName,
                               String shard,
@@ -235,8 +244,16 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         else {
             Table table = resolvedTable.get();
             tableId = table.id();
-            oldColumns = resolveColumns(oldRow, table);
-            newColumns = resolveColumns(newRow, table);
+            // Vitess 25+ describes the BEFORE image with its own bitmap. Older versions
+            // only describe the AFTER image; for those, fall back to applying the AFTER
+            // bitmap to the BEFORE image, which is correct for the columns it marks as
+            // absent: with binlog_row_image=NOBLOB MySQL omits every BLOB/TEXT column that
+            // is not part of the primary key from the BEFORE image, whether or not it
+            // changed, and omits only the unchanged ones from the AFTER image. Columns that
+            // changed are then reported as NULL in the BEFORE image rather than as
+            // unavailable, as they cannot be told apart without the BEFORE bitmap.
+            oldColumns = resolveColumns(oldRow, beforeDataColumns != null ? beforeDataColumns : dataColumns, table);
+            newColumns = resolveColumns(newRow, dataColumns, table);
         }
 
         processor.process(
@@ -254,6 +271,7 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
 
     private void decodeDelete(
                               Row row,
+                              Binlogdata.RowChange.Bitmap beforeDataColumns,
                               String schemaName,
                               String tableName,
                               String shard,
@@ -273,7 +291,10 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         else {
             Table table = resolvedTable.get();
             tableId = table.id();
-            columns = resolveColumns(row, table);
+            // A DELETE only has a BEFORE image; Vitess 25+ describes it with
+            // before_data_columns, older versions send no bitmap for it, in which case
+            // omitted columns cannot be told apart from NULL.
+            columns = resolveColumns(row, beforeDataColumns, table);
         }
 
         processor.process(
@@ -294,8 +315,15 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
         return Optional.ofNullable(schema.tableFor(VitessDatabaseSchema.buildTableId(shard, schemaName, tableName)));
     }
 
-    /** Resolve the vEvent data to a list of replication message columns (with values). */
-    private List<Column> resolveColumns(Row row, Table table) {
+    /**
+     * Resolve the vEvent data to a list of replication message columns (with values).
+     *
+     * @param dataColumns the row change's {@code data_columns} bitmap, or {@code null} for a full
+     *            row image; a BLOB/TEXT column whose bit is not set was omitted from the row image
+     *            (its value is unknown, not NULL) and is marked as unavailable, other columns are
+     *            left as they are
+     */
+    private List<Column> resolveColumns(Row row, Binlogdata.RowChange.Bitmap dataColumns, Table table) {
         int numberOfColumns = row.getLengthsCount();
         List<io.debezium.relational.Column> tableColumns = table.columns();
         if (tableColumns.size() != numberOfColumns) {
@@ -323,9 +351,28 @@ public class VStreamOutputMessageDecoder implements MessageDecoder {
                 // no update to rawValueIndex when no value in the rawValue
                 rawValueIndex += rawValueLength;
             }
-            columns.add(new ReplicationMessageColumn(columnName, vitessType, optional, rawValue));
+            final boolean unavailable = dataColumns != null && !isColumnPresent(dataColumns, i) && RowImageUtils.isBlobOrTextColumn(column);
+            columns.add(new ReplicationMessageColumn(columnName, vitessType, optional, rawValue, unavailable));
         }
         return columns;
+    }
+
+    /**
+     * Whether the column at the given position is present in the row image according to the
+     * {@code data_columns} bitmap. The bitmap is little-endian per byte: bit {@code i} is bit
+     * {@code i % 8} of byte {@code i / 8}, the same encoding MySQL uses in its binlog row events.
+     */
+    private static boolean isColumnPresent(Binlogdata.RowChange.Bitmap dataColumns, int index) {
+        if (index >= dataColumns.getCount()) {
+            // Not covered by the bitmap; treat as present rather than inventing an omission.
+            return true;
+        }
+        ByteString cols = dataColumns.getCols();
+        int byteIndex = index / 8;
+        if (byteIndex >= cols.size()) {
+            return true;
+        }
+        return (cols.byteAt(byteIndex) & (1 << (index % 8))) != 0;
     }
 
     private void handleFieldMessage(Binlogdata.VEvent vEvent, boolean isInVStreamCopy) {

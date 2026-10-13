@@ -406,14 +406,26 @@ public class TestHelper {
     }
 
     public static Binlogdata.VEvent newDeleteEvent(List<ColumnValue> columnValues) {
+        return newDeleteEvent(columnValues, null);
+    }
+
+    /**
+     * A DELETE row event; when {@code beforeDataColumns} is not null it is set as the row
+     * change's {@code before_data_columns} bitmap, as VStream does for partial row images.
+     */
+    public static Binlogdata.VEvent newDeleteEvent(List<ColumnValue> columnValues, Binlogdata.RowChange.Bitmap beforeDataColumns) {
         List<byte[]> rawValues = newRawValues(columnValues);
         Query.Row row = newRow(rawValues);
 
+        Binlogdata.RowChange.Builder rowChange = Binlogdata.RowChange.newBuilder().setBefore(row);
+        if (beforeDataColumns != null) {
+            rowChange.setBeforeDataColumns(beforeDataColumns);
+        }
         return Binlogdata.VEvent.newBuilder()
                 .setType(Binlogdata.VEventType.ROW)
                 .setRowEvent(
                         Binlogdata.RowEvent.newBuilder()
-                                .addRowChanges(Binlogdata.RowChange.newBuilder().setBefore(row).build())
+                                .addRowChanges(rowChange.build())
                                 .setTableName(TEST_VITESS_FULL_TABLE)
                                 .setShard(TEST_SHARD)
                                 .build())
@@ -427,20 +439,59 @@ public class TestHelper {
 
     public static Binlogdata.VEvent newUpdateEvent(
                                                    List<ColumnValue> beforeColumnValues, List<ColumnValue> afterColumnValues) {
+        return newUpdateEvent(beforeColumnValues, afterColumnValues, null, null);
+    }
+
+    public static Binlogdata.VEvent newUpdateEvent(
+                                                   List<ColumnValue> beforeColumnValues, List<ColumnValue> afterColumnValues,
+                                                   Binlogdata.RowChange.Bitmap dataColumns) {
+        return newUpdateEvent(beforeColumnValues, afterColumnValues, dataColumns, null);
+    }
+
+    /**
+     * An UPDATE row event; when not null, {@code dataColumns} and {@code beforeDataColumns} are set
+     * as the row change's {@code data_columns} (AFTER image) and {@code before_data_columns}
+     * (BEFORE image, Vitess 25+) bitmaps, as VStream does for partial row images.
+     */
+    public static Binlogdata.VEvent newUpdateEvent(
+                                                   List<ColumnValue> beforeColumnValues, List<ColumnValue> afterColumnValues,
+                                                   Binlogdata.RowChange.Bitmap dataColumns, Binlogdata.RowChange.Bitmap beforeDataColumns) {
         List<byte[]> beforeRawValues = newRawValues(beforeColumnValues);
         Query.Row beforeRow = newRow(beforeRawValues);
         List<byte[]> afterRawValues = newRawValues(afterColumnValues);
         Query.Row afterRow = newRow(afterRawValues);
 
+        Binlogdata.RowChange.Builder rowChange = Binlogdata.RowChange.newBuilder().setBefore(beforeRow).setAfter(afterRow);
+        if (dataColumns != null) {
+            rowChange.setDataColumns(dataColumns);
+        }
+        if (beforeDataColumns != null) {
+            rowChange.setBeforeDataColumns(beforeDataColumns);
+        }
         return Binlogdata.VEvent.newBuilder()
                 .setType(Binlogdata.VEventType.ROW)
                 .setRowEvent(
                         Binlogdata.RowEvent.newBuilder()
-                                .addRowChanges(Binlogdata.RowChange.newBuilder().setBefore(beforeRow).setAfter(afterRow).build())
+                                .addRowChanges(rowChange.build())
                                 .setTableName(TEST_VITESS_FULL_TABLE)
                                 .setShard(TEST_SHARD)
                                 .build())
                 .setTimestamp(AnonymousValue.getLong())
+                .build();
+    }
+
+    /**
+     * A {@code data_columns} bitmap for {@code count} columns with the given (0-based) column
+     * positions marked as present, using the little-endian-per-byte layout of the binlog.
+     */
+    public static Binlogdata.RowChange.Bitmap dataColumnsBitmap(int count, int... presentColumns) {
+        byte[] cols = new byte[(count + 7) / 8];
+        for (int column : presentColumns) {
+            cols[column / 8] |= (byte) (1 << (column % 8));
+        }
+        return Binlogdata.RowChange.Bitmap.newBuilder()
+                .setCount(count)
+                .setCols(ByteString.copyFrom(cols))
                 .build();
     }
 

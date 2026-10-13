@@ -5,7 +5,9 @@
  */
 package io.debezium.connector.vitess;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -35,6 +37,7 @@ import io.debezium.jdbc.JdbcValueConverters;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.relational.Column;
 import io.debezium.relational.RelationalChangeRecordEmitter;
+import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.ValueConverter;
 import io.debezium.time.Year;
 import io.debezium.util.Strings;
@@ -48,9 +51,21 @@ public class VitessValueConverter extends JdbcValueConverters {
     private static final BigDecimal BIGINT_MAX_VALUE = new BigDecimal("18446744073709551615");
     private static final BigDecimal BIGINT_CORRECTION = BIGINT_MAX_VALUE.add(BigDecimal.ONE);
 
+    /**
+     * Sentinel value for a column whose value was omitted from the row image by the source
+     * rather than being NULL, i.e. an unchanged BLOB/TEXT column when MySQL runs with
+     * {@code binlog_row_image=NOBLOB} (VStream signals this via the row change's
+     * {@code data_columns} bitmap). It is replaced by the configured
+     * {@code unavailable.value.placeholder} during conversion.
+     */
+    public static final Serializable UNAVAILABLE_VALUE = new Serializable() {
+    };
+
     private final boolean includeUnknownDatatypes;
     private final boolean overrideDatetimeToNullable;
     private final VitessConnectorConfig.BigIntUnsignedHandlingMode bigIntUnsignedHandlingMode;
+    private final byte[] unavailableValuePlaceholderBinary;
+    private final String unavailableValuePlaceholderString;
 
     private static final Pattern DATE_FIELD_PATTERN = Pattern.compile("([0-9]*)-([0-9]*)-([0-9]*)");
     private static final Pattern TIME_FIELD_PATTERN = Pattern.compile("(\\-?[0-9]*):([0-9]*)(:([0-9]*))?(\\.([0-9]*))?");
@@ -70,10 +85,41 @@ public class VitessValueConverter extends JdbcValueConverters {
                                 boolean includeUnknownDatatypes,
                                 VitessConnectorConfig.BigIntUnsignedHandlingMode bigIntUnsignedHandlingMode,
                                 boolean overrideDatetimeToNullable) {
+        this(decimalMode, temporalPrecisionMode, defaultOffset, binaryMode, includeUnknownDatatypes, bigIntUnsignedHandlingMode,
+                overrideDatetimeToNullable, RelationalDatabaseConnectorConfig.DEFAULT_UNAVAILABLE_VALUE_PLACEHOLDER.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public VitessValueConverter(
+                                DecimalMode decimalMode,
+                                TemporalPrecisionMode temporalPrecisionMode,
+                                ZoneOffset defaultOffset,
+                                BinaryHandlingMode binaryMode,
+                                boolean includeUnknownDatatypes,
+                                VitessConnectorConfig.BigIntUnsignedHandlingMode bigIntUnsignedHandlingMode,
+                                boolean overrideDatetimeToNullable,
+                                byte[] unavailableValuePlaceholder) {
         super(decimalMode, temporalPrecisionMode, defaultOffset, null, null, binaryMode);
         this.includeUnknownDatatypes = includeUnknownDatatypes;
         this.overrideDatetimeToNullable = overrideDatetimeToNullable;
         this.bigIntUnsignedHandlingMode = bigIntUnsignedHandlingMode;
+        this.unavailableValuePlaceholderBinary = unavailableValuePlaceholder;
+        this.unavailableValuePlaceholderString = new String(unavailableValuePlaceholder, StandardCharsets.UTF_8);
+    }
+
+    @Override
+    protected Object convertBinary(Column column, Field fieldDefn, Object data, BinaryHandlingMode mode) {
+        if (data == UNAVAILABLE_VALUE) {
+            data = unavailableValuePlaceholderBinary;
+        }
+        return super.convertBinary(column, fieldDefn, data, mode);
+    }
+
+    @Override
+    protected Object convertString(Column column, Field fieldDefn, Object data) {
+        if (data == UNAVAILABLE_VALUE) {
+            data = unavailableValuePlaceholderString;
+        }
+        return super.convertString(column, fieldDefn, data);
     }
 
     // Get Kafka connect schema from Debezium column.

@@ -10,6 +10,7 @@ import static io.debezium.connector.vitess.connection.ReplicationMessage.Column;
 import java.nio.charset.StandardCharsets;
 
 import io.debezium.connector.vitess.VitessType;
+import io.debezium.connector.vitess.VitessValueConverter;
 import io.debezium.jdbc.TemporalPrecisionMode;
 
 /** Logical represenation of both column type and value. */
@@ -19,13 +20,26 @@ public class ReplicationMessageColumn implements Column {
     private final VitessType type;
     private final boolean optional;
     private final byte[] rawValue;
+    private final boolean unavailable;
 
     public ReplicationMessageColumn(
                                     String columnName, VitessType type, boolean optional, byte[] rawValue) {
+        this(columnName, type, optional, rawValue, false);
+    }
+
+    /**
+     * @param unavailable whether the value was omitted from the row image by the source, as
+     *            happens for unchanged BLOB/TEXT columns with {@code binlog_row_image=NOBLOB};
+     *            {@code rawValue} is ignored in that case and {@link #getValue} returns
+     *            {@link VitessValueConverter#UNAVAILABLE_VALUE}
+     */
+    public ReplicationMessageColumn(
+                                    String columnName, VitessType type, boolean optional, byte[] rawValue, boolean unavailable) {
         this.columnName = columnName;
         this.type = type;
         this.optional = optional;
-        this.rawValue = rawValue;
+        this.rawValue = unavailable ? null : rawValue;
+        this.unavailable = unavailable;
     }
 
     @Override
@@ -45,6 +59,9 @@ public class ReplicationMessageColumn implements Column {
 
     @Override
     public Object getValue(boolean includeUnknownDatatypes, TemporalPrecisionMode temporalPrecisionMode) {
+        if (unavailable) {
+            return VitessValueConverter.UNAVAILABLE_VALUE;
+        }
         final VitessColumnValue columnValue = new VitessColumnValue(rawValue);
 
         return ReplicationMessageColumnValueResolver.resolveValue(
@@ -55,8 +72,15 @@ public class ReplicationMessageColumn implements Column {
         return rawValue;
     }
 
+    public boolean isUnavailable() {
+        return unavailable;
+    }
+
     @Override
     public String toString() {
-        return columnName + "=" + new String(rawValue, StandardCharsets.UTF_8);
+        if (unavailable) {
+            return columnName + "=<unavailable>";
+        }
+        return columnName + "=" + (rawValue == null ? "null" : new String(rawValue, StandardCharsets.UTF_8));
     }
 }

@@ -8,7 +8,10 @@ package io.debezium.connector.vitess;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.sql.Types;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -17,15 +20,18 @@ import org.slf4j.LoggerFactory;
 
 import io.debezium.config.Configuration;
 import io.debezium.connector.vitess.connection.ReplicationMessage;
+import io.debezium.connector.vitess.connection.ReplicationMessageColumn;
 import io.debezium.connector.vitess.connection.TransactionalMessage;
 import io.debezium.connector.vitess.connection.VStreamOutputMessageDecoder;
 import io.debezium.connector.vitess.connection.VStreamOutputReplicationMessage;
 import io.debezium.data.Envelope;
+import io.debezium.doc.FixFor;
 import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.schema.DefaultTopicNamingStrategy;
 import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.util.Clock;
+import io.vitess.proto.Query;
 
 public class VitessChangeRecordEmitterTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(VitessChangeRecordEmitterTest.class);
@@ -130,6 +136,39 @@ public class VitessChangeRecordEmitterTest {
         assertThat(emitter.getOperation()).isEqualTo(Envelope.Operation.UPDATE);
         assertThat(emitter.getOldColumnValues()).isEqualTo(TestHelper.defaultJavaValues().toArray());
         assertThat(emitter.getNewColumnValues()).isEqualTo(TestHelper.defaultJavaValues().toArray());
+    }
+
+    @Test
+    @FixFor("debezium/dbz#2607")
+    public void shouldPassUnavailableValueSentinelThroughForOmittedColumns() {
+        // setup fixture: string_col was omitted from the row image (binlog_row_image=NOBLOB);
+        // the emitter hands the sentinel to the value converters, which substitute the placeholder
+        List<ReplicationMessage.Column> columns = new ArrayList<>(TestHelper.defaultRelationMessageColumns());
+        columns.set(3, new ReplicationMessageColumn("string_col", new VitessType(Query.Type.VARBINARY.name(), Types.VARCHAR), true, null, true));
+        ReplicationMessage message = new VStreamOutputReplicationMessage(
+                ReplicationMessage.Operation.UPDATE,
+                AnonymousValue.getInstant(),
+                AnonymousValue.getString(),
+                AnonymousValue.getString(),
+                TestHelper.defaultTableId().toDoubleQuotedString(),
+                AnonymousValue.getString(),
+                columns,
+                columns);
+
+        // exercise SUT
+        VitessChangeRecordEmitter emitter = new VitessChangeRecordEmitter(
+                initializePartition(),
+                null,
+                Clock.system(),
+                new VitessConnectorConfig(TestHelper.defaultConfig().build()),
+                schema,
+                message);
+
+        // verify outcome
+        List<Object> expected = new ArrayList<>(TestHelper.defaultJavaValues());
+        expected.set(3, VitessValueConverter.UNAVAILABLE_VALUE);
+        assertThat(emitter.getNewColumnValues()).isEqualTo(expected.toArray());
+        assertThat(emitter.getOldColumnValues()).isEqualTo(expected.toArray());
     }
 
     @Test

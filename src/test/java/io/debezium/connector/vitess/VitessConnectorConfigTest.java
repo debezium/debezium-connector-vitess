@@ -417,4 +417,34 @@ public class VitessConnectorConfigTest {
         assertThat(VitessConnectorConfig.ALL_FIELDS).anyMatch(field -> field.name().equals("vitess.cell.preference"));
     }
 
+    @Test
+    public void shouldGetMaxStreamAgeSeconds() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.MAX_STREAM_AGE_SECONDS, 3600)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getMaxStreamAgeSeconds()).isEqualTo(3600);
+    }
+
+    @Test
+    public void shouldGetMaxStreamAgeSecondsDefaultValue() {
+        Configuration configuration = TestHelper.defaultConfig().build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        assertThat(connectorConfig.getMaxStreamAgeSeconds()).isEqualTo(0);
+    }
+
+    @Test
+    public void shouldNegativeMaxStreamAgeSecondsFailValidation() {
+        Configuration configuration = TestHelper.defaultConfig()
+                .with(VitessConnectorConfig.MAX_STREAM_AGE_SECONDS, -1)
+                .build();
+        VitessConnectorConfig connectorConfig = new VitessConnectorConfig(configuration);
+        List<String> inputs = new ArrayList<>();
+        Consumer<String> printConsumer = (input) -> {
+            inputs.add(input);
+        };
+        connectorConfig.validateAndRecord(List.of(VitessConnectorConfig.MAX_STREAM_AGE_SECONDS), printConsumer);
+        assertThat(inputs.size()).isEqualTo(1);
+    }
+
 }

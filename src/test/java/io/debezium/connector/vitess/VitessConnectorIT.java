@@ -2802,6 +2802,36 @@ public class VitessConnectorIT extends AbstractVitessConnectorTest {
         Testing.print("*** Done with verifying without offset.storage.per.task");
     }
 
+    @Test
+    public void shouldResumeWithoutGapOrDuplicateWhenMaxStreamAgeExceeded() throws Exception {
+        TestHelper.executeDDL("vitess_create_tables.ddl");
+        final LogInterceptor replicationLogInterceptor = new LogInterceptor(VitessReplicationConnection.class);
+
+        int maxStreamAgeSeconds = 5;
+        startConnector(config -> config
+                .with(VitessConnectorConfig.MAX_STREAM_AGE_SECONDS, maxStreamAgeSeconds),
+                false);
+        assertConnectorIsRunning();
+
+        String topic = TEST_UNSHARDED_KEYSPACE + ".numeric_table";
+        consumer = testConsumer(1);
+        executeAndWait(INSERT_NUMERIC_TYPES_STMT);
+        assertRecordInserted(topic, TestHelper.PK_FIELD, 1L);
+
+        // vtgate adds +/-10% jitter to the max age
+        Duration restartTimeout = Duration.ofSeconds((long) (maxStreamAgeSeconds * 1.1) + 30);
+        Awaitility.await()
+                .atMost(restartTimeout)
+                .pollInterval(Duration.ofSeconds(1))
+                .until(() -> replicationLogInterceptor.containsMessage("VStream exceeded max stream age, restarting stream"));
+        assertConnectorIsRunning();
+
+        consumer.expects(1);
+        executeAndWait(INSERT_NUMERIC_TYPES_STMT);
+        assertRecordInserted(topic, TestHelper.PK_FIELD, 2L);
+        assertThat(consumer.countRecords(5, TimeUnit.SECONDS)).isZero();
+    }
+
     private void waitForGtidAcquiring(final LogInterceptor logInterceptor) {
         // The inserts must happen only after GTID to stream from is obtained
         Awaitility.await().atMost(Duration.ofSeconds(TestHelper.waitTimeForRecords()))

@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -57,6 +58,7 @@ public class VitessReplicationConnection implements ReplicationConnection {
     private final VitessConnectorConfig config;
     // Channel closing is invoked from the change-event-source-coordinator thread
     private final AtomicReference<ManagedChannel> managedChannel = new AtomicReference<>();
+    private final AtomicBoolean streamRestartNeeded = new AtomicBoolean(false);
 
     public VitessReplicationConnection(VitessConnectorConfig config, VitessDatabaseSchema schema) {
         this.messageDecoder = new VStreamOutputMessageDecoder(schema);
@@ -100,6 +102,16 @@ public class VitessReplicationConnection implements ReplicationConnection {
      */
     public String quoteIdentifier(String identifier) {
         return "`" + identifier.replace("`", "``") + "`";
+    }
+
+    @Override
+    public boolean isStreamRestartNeeded() {
+        return streamRestartNeeded.get();
+    }
+
+    @Override
+    public void setStreamRestartNeeded(boolean needed) {
+        streamRestartNeeded.set(needed);
     }
 
     @Override
@@ -263,9 +275,16 @@ public class VitessReplicationConnection implements ReplicationConnection {
 
             @Override
             public void onError(Throwable t) {
-                LOGGER.error("VStream streaming onError. Status: {}", Status.fromThrowable(t), t);
-                // Only propagate the first error
-                error.compareAndSet(null, t);
+                Status status = Status.fromThrowable(t);
+                if (shouldRestartStream(status)) {
+                    LOGGER.info("VStream exceeded max stream age, restarting stream: {}", status);
+                    streamRestartNeeded.set(true);
+                }
+                else {
+                    LOGGER.error("VStream streaming onError. Status: {}", Status.fromThrowable(t), t);
+                    // Only propagate the first error
+                    error.compareAndSet(null, t);
+                }
                 reset();
             }
 
@@ -301,7 +320,8 @@ public class VitessReplicationConnection implements ReplicationConnection {
                 .setExcludeKeyspaceFromTableName(config.getExcludeKeyspaceFromTableName())
                 .setHeartbeatInterval(getHeartbeatSeconds())
                 .setStreamKeyspaceHeartbeats(config.getStreamKeyspaceHeartbeats())
-                .setCellPreference(config.getCellPreference().getValue());
+                .setCellPreference(config.getCellPreference().getValue())
+                .setMaxStreamAgeSeconds(config.getMaxStreamAgeSeconds());
 
         if (!Strings.isNullOrEmpty(config.getCells())) {
             vStreamFlagsBuilder.setCells(config.getCells());
@@ -371,6 +391,20 @@ public class VitessReplicationConnection implements ReplicationConnection {
             stub = stub.withCallCredentials(new StaticAuthCredentials(config.getVtgateUsername(), config.getVtgatePassword()));
         }
         return stub;
+    }
+
+    /**
+     * Determines if the stream should be restarted rather than propagating the error. vtgate
+     * signals max stream age only via UNAVAILABLE plus this message text (there is no dedicated
+     * error code or detail), so matching on the description is the only option.
+     */
+    private static boolean shouldRestartStream(Status status) {
+        if (status.getCode() == Status.Code.UNAVAILABLE
+                && status.getDescription() != null
+                && status.getDescription().contains("vstream exceeded maximum age")) {
+            return true;
+        }
+        return false;
     }
 
     private ManagedChannel newChannel() {

@@ -27,4 +27,17 @@ public interface ReplicationConnection extends AutoCloseable {
      */
     void startStreaming(
                         Vgtid vgtid, ReplicationMessageProcessor processor, AtomicReference<Throwable> error);
+
+    /**
+     * Check if the stream needs to be restarted due to server-initiated termination
+     * (e.g., max stream age exceeded).
+     *
+     * @return true if the stream should be restarted without bubbling up the error
+     */
+    boolean isStreamRestartNeeded();
+
+    /**
+     * Set or clear the stream restart flag.
+     */
+    void setStreamRestartNeeded(boolean needed);
 }

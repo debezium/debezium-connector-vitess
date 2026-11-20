@@ -448,6 +448,17 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
             .withValidation(VitessConnectorConfig::validateLoadBalancingPolicy)
             .withDescription("Specify the default load balancing policy used to connect to Vitess, e.g., 'pick_first', 'round_robin'");
 
+    public static final Field MAX_STREAM_AGE_SECONDS = Field.create(VITESS_CONFIG_GROUP_PREFIX + "max.stream.age.seconds")
+            .withDisplayName("VStream max stream age (seconds)")
+            .withType(Type.INT)
+            .withWidth(Width.SHORT)
+            .withDefault(0)
+            .withImportance(ConfigDef.Importance.MEDIUM)
+            .withValidation(Field::isNonNegativeInteger)
+            .withDescription("Maximum duration (in seconds) a VStream runs before the server terminates it with UNAVAILABLE. "
+                    + "The client reconnects automatically. A jitter of +/-10% is added server-side to spread out reconnections. "
+                    + "0 means no maximum age (disabled).");
+
     public static final Field INCLUDE_UNKNOWN_DATATYPES = Field.create("include.unknown.datatypes")
             .withDisplayName("Include unknown datatypes")
             .withType(Type.BOOLEAN)
@@ -649,7 +660,8 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
                     OFFSET_STORAGE_PER_TASK,
                     OFFSET_STORAGE_TASK_KEY_GEN,
                     PREV_NUM_TASKS,
-                    CONNECTOR_GENERATION)
+                    CONNECTOR_GENERATION,
+                    MAX_STREAM_AGE_SECONDS)
             .group(Field.Group.ADVANCED_HEARTBEAT,
                     STREAM_KEYSPACE_HEARTBEATS)
             .excluding(
@@ -884,6 +896,10 @@ public class VitessConnectorConfig extends RelationalDatabaseConnectorConfig {
 
     public String getGrpcDefaultLoadBalancingPolicy() {
         return getConfig().getString(GRPC_DEFAULT_LOAD_BALANCING_POLICY);
+    }
+
+    public int getMaxStreamAgeSeconds() {
+        return getConfig().getInteger(MAX_STREAM_AGE_SECONDS);
     }
 
     public boolean includeUnknownDatatypes() {
